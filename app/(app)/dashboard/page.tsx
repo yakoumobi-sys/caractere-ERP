@@ -10,6 +10,9 @@ import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { CapacityByWorkshop } from "@/components/dashboard/capacity-by-workshop";
 import { EmployeeKpi } from "@/components/dashboard/employee-kpi";
+import { OrdersSummary } from "@/components/dashboard/orders-summary";
+import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { EmployeesSummary } from "@/components/dashboard/employees-summary";
 import { formatMoney } from "@/lib/utils";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
 import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconBag, IconCalculator, IconUsers, IconContacts } from "@/components/icons";
@@ -178,45 +181,25 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Alertes (si non-admin, afficher KPI individuel) */}
+      {/* 1. ALERTES / KPI PERSONNALISÉ */}
       <div className="mb-6">
         {isAdmin ? <AlertsPanel /> : <EmployeeKpi />}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        {isAdmin && (
-          <KpiCard
-            label="Chiffre d'affaires (mois)"
-            value={formatMoney(revenueThisMonth)}
-            tone="purple"
-            icon={<IconWallet />}
-            trend={revenueTrend}
-          />
-        )}
-        {isAdmin && (
-          <KpiCard label="Factures impayées" value={formatMoney(unpaidTotal)} tone="red" icon={<IconAlert />} hint={`${unpaidCount} facture(s)`} />
-        )}
-        {isAdmin && (
-          <KpiCard
-            label="Pipeline commercial"
-            value={formatMoney(pipelineValue)}
-            tone="blue"
-            icon={<IconTrend />}
-            hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
-          />
-        )}
-        <KpiCard
-          label="Commandes en production"
-          value={String(queueCounts.reduce((s, c) => s + (c.count ?? 0), 0))}
-          tone="purple"
-          icon={<IconFactory />}
-          hint="toutes files confondues"
-        />
-        <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="produits à quantité ≤ 0" />
+      {/* 2. RÉSUMÉ DES COMMANDES */}
+      <OrdersSummary />
+
+      {/* 3. RÉSUMÉ DES EMPLOYÉS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <EmployeesSummary />
+        {isAdmin && <CapacityByWorkshop data={capacityData} />}
       </div>
 
+      {/* 4. COMMANDES RÉCENTES */}
+      <RecentOrders limit={8} />
+
       {/* Accès rapide aux modules */}
-      <Card className="p-4 mb-6">
+      <Card className="p-4 my-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3 px-1">Accès rapide</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {QUICK_MODULES.map((m) => (
@@ -237,6 +220,7 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
+      {/* 5. CHIFFRE D'AFFAIRES & GRAPHIQUES EN BAS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <Card className="p-5">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
@@ -251,8 +235,30 @@ export default async function DashboardPage() {
       </div>
 
       {isAdmin && (
-        <div className="mb-6">
-          <CapacityByWorkshop data={capacityData} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <Card className="lg:col-span-3">
+            <div className="p-5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">Chiffre d&apos;affaires (mois)</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4">
+                <KpiCard
+                  label="Chiffre d'affaires (mois)"
+                  value={formatMoney(revenueThisMonth)}
+                  tone="purple"
+                  icon={<IconWallet />}
+                  trend={revenueTrend}
+                />
+                <KpiCard label="Factures impayées" value={formatMoney(unpaidTotal)} tone="red" icon={<IconAlert />} hint={`${unpaidCount} facture(s)`} />
+                <KpiCard
+                  label="Pipeline commercial"
+                  value={formatMoney(pipelineValue)}
+                  tone="blue"
+                  icon={<IconTrend />}
+                  hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
+                />
+                <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="produits à quantité ≤ 0" />
+              </div>
+            </div>
+          </Card>
         </div>
       )}
 
