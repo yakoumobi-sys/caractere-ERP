@@ -117,6 +117,29 @@ d'étape de flocage forcée après l'impression — une fois imprimée, la comma
   ses **KPI** (actions des 14 derniers jours, graphique, commandes traitées) et ses **fautes**
   signalées (mineure/majeure), avec formulaire d'ajout.
 
+## Présences (pointage)
+
+Chaque connexion ouvre une ligne dans `time_logs` (heure de début) ; chaque déconnexion la ferme
+(heure de fin). Consultable dans **RH → Présences** : employé, date, début, fin, durée. Un
+utilisateur ne voit que ses propres pointages ; `admin` et `hr` voient tout le monde.
+
+⚠️ Limite connue : fermer l'onglet/le navigateur sans cliquer "Déconnexion" laisse la session
+ouverte ("en cours") jusqu'à la prochaine connexion, qui la referme automatiquement avant d'en
+ouvrir une nouvelle — la durée de cette session-là ne sera donc pas fiable.
+
+## Devise
+
+Tous les montants sont affichés en **dinar algérien (DZD)** via `formatMoney()` (`lib/utils.ts`).
+
+## Confidentialité du chiffre d'affaires
+
+Le tableau de bord n'affiche le chiffre d'affaires, les factures impayées, le pipeline commercial
+et les derniers devis qu'aux comptes de rôle `admin`. Les autres rôles voient uniquement les
+indicateurs opérationnels (commandes en production, ruptures de stock, graphique des commandes par
+technique). Cette restriction ne vit que sur le tableau de bord — les pages Ventes/Comptabilité
+elles-mêmes restent accessibles à tout utilisateur actif non `readonly` (RLS, `0003_rls.sql`) ; à
+resserrer séparément si besoin.
+
 ## Rôles
 
 `admin`, `manager`, `sales`, `purchasing`, `accounting`, `stock`, `hr`, `atelier`, `readonly`.

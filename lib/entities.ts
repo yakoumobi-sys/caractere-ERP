@@ -115,7 +115,7 @@ export const opportunitiesConfig: EntityConfig = {
         { value: "perdu", label: "Perdu" },
       ],
     },
-    { name: "amount", label: "Montant (€)", type: "number", step: "0.01" },
+    { name: "amount", label: "Montant (DA)", type: "number", step: "0.01" },
     { name: "expected_close_date", label: "Date de clôture prévue", type: "date" },
   ],
 };
@@ -305,7 +305,7 @@ export const projectsConfig: EntityConfig = {
     },
     { name: "start_date", label: "Date de début", type: "date" },
     { name: "end_date", label: "Date de fin", type: "date" },
-    { name: "budget", label: "Budget (€)", type: "number", step: "0.01" },
+    { name: "budget", label: "Budget (DA)", type: "number", step: "0.01" },
     { name: "description", label: "Description", type: "textarea" },
   ],
 };

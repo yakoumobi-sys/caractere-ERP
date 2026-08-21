@@ -61,7 +61,10 @@ const NAV = [
   },
   {
     section: "Ressources humaines",
-    items: [{ href: "/hr/employees", label: "Employés" }],
+    items: [
+      { href: "/hr/employees", label: "Employés" },
+      { href: "/hr/attendance", label: "Présences" },
+    ],
   },
   {
     section: "Projets",

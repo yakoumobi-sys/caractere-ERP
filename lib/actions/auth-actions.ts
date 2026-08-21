@@ -8,10 +8,22 @@ export async function signIn(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const supabase = createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
+
+  if (data.user) {
+    // Ferme toute session restée ouverte (déconnexion manquée, fermeture d'onglet...)
+    // puis ouvre le pointage du jour.
+    await supabase
+      .from("time_logs")
+      .update({ ended_at: new Date().toISOString() })
+      .eq("profile_id", data.user.id)
+      .is("ended_at", null);
+    await supabase.from("time_logs").insert({ profile_id: data.user.id });
+  }
+
   redirect("/dashboard");
 }
 
@@ -34,6 +46,18 @@ export async function signUp(formData: FormData) {
 
 export async function signOut() {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    await supabase
+      .from("time_logs")
+      .update({ ended_at: new Date().toISOString() })
+      .eq("profile_id", user.id)
+      .is("ended_at", null);
+  }
+
   await supabase.auth.signOut();
   redirect("/login");
 }
