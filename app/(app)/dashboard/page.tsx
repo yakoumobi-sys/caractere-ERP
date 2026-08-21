@@ -7,6 +7,9 @@ import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { OrdersChart } from "@/components/dashboard/orders-chart";
 import { QueueDonut } from "@/components/dashboard/queue-donut";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { AlertsPanel } from "@/components/dashboard/alerts-panel";
+import { CapacityByWorkshop } from "@/components/dashboard/capacity-by-workshop";
+import { EmployeeKpi } from "@/components/dashboard/employee-kpi";
 import { formatMoney } from "@/lib/utils";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
 import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconBag, IconCalculator, IconUsers, IconContacts } from "@/components/icons";
@@ -54,7 +57,7 @@ export default async function DashboardPage() {
   const since30 = lastNDays(30)[0];
   const since14 = lastNDays(14)[0];
 
-  const [{ data: orderRows }, queueCounts, { data: stockLevels }] = await Promise.all([
+  const [{ data: orderRows }, queueCounts, { data: stockLevels }, { data: allOrders }, { data: employees }] = await Promise.all([
     supabase.from("pipeline_orders").select("created_at,technique").gte("created_at", since14),
     Promise.all(
       QUEUES.map((q) =>
@@ -62,6 +65,8 @@ export default async function DashboardPage() {
       )
     ),
     supabase.from("product_stock_levels").select("*"),
+    supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
+    supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
   ]);
 
   let revenueThisMonth = 0;
@@ -133,6 +138,31 @@ export default async function DashboardPage() {
 
   const donutData = QUEUES.map((q, i) => ({ label: QUEUE_TITLES[q.name], value: queueCounts[i].count ?? 0, color: q.color }));
 
+  // Calcul de la capacité par atelier
+  const departmentCounts = new Map<string, { current: number; employees: number }>();
+  for (const emp of employees ?? []) {
+    if (!departmentCounts.has((emp as any).department)) {
+      departmentCounts.set((emp as any).department, { current: 0, employees: 0 });
+    }
+    const dept = departmentCounts.get((emp as any).department)!;
+    dept.employees += 1;
+  }
+  for (const order of allOrders ?? []) {
+    if ((order as any).assigned_to) {
+      const emp = (employees ?? []).find((e: any) => e.id === (order as any).assigned_to);
+      if (emp) {
+        const dept = departmentCounts.get(emp.department);
+        if (dept) dept.current += 1;
+      }
+    }
+  }
+  const capacityData = Array.from(departmentCounts.entries()).map(([dept, data]) => ({
+    department: dept,
+    current: data.current,
+    employees: data.employees,
+    avgPerEmployee: data.employees > 0 ? data.current / data.employees : 0,
+  }));
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -146,6 +176,11 @@ export default async function DashboardPage() {
           </span>
           <LinkButton href="/production/new">+ Nouvelle commande</LinkButton>
         </div>
+      </div>
+
+      {/* Alertes (si non-admin, afficher KPI individuel) */}
+      <div className="mb-6">
+        {isAdmin ? <AlertsPanel /> : <EmployeeKpi />}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -202,8 +237,8 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <Card className="p-5">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
             {isAdmin ? "Chiffre d'affaires — 30 derniers jours" : "Commandes créées — 14 derniers jours"}
           </h2>
@@ -214,6 +249,12 @@ export default async function DashboardPage() {
           <QueueDonut data={donutData} />
         </Card>
       </div>
+
+      {isAdmin && (
+        <div className="mb-6">
+          <CapacityByWorkshop data={capacityData} />
+        </div>
+      )}
 
       <div className={`grid grid-cols-1 ${isAdmin ? "lg:grid-cols-3" : ""} gap-4`}>
         <Card className="p-5">
