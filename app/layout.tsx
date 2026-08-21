@@ -6,9 +6,22 @@ export const metadata: Metadata = {
   description: "ERP interne de Caractère — CRM, ventes, achats, stock, comptabilité.",
 };
 
+// Applique le thème sauvegardé avant le premier rendu, pour éviter un flash clair/sombre.
+const themeInitScript = `
+try {
+  var t = localStorage.getItem('theme');
+  if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

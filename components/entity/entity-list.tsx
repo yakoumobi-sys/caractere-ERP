@@ -33,7 +33,7 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
         )}
         {!error && data && data.length > 0 && (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500 border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/60 text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 {config.columns.map((col) => (
                   <th key={col.key} className="px-4 py-2.5 font-medium">
@@ -43,11 +43,11 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {data.map((row: any) => (
-                <tr key={row.id} className="hover:bg-slate-50">
+                <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                   {config.columns.map((col) => (
-                    <td key={col.key} className="px-4 py-2.5 text-slate-700">
+                    <td key={col.key} className="px-4 py-2.5 text-slate-700 dark:text-slate-300">
                       <Link href={`${config.basePath}/${row.id}`} className="block">
                         {renderCell(row[col.key])}
                       </Link>
@@ -60,7 +60,7 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
                         await deleteEntity(config.table, config.basePath, row.id);
                       }}
                     >
-                      <button className="text-xs text-red-500 hover:underline">Supprimer</button>
+                      <button className="text-xs text-red-500 dark:text-red-400 hover:underline">Supprimer</button>
                     </form>
                   </td>
                 </tr>

@@ -28,12 +28,12 @@ export default async function Page() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {QUEUES.map((q, i) => (
           <Link key={q.name} href={q.href}>
-            <Card className="p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+            <Card className="p-5 hover:border-brand-300 dark:hover:border-brand-500/50 hover:shadow-sm transition-all">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">{QUEUE_TITLES[q.name]}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{QUEUE_TITLES[q.name]}</p>
                 <span className="text-xl leading-none">{q.icon}</span>
               </div>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{counts[i].count ?? 0}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white">{counts[i].count ?? 0}</p>
             </Card>
           </Link>
         ))}

@@ -33,21 +33,21 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
           <Card key={o.id} className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
-                <Link href={`/production/${o.id}`} className="text-base font-semibold text-slate-900 hover:text-brand-600">
+                <Link href={`/production/${o.id}`} className="text-base font-semibold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400">
                   {o.number}
                 </Link>
-                <span className="text-sm text-slate-500 ml-2">{o.contact_name}</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">{o.contact_name}</span>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <Badge tone="blue">{statusLabel(o.status)}</Badge>
-                  <span className="text-xs text-slate-400">{formatSince(o.status_since)}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{formatSince(o.status_since)}</span>
                   {o.assignee_first_name && (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
                       · {o.assignee_first_name} {o.assignee_last_name}
                     </span>
                   )}
                 </div>
                 {o.pipeline_order_items?.length > 0 && (
-                  <p className="text-xs text-slate-600 mt-2">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
                     {o.pipeline_order_items
                       .map(
                         (it: any) =>
@@ -57,7 +57,7 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
                   </p>
                 )}
                 {o.pipeline_order_prints?.length > 0 && (
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                     {o.pipeline_order_prints
                       .map((p: any) => `${p.placement}${p.size_cm ? ` (${p.size_cm})` : ""}${p.text_content ? ` "${p.text_content}"` : ""}`)
                       .join(" · ")}

@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { PageHeader, Card, Badge, LinkButton } from "@/components/ui";
+import { Card, Badge, LinkButton } from "@/components/ui";
 import { KpiCard } from "@/components/kpi-card";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { OrdersChart } from "@/components/dashboard/orders-chart";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { QueueDonut } from "@/components/dashboard/queue-donut";
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { formatMoney } from "@/lib/utils";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
+import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconBag, IconCalculator, IconUsers, IconContacts } from "@/components/icons";
 
-const QUEUES: { name: QueueName; href: string }[] = [
-  { name: "dtf", href: "/production/dtf" },
-  { name: "broderie", href: "/production/broderie" },
-  { name: "gros", href: "/production/gros" },
-  { name: "ready", href: "/production/ready" },
+const QUEUES: { name: QueueName; href: string; color: string }[] = [
+  { name: "dtf", href: "/production/dtf", color: "#2563eb" },
+  { name: "broderie", href: "/production/broderie", color: "#7c3aed" },
+  { name: "gros", href: "/production/gros", color: "#f59e0b" },
+  { name: "ready", href: "/production/ready", color: "#10b981" },
+];
+
+const QUICK_MODULES = [
+  { label: "Production", href: "/production", icon: IconFactory },
+  { label: "CRM", href: "/crm/contacts", icon: IconContacts },
+  { label: "Ventes", href: "/sales/quotes", icon: IconCart },
+  { label: "Achats", href: "/purchasing/suppliers", icon: IconBag },
+  { label: "Stock", href: "/inventory/products", icon: IconBox },
+  { label: "Comptabilité", href: "/accounting/journal", icon: IconCalculator },
+  { label: "RH", href: "/hr/employees", icon: IconUsers },
 ];
 
 function lastNDays(n: number) {
@@ -31,10 +44,13 @@ export default async function DashboardPage() {
   const supabase = createClient();
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
+  const firstName = (profile?.full_name ?? "").trim().split(" ")[0] || "là";
 
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const startOfMonthISO = startOfMonth.toISOString().slice(0, 10);
+  const startOfLastMonthISO = startOfLastMonth.toISOString().slice(0, 10);
   const since30 = lastNDays(30)[0];
   const since14 = lastNDays(14)[0];
 
@@ -48,8 +64,8 @@ export default async function DashboardPage() {
     supabase.from("product_stock_levels").select("*"),
   ]);
 
-  // Chiffres d'affaires / finances — réservés à l'administrateur
   let revenueThisMonth = 0;
+  let revenueTrend: number | undefined;
   let unpaidTotal = 0;
   let unpaidCount = 0;
   let pipelineValue = 0;
@@ -58,20 +74,35 @@ export default async function DashboardPage() {
   let revenueData: { day: string; total: number }[] = [];
 
   if (isAdmin) {
-    const [{ data: invoicesThisMonth }, { data: unpaidInvoices }, { data: openOpportunities }, { data: quotes }, { data: revenueRows }] =
-      await Promise.all([
-        supabase.from("invoices").select("total,status").gte("issue_date", startOfMonthISO).in("status", ["validee", "payee"]),
-        supabase.from("invoices").select("id,total,amount_paid").in("status", ["validee"]),
-        supabase.from("opportunities").select("id,amount").not("stage", "in", "(gagne,perdu)"),
-        supabase
-          .from("sales_quotes")
-          .select("id,number,status,total,quote_date,contacts(name)")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase.from("invoices").select("issue_date,total").in("status", ["validee", "payee"]).gte("issue_date", since30),
-      ]);
+    const [
+      { data: invoicesThisMonth },
+      { data: invoicesLastMonth },
+      { data: unpaidInvoices },
+      { data: openOpportunities },
+      { data: quotes },
+      { data: revenueRows },
+    ] = await Promise.all([
+      supabase.from("invoices").select("total,status").gte("issue_date", startOfMonthISO).in("status", ["validee", "payee"]),
+      supabase
+        .from("invoices")
+        .select("total,status")
+        .gte("issue_date", startOfLastMonthISO)
+        .lt("issue_date", startOfMonthISO)
+        .in("status", ["validee", "payee"]),
+      supabase.from("invoices").select("id,total,amount_paid").in("status", ["validee"]),
+      supabase.from("opportunities").select("id,amount").not("stage", "in", "(gagne,perdu)"),
+      supabase
+        .from("sales_quotes")
+        .select("id,number,status,total,quote_date,contacts(name)")
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase.from("invoices").select("issue_date,total").in("status", ["validee", "payee"]).gte("issue_date", since30),
+    ]);
 
     revenueThisMonth = (invoicesThisMonth ?? []).reduce((sum: number, inv: any) => sum + Number(inv.total), 0);
+    const revenueLastMonth = (invoicesLastMonth ?? []).reduce((sum: number, inv: any) => sum + Number(inv.total), 0);
+    if (revenueLastMonth > 0) revenueTrend = ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100;
+
     unpaidTotal = (unpaidInvoices ?? []).reduce((sum: number, inv: any) => sum + (Number(inv.total) - Number(inv.amount_paid)), 0);
     unpaidCount = unpaidInvoices?.length ?? 0;
     pipelineValue = (openOpportunities ?? []).reduce((sum: number, o: any) => sum + Number(o.amount), 0);
@@ -100,95 +131,140 @@ export default async function DashboardPage() {
   }
   const ordersData = Array.from(ordersByDay.entries()).map(([day, v]) => ({ day: shortDay(day), ...v }));
 
+  const donutData = QUEUES.map((q, i) => ({ label: QUEUE_TITLES[q.name], value: queueCounts[i].count ?? 0, color: q.color }));
+
   return (
     <div>
-      <PageHeader
-        title="Tableau de bord"
-        description="Vue d'ensemble de l'activité Caractère"
-        action={<LinkButton href="/production/new">+ Nouvelle commande</LinkButton>}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Bonjour, {firstName} 👋</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Voici un aperçu de l&apos;activité Caractère aujourd&apos;hui.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-600 dark:text-slate-300">
+            {new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(now)}
+          </span>
+          <LinkButton href="/production/new">+ Nouvelle commande</LinkButton>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        {isAdmin && <KpiCard label="Chiffre d'affaires (mois)" value={formatMoney(revenueThisMonth)} tone="green" />}
         {isAdmin && (
-          <KpiCard label="Factures impayées" value={formatMoney(unpaidTotal)} tone="red" hint={`${unpaidCount} facture(s)`} />
+          <KpiCard
+            label="Chiffre d'affaires (mois)"
+            value={formatMoney(revenueThisMonth)}
+            tone="purple"
+            icon={<IconWallet />}
+            trend={revenueTrend}
+          />
+        )}
+        {isAdmin && (
+          <KpiCard label="Factures impayées" value={formatMoney(unpaidTotal)} tone="red" icon={<IconAlert />} hint={`${unpaidCount} facture(s)`} />
         )}
         {isAdmin && (
           <KpiCard
             label="Pipeline commercial"
             value={formatMoney(pipelineValue)}
             tone="blue"
+            icon={<IconTrend />}
             hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
           />
         )}
         <KpiCard
           label="Commandes en production"
           value={String(queueCounts.reduce((s, c) => s + (c.count ?? 0), 0))}
-          tone="blue"
+          tone="purple"
+          icon={<IconFactory />}
           hint="toutes files confondues"
         />
-        <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} hint="produits à quantité ≤ 0" />
+        <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="produits à quantité ≤ 0" />
       </div>
 
-      {/* Files de production — accès rapide */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        {QUEUES.map((q, i) => (
-          <Link key={q.name} href={q.href}>
-            <Card className="p-4 hover:border-brand-300 hover:shadow-sm transition-all">
-              <p className="text-xs text-slate-500">{QUEUE_TITLES[q.name]}</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900">{queueCounts[i].count ?? 0}</p>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {/* Accès rapide aux modules */}
+      <Card className="p-4 mb-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3 px-1">Accès rapide</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {QUICK_MODULES.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              className="flex flex-col items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-800 px-3 py-3 hover:border-brand-300 dark:hover:border-brand-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-center"
+            >
+              <span className="h-9 w-9 rounded-lg bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                <m.icon />
+              </span>
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{m.label}</span>
+              <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Actif
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
-      <div className={`grid grid-cols-1 ${isAdmin ? "lg:grid-cols-2" : ""} gap-4 mb-6`}>
-        {isAdmin && (
-          <Card className="p-5">
-            <h2 className="text-sm font-semibold text-slate-900 mb-1">Chiffre d&apos;affaires — 30 derniers jours</h2>
-            <RevenueChart data={revenueData} />
-          </Card>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <Card className="p-5 lg:col-span-2">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+            {isAdmin ? "Chiffre d'affaires — 30 derniers jours" : "Commandes créées — 14 derniers jours"}
+          </h2>
+          {isAdmin ? <RevenueChart data={revenueData} /> : <OrdersChart data={ordersData} />}
+        </Card>
         <Card className="p-5">
-          <h2 className="text-sm font-semibold text-slate-900 mb-1">Commandes créées — 14 derniers jours</h2>
-          <OrdersChart data={ordersData} />
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Répartition de la production</h2>
+          <QueueDonut data={donutData} />
         </Card>
       </div>
 
-      {isAdmin && (
+      <div className={`grid grid-cols-1 ${isAdmin ? "lg:grid-cols-3" : ""} gap-4`}>
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-900">Derniers devis</h2>
-            <Link href="/sales/quotes" className="text-sm text-brand-600 hover:underline">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Activité récente</h2>
+            <Link href="/production" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
               Voir tout
             </Link>
           </div>
-          {recentQuotes.length === 0 && <p className="text-sm text-slate-400 py-6 text-center">Aucun devis pour l&apos;instant.</p>}
-          {recentQuotes.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-slate-100">
-                  {recentQuotes.map((q: any) => (
-                    <tr key={q.id}>
-                      <td className="py-2">
-                        <Link href={`/sales/quotes/${q.id}`} className="text-brand-600 hover:underline">
-                          {q.number}
-                        </Link>
-                      </td>
-                      <td className="py-2 text-slate-600">{q.contacts?.name ?? "—"}</td>
-                      <td className="py-2 text-slate-500">{formatDate(q.quote_date)}</td>
-                      <td className="py-2">
-                        <Badge tone={q.status === "accepte" ? "green" : q.status === "refuse" ? "red" : "slate"}>{q.status}</Badge>
-                      </td>
-                      <td className="py-2 text-right font-medium">{formatMoney(q.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ActivityFeed />
         </Card>
-      )}
+
+        {isAdmin && (
+          <Card className="p-5">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">Commandes par technique — 14 jours</h2>
+            <OrdersChart data={ordersData} />
+          </Card>
+        )}
+
+        {isAdmin && (
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Derniers devis</h2>
+              <Link href="/sales/quotes" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
+                Voir tout
+              </Link>
+            </div>
+            {recentQuotes.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500 py-6 text-center">Aucun devis pour l&apos;instant.</p>}
+            {recentQuotes.length > 0 && (
+              <div className="flex flex-col gap-2.5">
+                {recentQuotes.map((q: any) => (
+                  <Link
+                    key={q.id}
+                    href={`/sales/quotes/${q.id}`}
+                    className="flex items-center justify-between text-sm gap-2 hover:text-brand-600 dark:hover:text-brand-400"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-medium text-slate-900 dark:text-white">{q.number}</span>
+                      <span className="text-slate-400 dark:text-slate-500"> · {q.contacts?.name ?? "—"}</span>
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <Badge tone={q.status === "accepte" ? "green" : q.status === "refuse" ? "red" : "slate"}>{q.status}</Badge>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{formatMoney(q.total)}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

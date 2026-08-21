@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cx } from "@/lib/utils";
+import { NAV_ICONS, IconChevron } from "@/components/icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   {
@@ -81,44 +84,73 @@ const NAV = [
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const activeSection = NAV.find((g) => g.items.some((it) => pathname.startsWith(it.href)))?.section;
+  const [openSection, setOpenSection] = useState<string | null>(activeSection ?? "Général");
 
   return (
-    <aside className="h-full w-full border-r border-slate-200 bg-white overflow-y-auto flex flex-col">
-      <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200 shrink-0">
-        <div className="h-8 w-8 rounded-lg bg-brand-500 text-white flex items-center justify-center font-bold text-sm">
+    <aside className="h-full w-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0">
           C
         </div>
-        <span className="font-semibold text-slate-900">Caractère ERP</span>
+        <div className="leading-tight">
+          <p className="font-semibold text-slate-900 dark:text-white text-sm">CARACTÈRE</p>
+          <p className="text-[10px] tracking-wide text-slate-400 dark:text-slate-500 uppercase">ERP System</p>
+        </div>
       </div>
-      <nav className="px-3 py-4 flex flex-col gap-5">
-        {NAV.map((group) => (
-          <div key={group.section}>
-            <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {group.section}
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {group.items.map((item) => {
-                const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={cx(
-                      "rounded-md px-3 py-2 text-sm transition-colors",
-                      active
-                        ? "bg-brand-50 text-brand-700 font-medium"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
+
+      <nav className="px-3 py-3 flex flex-col gap-1 flex-1">
+        {NAV.map((group) => {
+          const Icon = NAV_ICONS[group.section];
+          const isOpen = openSection === group.section;
+          const hasActive = group.items.some((it) => (it.exact ? pathname === it.href : pathname.startsWith(it.href)));
+          return (
+            <div key={group.section}>
+              <button
+                type="button"
+                onClick={() => setOpenSection(isOpen ? null : group.section)}
+                className={cx(
+                  "w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  hasActive
+                    ? "bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                )}
+              >
+                {Icon && <Icon className="shrink-0" />}
+                <span className="flex-1 text-left">{group.section}</span>
+                {group.items.length > 1 && <IconChevron open={isOpen} className="text-slate-400" />}
+              </button>
+
+              {(isOpen || group.items.length === 1) && (
+                <div className="mt-0.5 ml-4 pl-4 border-l border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+                  {group.items.map((item) => {
+                    const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={cx(
+                          "rounded-md px-3 py-1.5 text-sm transition-colors",
+                          active
+                            ? "bg-brand-500 text-white font-medium"
+                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
+
+      <div className="px-3 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }

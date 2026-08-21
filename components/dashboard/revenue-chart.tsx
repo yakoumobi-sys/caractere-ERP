@@ -10,8 +10,8 @@ export function RevenueChart({ data }: { data: { day: string; total: number }[] 
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1f4e9e" stopOpacity={0.25} />
-              <stop offset="100%" stopColor="#1f4e9e" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -28,7 +28,7 @@ export function RevenueChart({ data }: { data: { day: string; total: number }[] 
             contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: "#e2e8f0" }}
             formatter={(v: number) => [formatMoney(v), "Chiffre d'affaires"]}
           />
-          <Area type="monotone" dataKey="total" stroke="#1f4e9e" strokeWidth={2} fill="url(#revenueFill)" />
+          <Area type="monotone" dataKey="total" stroke="#7c3aed" strokeWidth={2} fill="url(#revenueFill)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>

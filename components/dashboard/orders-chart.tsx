@@ -3,9 +3,9 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const SERIES = [
-  { key: "dtf", label: "DTF", color: "#1f4e9e" },
+  { key: "dtf", label: "DTF", color: "#2563eb" },
   { key: "broderie", label: "Broderie", color: "#7c3aed" },
-  { key: "gros", label: "Gros", color: "#d97706" },
+  { key: "gros", label: "Gros", color: "#f59e0b" },
 ];
 
 export function OrdersChart({ data }: { data: Array<{ day: string; dtf: number; broderie: number; gros: number }> }) {

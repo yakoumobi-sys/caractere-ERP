@@ -3,6 +3,21 @@
 ERP interne pour **Caractère** — CRM, ventes & facturation, achats, stock et comptabilité de base,
 construit avec Next.js 14 (App Router), TypeScript, Tailwind CSS et Supabase (Postgres + Auth + RLS).
 
+## Design
+
+Palette violette (`brand-*` dans `tailwind.config.ts`), navigation latérale à sections repliables
+avec icônes, mode sombre (bouton en bas de la sidebar, mémorisé en local sur l'appareil). Le
+tableau de bord reprend les codes d'un dashboard SaaS moderne (salutation, cartes KPI à pastille
+colorée, accès rapide aux modules, graphique CA, donut de répartition de la production, fil
+d'activité en temps réel) — construit avec les vraies données de l'ERP, pas des chiffres de
+démonstration.
+
+Le mode sombre couvre la coquille de l'app (sidebar, barre du haut), les composants partagés
+(`components/ui.tsx` : cartes, boutons, badges, champs) et les listes génériques/documents/files de
+production. Quelques pages plus spécifiques (rapports comptables, journal, présences, fiche
+détail commande/employé) n'ont pas encore leurs propres classes `dark:` et resteront à fond clair
+même en mode sombre — à étendre si besoin.
+
 ## Modules
 
 | Module | État | Contenu |
