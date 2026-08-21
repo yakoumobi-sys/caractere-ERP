@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createPipelineOrder } from "@/lib/actions/pipeline-actions";
+import { OrderDetailsFields } from "@/components/production/order-details-fields";
 import { Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
 
 export default async function Page() {
@@ -15,10 +16,10 @@ export default async function Page() {
   ]);
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-3xl">
       <PageHeader title="Nouvelle commande" description="Saisie à la réception (WhatsApp)" />
-      <Card className="p-6">
-        <form action={createPipelineOrder} className="flex flex-col gap-4">
+      <form action={createPipelineOrder} className="flex flex-col gap-6">
+        <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Client" htmlFor="contact_id" required>
             <select id="contact_id" name="contact_id" required className={inputClass}>
               <option value="">— Sélectionner un client existant —</option>
@@ -36,9 +37,6 @@ export default async function Page() {
               puis revenir ici.
             </p>
           </Field>
-          <Field label="Description de la commande" htmlFor="description">
-            <textarea id="description" name="description" rows={3} className={inputClass} />
-          </Field>
           <Field label="Réceptionné par" htmlFor="assigned_to">
             <select id="assigned_to" name="assigned_to" className={inputClass}>
               <option value="">Non assigné</option>
@@ -49,11 +47,19 @@ export default async function Page() {
               ))}
             </select>
           </Field>
-          <div className="pt-2">
-            <Button type="submit">Créer la commande</Button>
+          <div className="sm:col-span-2">
+            <Field label="Note (optionnel)" htmlFor="description">
+              <textarea id="description" name="description" rows={2} className={inputClass} />
+            </Field>
           </div>
-        </form>
-      </Card>
+        </Card>
+
+        <OrderDetailsFields />
+
+        <div>
+          <Button type="submit">Créer la commande</Button>
+        </div>
+      </form>
     </div>
   );
 }

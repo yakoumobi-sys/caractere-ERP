@@ -93,6 +93,10 @@ Réception WhatsApp (Lilia/Lydia)
 ```
 
 - Chaque commande entre en base dès la réception (le client est créé/rattaché immédiatement).
+- Une commande détaille les **articles** (vêtement, couleur, taille, quantité — ex: "5 T-shirt
+  noir L") et les **zones de personnalisation** (emplacement, taille, texte, technique DTF/
+  broderie/flocage — ex: "Dos, 30cm, `eurl flex`, flocage"), avec **upload du logo/visuel**
+  (stocké dans le bucket Supabase Storage `order-files`).
 - Le sélecteur "assigné à" ne propose que les employés du département correspondant à l'étape.
 - Chaque changement d'étape est journalisé (`pipeline_stage_log`) : on sait qui a fait quoi et
   **depuis quand** la commande est dans son étape actuelle (affiché sur chaque carte).
