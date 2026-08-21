@@ -31,13 +31,13 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
         }
         return (
           <Card key={o.id} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <Link href={`/production/${o.id}`} className="text-sm font-semibold text-slate-900 hover:text-brand-600">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Link href={`/production/${o.id}`} className="text-base font-semibold text-slate-900 hover:text-brand-600">
                   {o.number}
                 </Link>
                 <span className="text-sm text-slate-500 ml-2">{o.contact_name}</span>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex flex-wrap items-center gap-2 mt-1">
                   <Badge tone="blue">{statusLabel(o.status)}</Badge>
                   <span className="text-xs text-slate-400">{formatSince(o.status_since)}</span>
                   {o.assignee_first_name && (
@@ -46,30 +46,35 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
                     </span>
                   )}
                 </div>
+                {o.pipeline_order_items?.length > 0 && (
+                  <p className="text-xs text-slate-600 mt-2">
+                    {o.pipeline_order_items
+                      .map(
+                        (it: any) =>
+                          `${it.quantity}× ${it.product_name}${it.color ? ` ${it.color}` : ""}${it.size ? ` (${it.size})` : ""}`
+                      )
+                      .join(" · ")}
+                  </p>
+                )}
+                {o.pipeline_order_prints?.length > 0 && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {o.pipeline_order_prints
+                      .map((p: any) => `${p.placement}${p.size_cm ? ` (${p.size_cm})` : ""}${p.text_content ? ` "${p.text_content}"` : ""}`)
+                      .join(" · ")}
+                  </p>
+                )}
               </div>
               {def?.next && def.action && (
-                <form action={advance}>
-                  <button type="submit" className="rounded-md bg-brand-500 text-white text-sm px-3.5 py-2 hover:bg-brand-600">
+                <form action={advance} className="shrink-0">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto rounded-md bg-brand-500 text-white text-sm font-medium px-5 py-3 sm:py-2.5 hover:bg-brand-600 active:bg-brand-700"
+                  >
                     {def.action}
                   </button>
                 </form>
               )}
             </div>
-
-            {o.pipeline_order_items?.length > 0 && (
-              <p className="text-xs text-slate-600 mt-2">
-                {o.pipeline_order_items
-                  .map((it: any) => `${it.quantity}× ${it.product_name}${it.color ? ` ${it.color}` : ""}${it.size ? ` (${it.size})` : ""}`)
-                  .join(" · ")}
-              </p>
-            )}
-            {o.pipeline_order_prints?.length > 0 && (
-              <p className="text-xs text-slate-400 mt-1">
-                {o.pipeline_order_prints
-                  .map((p: any) => `${p.placement}${p.size_cm ? ` (${p.size_cm})` : ""}${p.text_content ? ` "${p.text_content}"` : ""}`)
-                  .join(" · ")}
-              </p>
-            )}
           </Card>
         );
       })}

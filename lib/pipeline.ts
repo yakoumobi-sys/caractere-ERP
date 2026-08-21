@@ -1,28 +1,26 @@
 // Parcours de la commande chez Caractère :
-// Le commercial configure la commande (articles, personnalisation, technique)
-// -> elle part dans la file de l'atelier concerné -> chaque prise en charge
-// change son statut -> une fois prête, retour au commercial pour livraison.
+// Le commercial configure la commande (client, articles, technique) -> elle
+// part dans la file de l'atelier concerné -> chaque prise en charge change
+// son statut -> une fois prête, retour au commercial pour livraison.
 
-export type Technique = "dtf" | "broderie" | "simple";
+export type Technique = "dtf" | "broderie" | "aucune";
 
 export type OrderStatus =
   | "attente_dtf"
   | "impression_dtf"
-  | "attente_flocage"
-  | "en_flocage"
   | "attente_broderie"
   | "en_broderie"
-  | "attente_simple"
-  | "en_simple"
+  | "attente_gros"
+  | "en_preparation_gros"
   | "prete"
   | "livree";
 
-export type QueueName = "dtf" | "broderie" | "simple" | "flocage" | "ready";
+export type QueueName = "dtf" | "broderie" | "gros" | "ready";
 
 export const TECHNIQUES: { value: Technique; label: string }[] = [
   { value: "dtf", label: "DTF" },
   { value: "broderie", label: "Broderie" },
-  { value: "simple", label: "Simple (flocage direct)" },
+  { value: "aucune", label: "Rien (commande gros)" },
 ];
 
 export const LOGO_PLACEMENTS: { value: string; label: string }[] = [
@@ -43,7 +41,7 @@ export const LOGO_SOURCES: { value: string; label: string }[] = [
 export function initialStatus(technique: Technique): OrderStatus {
   if (technique === "dtf") return "attente_dtf";
   if (technique === "broderie") return "attente_broderie";
-  return "attente_simple";
+  return "attente_gros";
 }
 
 interface StatusDef {
@@ -73,22 +71,6 @@ export const STATUS_DEFS: Record<OrderStatus, StatusDef> = {
     label: "Impression en cours",
     queue: "dtf",
     department: "Atelier DTF",
-    next: "attente_flocage",
-    action: "Marquer imprimée",
-  },
-  attente_flocage: {
-    value: "attente_flocage",
-    label: "Prêt pour flocage",
-    queue: "flocage",
-    department: "Atelier Flocage",
-    next: "en_flocage",
-    action: "Prendre la commande",
-  },
-  en_flocage: {
-    value: "en_flocage",
-    label: "En flocage",
-    queue: "flocage",
-    department: "Atelier Flocage",
     next: "prete",
     action: "Marquer terminée",
   },
@@ -108,18 +90,18 @@ export const STATUS_DEFS: Record<OrderStatus, StatusDef> = {
     next: "prete",
     action: "Marquer terminée",
   },
-  attente_simple: {
-    value: "attente_simple",
-    label: "En attente (Simple)",
-    queue: "simple",
+  attente_gros: {
+    value: "attente_gros",
+    label: "En attente (commande gros)",
+    queue: "gros",
     department: null,
-    next: "en_simple",
+    next: "en_preparation_gros",
     action: "Prendre la commande",
   },
-  en_simple: {
-    value: "en_simple",
-    label: "En cours (Simple)",
-    queue: "simple",
+  en_preparation_gros: {
+    value: "en_preparation_gros",
+    label: "En préparation",
+    queue: "gros",
     department: null,
     next: "prete",
     action: "Marquer terminée",
@@ -155,7 +137,6 @@ export function statusesForQueue(queue: QueueName): OrderStatus[] {
 export const QUEUE_TITLES: Record<QueueName, string> = {
   dtf: "File DTF",
   broderie: "File Broderie",
-  simple: "File Simple",
-  flocage: "File Flocage",
+  gros: "Commande gros",
   ready: "Commandes prêtes",
 };

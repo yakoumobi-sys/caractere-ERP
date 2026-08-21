@@ -24,7 +24,8 @@ export async function createPipelineOrder(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const contact_id = String(formData.get("contact_id") ?? "");
+  let contact_id = String(formData.get("contact_id") ?? "");
+  const clientMode = String(formData.get("client_mode") ?? "existing");
   const description = (formData.get("description") as string) || null;
   const technique = String(formData.get("technique") ?? "") as Technique;
   const logo_placement = (formData.get("logo_placement") as string) || null;
@@ -32,8 +33,24 @@ export async function createPipelineOrder(formData: FormData) {
   const logo_source = (formData.get("logo_source") as string) || null;
   const logo_source_value = (formData.get("logo_source_value") as string) || null;
 
+  if (clientMode === "new") {
+    const name = String(formData.get("client_new_name") ?? "").trim();
+    if (!name) throw new Error("Le nom du nouveau client est requis.");
+    const { data: contact, error: contactError } = await supabase
+      .from("contacts")
+      .insert({
+        name,
+        phone: (formData.get("client_new_phone") as string) || null,
+        type: (formData.get("client_new_type") as string) || "client",
+      })
+      .select("id")
+      .single();
+    if (contactError) throw new Error(contactError.message);
+    contact_id = contact.id;
+  }
+
   if (!contact_id) throw new Error("Le client est requis.");
-  if (!["dtf", "broderie", "simple"].includes(technique)) throw new Error("La technique est requise.");
+  if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
 
   const { data: order, error } = await supabase
     .from("pipeline_orders")

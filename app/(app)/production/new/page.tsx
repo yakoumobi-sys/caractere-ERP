@@ -9,37 +9,20 @@ export default async function Page() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Nouvelle commande" description="Configurateur — à remplir par le commercial" />
+      <PageHeader title="Nouvelle commande" description="Configurateur — Client, Article, Impression" />
       <form action={createPipelineOrder} className="flex flex-col gap-6">
-        <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Client" htmlFor="contact_id" required>
-            <select id="contact_id" name="contact_id" required className={inputClass}>
-              <option value="">— Sélectionner un client existant —</option>
-              {(contacts ?? []).map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-slate-400 mt-1">
-              Client introuvable ?{" "}
-              <a href="/crm/contacts/new" target="_blank" className="text-brand-600 hover:underline">
-                Créer la fiche client
-              </a>{" "}
-              puis revenir ici.
-            </p>
+        <OrderDetailsFields contacts={(contacts as any) ?? []} />
+
+        <Card className="p-6">
+          <Field label="Note (optionnel)" htmlFor="description">
+            <textarea id="description" name="description" rows={2} className={inputClass} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Note (optionnel)" htmlFor="description">
-              <textarea id="description" name="description" rows={2} className={inputClass} />
-            </Field>
-          </div>
         </Card>
 
-        <OrderDetailsFields />
-
         <div>
-          <Button type="submit">Créer la commande</Button>
+          <Button type="submit" className="w-full sm:w-auto text-base px-6 py-3">
+            Créer la commande
+          </Button>
         </div>
       </form>
     </div>

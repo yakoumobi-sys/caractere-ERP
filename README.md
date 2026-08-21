@@ -73,28 +73,36 @@ l'assignation dans **Suivi de production**.
 
 ## Suivi de production
 
-Le module central de Caractère. Le commercial configure la commande dans un **configurateur**
-(`/production/new`) : articles (vêtement/couleur/taille/quantité), zones de personnalisation
-(emplacement/taille/texte), emplacement du logo (Coeur, Coeur + dos, Dos, Poitrine, Spécial), où
-le récupérer (WhatsApp/Viber/Email — ou upload direct du fichier), puis choisit la **technique**
-(DTF / Broderie / Simple) — c'est ce choix qui route la commande dans la bonne file :
+Le module central de Caractère. Le commercial configure la commande en **3 étapes rapides**
+(`/production/new`) :
+
+1. **Client** — choisir un client existant ou en créer un nouveau directement (nom + téléphone),
+   sans quitter le formulaire.
+2. **Article** — vêtement, couleur, taille, quantité (lignes ajoutables).
+3. **Impression** — DTF / Broderie / Rien (commande gros). Si DTF ou Broderie : emplacement du
+   logo (Coeur, Coeur + dos, Dos, Poitrine, Spécial), où le récupérer (WhatsApp/Viber/Email — ou
+   upload direct du fichier).
+
+Ce choix route automatiquement la commande dans la bonne file :
 
 ```
                     ┌─────────────┐
-     technique DTF  │ File DTF    │ opérateur "prend" → Impression → "imprimée"
-        ┌──────────▶│ attente_dtf │──────────────────────────────────┐
-        │           └─────────────┘                                  ▼
-Configurateur                                                 ┌───────────────┐
-commercial                                                    │ File Flocage  │ floqueur "prend" → "terminée"
-        │           ┌─────────────────┐                       │ attente_flocage│──────┐
-        ├──────────▶│ File Broderie   │──── "terminée" ───┐   └───────────────┘      │
-technique Broderie  │ attente_broderie│                    │                          │
-        │           └─────────────────┘                    ▼                          ▼
+     technique DTF  │ File DTF    │ opérateur "prend" → "imprimée"
+        ┌──────────▶│ attente_dtf │──────────────────────────────┐
+        │           └─────────────┘                              │
+Configurateur       ┌─────────────────┐                          │
+commercial          │ File Broderie   │─── "terminée" ───┐        │
+        ├──────────▶│ attente_broderie│                   │       │
+        │           └─────────────────┘                   ▼       ▼
         │           ┌─────────────────┐            ┌──────────────────┐
-        └──────────▶│ File Simple     │─"terminée"─▶│ Commandes prêtes │──▶ Livrée
-technique Simple     │ attente_simple  │            │      prete       │   (commercial)
+        └──────────▶│ Commande gros   │─"terminée"─▶│ Commandes prêtes │──▶ Livrée
+technique "Rien"     │ attente_gros    │            │      prete       │   (commercial)
                      └─────────────────┘            └──────────────────┘
 ```
+
+Certaines commandes DTF n'ont pas besoin de flocage (impression seule) : il n'y a donc plus
+d'étape de flocage forcée après l'impression — une fois imprimée, la commande passe directement
+à "prête".
 
 - Chaque changement de statut journalise **qui** (l'employé qui a cliqué) et **quand**
   (`pipeline_stage_log`) → affiché comme "depuis 2h", "depuis 3j" sur chaque commande.

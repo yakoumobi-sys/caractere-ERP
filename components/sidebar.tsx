@@ -7,17 +7,16 @@ import { cx } from "@/lib/utils";
 const NAV = [
   {
     section: "Général",
-    items: [{ href: "/dashboard", label: "Tableau de bord" }],
+    items: [{ href: "/dashboard", label: "Tableau de bord", exact: true }],
   },
   {
     section: "Production",
     items: [
-      { href: "/production", label: "Vue d'ensemble" },
-      { href: "/production/new", label: "Nouvelle commande" },
+      { href: "/production", label: "Vue d'ensemble", exact: true },
+      { href: "/production/new", label: "+ Nouvelle commande" },
       { href: "/production/dtf", label: "File DTF" },
       { href: "/production/broderie", label: "File Broderie" },
-      { href: "/production/simple", label: "File Simple" },
-      { href: "/production/flocage", label: "File Flocage" },
+      { href: "/production/gros", label: "Commande gros" },
       { href: "/production/ready", label: "Commandes prêtes" },
     ],
   },
@@ -77,12 +76,12 @@ const NAV = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 shrink-0 h-screen sticky top-0 border-r border-slate-200 bg-white overflow-y-auto">
-      <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200">
+    <aside className="h-full w-full border-r border-slate-200 bg-white overflow-y-auto flex flex-col">
+      <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200 shrink-0">
         <div className="h-8 w-8 rounded-lg bg-brand-500 text-white flex items-center justify-center font-bold text-sm">
           C
         </div>
@@ -96,13 +95,14 @@ export function Sidebar() {
             </p>
             <div className="flex flex-col gap-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onNavigate}
                     className={cx(
-                      "rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                      "rounded-md px-3 py-2 text-sm transition-colors",
                       active
                         ? "bg-brand-50 text-brand-700 font-medium"
                         : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"

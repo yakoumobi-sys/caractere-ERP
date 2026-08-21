@@ -5,8 +5,8 @@ import { statusesForQueue } from "@/lib/pipeline";
 export default function Page() {
   return (
     <div>
-      <PageHeader title="File Flocage" description="Commandes imprimées, prêtes à floquer" />
-      <OrderQueueList statuses={statusesForQueue("flocage")} />
+      <PageHeader title="Commande gros" description="Vêtements sans personnalisation — préparation directe" />
+      <OrderQueueList statuses={statusesForQueue("gros")} />
     </div>
   );
 }

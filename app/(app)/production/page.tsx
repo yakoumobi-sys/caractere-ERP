@@ -3,12 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, LinkButton, Card } from "@/components/ui";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
 
-const QUEUES: { name: QueueName; href: string }[] = [
-  { name: "dtf", href: "/production/dtf" },
-  { name: "broderie", href: "/production/broderie" },
-  { name: "simple", href: "/production/simple" },
-  { name: "flocage", href: "/production/flocage" },
-  { name: "ready", href: "/production/ready" },
+const QUEUES: { name: QueueName; href: string; icon: string }[] = [
+  { name: "dtf", href: "/production/dtf", icon: "🖨️" },
+  { name: "broderie", href: "/production/broderie", icon: "🧵" },
+  { name: "gros", href: "/production/gros", icon: "📦" },
+  { name: "ready", href: "/production/ready", icon: "✅" },
 ];
 
 export default async function Page() {
@@ -26,12 +25,15 @@ export default async function Page() {
         description="Configurateur commercial → file de l'atelier → commande prête → livraison"
         action={<LinkButton href="/production/new">+ Nouvelle commande</LinkButton>}
       />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {QUEUES.map((q, i) => (
           <Link key={q.name} href={q.href}>
-            <Card className="p-5 hover:border-brand-300 transition-colors">
-              <p className="text-sm text-slate-500">{QUEUE_TITLES[q.name]}</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{counts[i].count ?? 0}</p>
+            <Card className="p-5 hover:border-brand-300 hover:shadow-sm transition-all">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-500">{QUEUE_TITLES[q.name]}</p>
+                <span className="text-xl leading-none">{q.icon}</span>
+              </div>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">{counts[i].count ?? 0}</p>
             </Card>
           </Link>
         ))}
