@@ -15,6 +15,7 @@ export default async function DashboardPage() {
     { data: unpaidInvoices },
     { data: openOpportunities },
     { data: recentQuotes },
+    { count: ordersInProduction },
   ] = await Promise.all([
     supabase.from("invoices").select("total,status").gte("issue_date", startOfMonthISO).in("status", ["validee", "payee"]),
     supabase.from("invoices").select("id,total,amount_paid").in("status", ["validee"]),
@@ -24,6 +25,7 @@ export default async function DashboardPage() {
       .select("id,number,status,total,quote_date,contacts(name)")
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase.from("pipeline_orders").select("id", { count: "exact", head: true }).eq("status", "en_cours"),
   ]);
 
   const { data: stockLevels } = await supabase
@@ -42,10 +44,11 @@ export default async function DashboardPage() {
     <div>
       <PageHeader title="Tableau de bord" description="Vue d'ensemble de l'activité Caractère" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <KpiCard label="Chiffre d'affaires (mois)" value={formatMoney(revenueThisMonth)} tone="green" />
         <KpiCard label="Factures impayées" value={formatMoney(unpaidTotal)} tone="red" hint={`${unpaidInvoices?.length ?? 0} facture(s)`} />
         <KpiCard label="Pipeline commercial" value={formatMoney(pipelineValue)} tone="blue" hint={`${openOpportunities?.length ?? 0} opportunité(s) ouverte(s)`} />
+        <KpiCard label="Commandes en production" value={String(ordersInProduction ?? 0)} tone="blue" hint="WhatsApp → atelier → client" />
         <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} hint="produits à quantité ≤ 0" />
       </div>
 

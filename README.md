@@ -7,6 +7,7 @@ construit avec Next.js 14 (App Router), TypeScript, Tailwind CSS et Supabase (Po
 
 | Module | État | Contenu |
 |---|---|---|
+| Suivi de production | ✅ Complet | Parcours réel de la commande : Réception WhatsApp → Commercial → Atelier DTF/Broderie → Flocage → retour Commercial → Client. Kanban, assignation par employé/département, historique horodaté ("depuis quand"), statut auto (en cours/livré) |
 | CRM | ✅ Complet | Contacts (clients/prospects/fournisseurs), opportunités (pipeline kanban), historique d'activités |
 | Ventes & Facturation | ✅ Complet | Devis → Commande → Facture → Paiement, numérotation auto, comptabilisation auto |
 | Achats | ✅ Complet | Fournisseurs, commandes fournisseurs, réception avec entrée de stock automatique |
@@ -65,6 +66,38 @@ Le fichier `supabase/seed.sql` crée un entrepôt par défaut et un plan comptab
 (comptes 411, 706, 4457, 512...) nécessaires à la comptabilisation automatique des factures et
 paiements. Sans ces comptes, les factures se valident mais aucune écriture n'est générée
 (un message est simplement affiché dans les logs Postgres).
+
+### 5. Équipe & parcours de commande
+
+`supabase/seed.sql` crée aussi les fiches RH de l'équipe (Lilia, Lydia, Kholoud, Abderahmane,
+Hafid, Imene, Nesro, Manel, Ikram, Hanane, Aymen) rattachées à leur département, utilisées pour
+l'assignation dans **Suivi de production**.
+
+## Suivi de production
+
+Le module central de Caractère : chaque commande suit un parcours fixe, modélisé en base
+(`pipeline_orders` + `pipeline_stage_log`, migration `0004_production_pipeline.sql`) :
+
+```
+Réception WhatsApp (Lilia/Lydia)
+      ↓
+  Commercial (Kholoud/Abderahmane/Hafid)
+      ↓
+  Atelier DTF (Imene/Nesro)  ─ ou ─  Atelier Broderie (Manel)
+      ↓
+  Flocage (Ikram/Hanane/Aymen)
+      ↓
+  retour Commercial
+      ↓
+  Livré au client
+```
+
+- Chaque commande entre en base dès la réception (le client est créé/rattaché immédiatement).
+- Le sélecteur "assigné à" ne propose que les employés du département correspondant à l'étape.
+- Chaque changement d'étape est journalisé (`pipeline_stage_log`) : on sait qui a fait quoi et
+  **depuis quand** la commande est dans son étape actuelle (affiché sur chaque carte).
+- Le `status` (`en_cours` / `livre`) est une colonne générée par Postgres à partir de l'étape —
+  impossible qu'il se désynchronise.
 
 ## Rôles
 

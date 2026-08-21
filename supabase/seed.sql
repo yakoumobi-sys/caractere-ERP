@@ -30,3 +30,19 @@ insert into public.product_categories (name) values
   ('Services'),
   ('Marchandises')
 on conflict do nothing;
+
+-- Équipe Caractère, positionnée sur le parcours de commande :
+-- WhatsApp -> Commercial -> Atelier DTF / Broderie -> Flocage -> retour Commercial -> Client
+insert into public.employees (first_name, last_name, position, department) values
+  ('Lilia', '', 'Réception commandes WhatsApp', 'Réception WhatsApp'),
+  ('Lydia', '', 'Réception commandes WhatsApp', 'Réception WhatsApp'),
+  ('Kholoud', '', 'Commercial', 'Commercial'),
+  ('Abderahmane', '', 'Commercial', 'Commercial'),
+  ('Hafid', '', 'Commercial', 'Commercial'),
+  ('Imene', '', 'Atelier DTF', 'Atelier DTF'),
+  ('Nesro', '', 'Atelier DTF', 'Atelier DTF'),
+  ('Manel', '', 'Atelier Broderie', 'Atelier Broderie'),
+  ('Ikram', '', 'Atelier Flocage', 'Atelier Flocage'),
+  ('Hanane', '', 'Atelier Flocage', 'Atelier Flocage'),
+  ('Aymen', '', 'Atelier Flocage', 'Atelier Flocage')
+on conflict do nothing;

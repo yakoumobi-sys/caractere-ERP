@@ -10,6 +10,10 @@ const NAV = [
     items: [{ href: "/dashboard", label: "Tableau de bord" }],
   },
   {
+    section: "Production",
+    items: [{ href: "/production", label: "Suivi des commandes" }],
+  },
+  {
     section: "CRM",
     items: [
       { href: "/crm/contacts", label: "Contacts" },
