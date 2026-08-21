@@ -39,6 +39,12 @@ const NAV = [
     ],
   },
   {
+    section: "Service Client",
+    items: [
+      { href: "/claims", label: "Réclamations" },
+    ],
+  },
+  {
     section: "Achats",
     items: [
       { href: "/purchasing/suppliers", label: "Fournisseurs" },
@@ -60,6 +66,12 @@ const NAV = [
       { href: "/accounting/chart-of-accounts", label: "Plan comptable" },
       { href: "/accounting/journal", label: "Journal" },
       { href: "/accounting/reports", label: "Rapports" },
+    ],
+  },
+  {
+    section: "Analytics",
+    items: [
+      { href: "/reports", label: "Rapports & Prévisions" },
     ],
   },
   {

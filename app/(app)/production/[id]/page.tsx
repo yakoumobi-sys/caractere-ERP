@@ -12,6 +12,8 @@ import {
   uploadPipelineFile,
 } from "@/lib/actions/pipeline-actions";
 import { PipelineControls } from "@/components/production/pipeline-controls";
+import { OrderComments } from "@/components/production/order-comments";
+import { OrderTasks } from "@/components/production/order-tasks";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
@@ -221,15 +223,11 @@ export default async function Page({ params }: { params: { id: string } }) {
         </form>
       </Card>
 
-      <Card className="p-6 mb-6">
-        <h2 className="text-sm font-semibold text-slate-900 mb-3">Ajouter une note</h2>
-        <form action={submitNote} className="flex gap-2">
-          <input name="note" placeholder="Ex: en attente de validation du visuel client..." className={`${inputClass} flex-1`} />
-          <Button type="submit" variant="secondary">
-            Ajouter
-          </Button>
-        </form>
-      </Card>
+      {/* Commentaires collaboratifs */}
+      <OrderComments orderId={order.id} />
+
+      {/* Checklist de production */}
+      <OrderTasks orderId={order.id} />
 
       {order.assigned_to && (
         <Card className="p-6 mb-6">
