@@ -1,43 +1,41 @@
 "use client";
 
 import { useTransition } from "react";
-import { PIPELINE_STAGES, departmentForStage } from "@/lib/pipeline";
-import { updatePipelineStage } from "@/lib/actions/pipeline-actions";
+import { ALL_STATUSES } from "@/lib/pipeline";
+import { setPipelineStatus } from "@/lib/actions/pipeline-actions";
 import { Card, Field, inputClass } from "@/components/ui";
 
 interface EmployeeOption {
   id: string;
   first_name: string;
   last_name: string;
-  department: string | null;
 }
 
+/** Correction manuelle du statut / de l'assignation (admin, commercial) */
 export function PipelineControls({
   orderId,
-  stage,
+  status,
   assignedTo,
   employees,
 }: {
   orderId: string;
-  stage: string;
+  status: string;
   assignedTo: string | null;
   employees: EmployeeOption[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const dept = departmentForStage(stage);
-  const stageEmployees = dept ? employees.filter((e) => e.department === dept) : employees;
 
   return (
     <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <Field label="Étape actuelle" htmlFor="stage">
+      <Field label="Statut (modification manuelle)" htmlFor="status">
         <select
-          id="stage"
-          defaultValue={stage}
+          id="status"
+          defaultValue={status}
           disabled={isPending}
-          onChange={(e) => startTransition(() => updatePipelineStage(orderId, e.target.value))}
+          onChange={(e) => startTransition(() => setPipelineStatus(orderId, e.target.value))}
           className={inputClass}
         >
-          {PIPELINE_STAGES.map((s) => (
+          {ALL_STATUSES.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
             </option>
@@ -49,11 +47,11 @@ export function PipelineControls({
           id="assigned_to"
           defaultValue={assignedTo ?? ""}
           disabled={isPending}
-          onChange={(e) => startTransition(() => updatePipelineStage(orderId, stage, e.target.value || null))}
+          onChange={(e) => startTransition(() => setPipelineStatus(orderId, status, e.target.value || null))}
           className={inputClass}
         >
           <option value="">Non assigné</option>
-          {stageEmployees.map((e) => (
+          {employees.map((e) => (
             <option key={e.id} value={e.id}>
               {e.first_name} {e.last_name}
             </option>

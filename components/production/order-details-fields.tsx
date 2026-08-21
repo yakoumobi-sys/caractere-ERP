@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
+import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES } from "@/lib/pipeline";
 
 interface ItemRow {
   product_name: string;
@@ -14,21 +15,19 @@ interface PrintRow {
   placement: string;
   size_cm: string;
   text_content: string;
-  technique: string;
 }
 
-const PLACEMENT_SUGGESTIONS = ["Coeur", "Dos", "Manche gauche", "Manche droite", "Poche"];
-
 /**
- * Champs "Articles" (vêtement / couleur / taille / quantité) et "Personnalisation"
- * (emplacement / taille / texte / technique) + upload du logo, pour la saisie
- * d'une commande telle que reçue sur WhatsApp.
+ * Le configurateur de commande utilisé par le commercial : articles (vêtement/
+ * couleur/taille/quantité), zones de personnalisation (emplacement/taille/
+ * texte), emplacement du logo, où le récupérer, technique (DTF/broderie/
+ * simple) et upload direct du visuel.
  */
 export function OrderDetailsFields() {
   const [items, setItems] = useState<ItemRow[]>([{ product_name: "", color: "", size: "", quantity: 1 }]);
-  const [prints, setPrints] = useState<PrintRow[]>([
-    { placement: "", size_cm: "", text_content: "", technique: "flocage" },
-  ]);
+  const [prints, setPrints] = useState<PrintRow[]>([{ placement: "", size_cm: "", text_content: "" }]);
+  const [logoPlacement, setLogoPlacement] = useState("coeur");
+  const [logoSource, setLogoSource] = useState("whatsapp");
 
   function updateItem(i: number, patch: Partial<ItemRow>) {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -41,7 +40,7 @@ export function OrderDetailsFields() {
     <>
       <Card className="p-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-900">Articles commandés</h2>
+          <h2 className="text-sm font-semibold text-slate-900">1. Articles commandés</h2>
           <Button
             type="button"
             variant="secondary"
@@ -104,27 +103,21 @@ export function OrderDetailsFields() {
 
       <Card className="p-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-900">Personnalisation (flocage / broderie / DTF)</h2>
+          <h2 className="text-sm font-semibold text-slate-900">2. Zones de personnalisation</h2>
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setPrints((prev) => [...prev, { placement: "", size_cm: "", text_content: "", technique: "flocage" }])}
+            onClick={() => setPrints((prev) => [...prev, { placement: "", size_cm: "", text_content: "" }])}
           >
             + Ajouter une zone
           </Button>
         </div>
-        <datalist id="placement-suggestions">
-          {PLACEMENT_SUGGESTIONS.map((p) => (
-            <option key={p} value={p} />
-          ))}
-        </datalist>
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500 border-b border-slate-200">
             <tr>
               <th className="py-2 pr-2 font-medium">Emplacement</th>
               <th className="py-2 pr-2 font-medium w-24">Taille</th>
               <th className="py-2 pr-2 font-medium">Texte</th>
-              <th className="py-2 pr-2 font-medium w-32">Technique</th>
               <th />
             </tr>
           </thead>
@@ -135,8 +128,7 @@ export function OrderDetailsFields() {
                   <input
                     value={row.placement}
                     onChange={(e) => updatePrint(i, { placement: e.target.value })}
-                    list="placement-suggestions"
-                    placeholder="Coeur, Dos..."
+                    placeholder="Coeur, Dos, Manche..."
                     className={inputClass}
                   />
                 </td>
@@ -156,13 +148,6 @@ export function OrderDetailsFields() {
                     className={inputClass}
                   />
                 </td>
-                <td className="py-2 pr-2">
-                  <select value={row.technique} onChange={(e) => updatePrint(i, { technique: e.target.value })} className={inputClass}>
-                    <option value="flocage">Flocage</option>
-                    <option value="dtf">DTF</option>
-                    <option value="broderie">Broderie</option>
-                  </select>
-                </td>
                 <td className="py-2 text-right">
                   <button
                     type="button"
@@ -179,10 +164,71 @@ export function OrderDetailsFields() {
         <input type="hidden" name="prints_json" value={JSON.stringify(prints)} />
       </Card>
 
-      <Card className="p-6">
-        <Field label="Logo / visuel à utiliser" htmlFor="logo">
-          <input id="logo" name="logo" type="file" accept="image/*,.pdf,.ai,.eps" className={inputClass} />
+      <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2">3. Logo</h2>
+
+        <Field label="Emplacement du logo" htmlFor="logo_placement" required>
+          <select
+            id="logo_placement"
+            name="logo_placement"
+            value={logoPlacement}
+            onChange={(e) => setLogoPlacement(e.target.value)}
+            required
+            className={inputClass}
+          >
+            {LOGO_PLACEMENTS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </Field>
+        {logoPlacement === "special" && (
+          <Field label="Précisions" htmlFor="logo_placement_note">
+            <input id="logo_placement_note" name="logo_placement_note" className={inputClass} />
+          </Field>
+        )}
+
+        <Field label="Où récupérer le logo" htmlFor="logo_source" required>
+          <select
+            id="logo_source"
+            name="logo_source"
+            value={logoSource}
+            onChange={(e) => setLogoSource(e.target.value)}
+            required
+            className={inputClass}
+          >
+            {LOGO_SOURCES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={logoSource === "email" ? "Adresse email du client" : "Numéro du client"} htmlFor="logo_source_value">
+          <input id="logo_source_value" name="logo_source_value" className={inputClass} />
+        </Field>
+
+        <div className="sm:col-span-2">
+          <Field label="Ou envoyer directement le fichier (optionnel)" htmlFor="logo">
+            <input id="logo" name="logo" type="file" accept="image/*,.pdf,.ai,.eps" className={inputClass} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-sm font-semibold text-slate-900 mb-3">4. Technique</h2>
+        <div className="flex gap-6">
+          {TECHNIQUES.map((t) => (
+            <label key={t.value} className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="radio" name="technique" value={t.value} defaultChecked={t.value === "dtf"} required />
+              {t.label}
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-slate-400 mt-2">
+          La commande partira automatiquement dans la file de l&apos;atelier correspondant.
+        </p>
       </Card>
     </>
   );

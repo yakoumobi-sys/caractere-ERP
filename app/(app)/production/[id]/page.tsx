@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  addPipelineFault,
   addPipelineItem,
   addPipelineNote,
   addPipelinePrint,
@@ -13,9 +14,7 @@ import {
 import { PipelineControls } from "@/components/production/pipeline-controls";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
-import { stageLabel } from "@/lib/pipeline";
-
-const TECHNIQUE_LABEL: Record<string, string> = { dtf: "DTF", broderie: "Broderie", flocage: "Flocage" };
+import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -25,7 +24,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
       supabase
         .from("pipeline_stage_log")
-        .select("id, stage, note, created_at, employees(first_name, last_name)")
+        .select("id, status, note, created_at, employees(first_name, last_name)")
         .eq("pipeline_order_id", params.id)
         .order("created_at", { ascending: false }),
       supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
@@ -37,7 +36,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 
   async function submitNote(formData: FormData) {
     "use server";
-    await addPipelineNote(params.id, order!.stage, formData);
+    await addPipelineNote(params.id, order!.status, formData);
   }
   async function remove() {
     "use server";
@@ -55,12 +54,20 @@ export default async function Page({ params }: { params: { id: string } }) {
     "use server";
     await uploadPipelineFile(params.id, formData.get("logo") as File | null);
   }
+  async function submitFault(formData: FormData) {
+    "use server";
+    if (order!.assigned_to) await addPipelineFault(params.id, order!.assigned_to, formData);
+  }
+
+  const techniqueLabel = TECHNIQUES.find((t) => t.value === order.technique)?.label ?? order.technique ?? "—";
+  const placementLabel = LOGO_PLACEMENTS.find((p) => p.value === order.logo_placement)?.label ?? order.logo_placement ?? "—";
+  const sourceLabel = LOGO_SOURCES.find((s) => s.value === order.logo_source)?.label ?? order.logo_source ?? "—";
 
   return (
     <div className="max-w-3xl">
       <PageHeader
         title={`Commande ${order.number ?? ""} — ${order.contact_name ?? ""}`}
-        description={`${stageLabel(order.stage)} · ${formatSince(order.stage_since)}`}
+        description={`${statusLabel(order.status)} · ${formatSince(order.status_since)}`}
         action={
           <form action={remove}>
             <Button type="submit" variant="danger">
@@ -70,6 +77,31 @@ export default async function Page({ params }: { params: { id: string } }) {
         }
       />
 
+      <Card className="p-4 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <div>
+          <p className="text-slate-400 text-xs">Technique</p>
+          <p className="text-slate-900 font-medium">{techniqueLabel}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Emplacement logo</p>
+          <p className="text-slate-900 font-medium">
+            {placementLabel}
+            {order.logo_placement_note ? ` — ${order.logo_placement_note}` : ""}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Récupérer le logo</p>
+          <p className="text-slate-900 font-medium">
+            {sourceLabel}
+            {order.logo_source_value ? ` — ${order.logo_source_value}` : ""}
+          </p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Client</p>
+          <p className="text-slate-900 font-medium">{order.contact_phone ?? "—"}</p>
+        </div>
+      </Card>
+
       {order.description && (
         <Card className="p-4 mb-6">
           <p className="text-sm text-slate-700">{order.description}</p>
@@ -77,7 +109,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       )}
 
       <div className="mb-6">
-        <PipelineControls orderId={order.id} stage={order.stage} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
+        <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
 
       <Card className="p-6 mb-6">
@@ -114,7 +146,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       </Card>
 
       <Card className="p-6 mb-6">
-        <h2 className="text-sm font-semibold text-slate-900 mb-3">Personnalisation</h2>
+        <h2 className="text-sm font-semibold text-slate-900 mb-3">Zones de personnalisation</h2>
         {(!prints || prints.length === 0) && <p className="text-sm text-slate-400 mb-3">Aucune zone renseignée.</p>}
         {prints && prints.length > 0 && (
           <table className="w-full text-sm mb-4">
@@ -124,9 +156,6 @@ export default async function Page({ params }: { params: { id: string } }) {
                   <td className="py-2 text-slate-700">{p.placement}</td>
                   <td className="py-2 text-slate-500">{p.size_cm}</td>
                   <td className="py-2 text-slate-500">{p.text_content}</td>
-                  <td className="py-2">
-                    <Badge tone="blue">{TECHNIQUE_LABEL[p.technique] ?? p.technique ?? "—"}</Badge>
-                  </td>
                   <td className="py-2 text-right">
                     <form action={async () => { "use server"; await deletePipelinePrint(params.id, p.id); }}>
                       <button className="text-xs text-red-500 hover:underline">Retirer</button>
@@ -141,11 +170,6 @@ export default async function Page({ params }: { params: { id: string } }) {
           <input name="placement" placeholder="Coeur, Dos..." className={`${inputClass} w-32`} required />
           <input name="size_cm" placeholder="8cm" className={`${inputClass} w-20`} />
           <input name="text_content" placeholder="Texte" className={`${inputClass} w-40`} />
-          <select name="technique" defaultValue="flocage" className={`${inputClass} w-32`}>
-            <option value="flocage">Flocage</option>
-            <option value="dtf">DTF</option>
-            <option value="broderie">Broderie</option>
-          </select>
           <Button type="submit" variant="secondary">
             Ajouter
           </Button>
@@ -193,6 +217,25 @@ export default async function Page({ params }: { params: { id: string } }) {
         </form>
       </Card>
 
+      {order.assigned_to && (
+        <Card className="p-6 mb-6">
+          <h2 className="text-sm font-semibold text-slate-900 mb-1">Signaler une erreur</h2>
+          <p className="text-xs text-slate-400 mb-3">
+            Sera attribuée à {order.assignee_first_name} {order.assignee_last_name} (assigné actuellement).
+          </p>
+          <form action={submitFault} className="flex flex-wrap items-end gap-2">
+            <input name="description" placeholder="Description de l'erreur" className={`${inputClass} flex-1 min-w-[200px]`} required />
+            <select name="severity" defaultValue="mineure" className={`${inputClass} w-32`}>
+              <option value="mineure">Mineure</option>
+              <option value="majeure">Majeure</option>
+            </select>
+            <Button type="submit" variant="secondary">
+              Signaler
+            </Button>
+          </form>
+        </Card>
+      )}
+
       <Card className="p-6">
         <h2 className="text-sm font-semibold text-slate-900 mb-3">Historique du parcours</h2>
         {(!history || history.length === 0) && <EmptyState message="Aucun historique." />}
@@ -200,7 +243,7 @@ export default async function Page({ params }: { params: { id: string } }) {
           {history?.map((h: any) => (
             <div key={h.id} className="border-l-2 border-brand-200 pl-3">
               <div className="flex items-center gap-2">
-                <Badge tone={h.stage === "livre" ? "green" : "blue"}>{stageLabel(h.stage)}</Badge>
+                <Badge tone={h.status === "livree" ? "green" : "blue"}>{statusLabel(h.status)}</Badge>
                 <p className="text-xs text-slate-400">{formatDate(h.created_at)}</p>
                 {h.employees && (
                   <p className="text-xs text-slate-400">

@@ -15,5 +15,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   accounting: "Comptabilité",
   stock: "Stock",
   hr: "RH",
+  atelier: "Atelier (production)",
   readonly: "Lecture seule",
 };

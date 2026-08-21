@@ -25,7 +25,7 @@ export default async function DashboardPage() {
       .select("id,number,status,total,quote_date,contacts(name)")
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase.from("pipeline_orders").select("id", { count: "exact", head: true }).eq("status", "en_cours"),
+    supabase.from("pipeline_orders").select("id", { count: "exact", head: true }).neq("status", "livree"),
   ]);
 
   const { data: stockLevels } = await supabase

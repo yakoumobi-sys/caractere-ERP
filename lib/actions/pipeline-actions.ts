@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { initialStatus, STATUS_DEFS, type OrderStatus, type Technique } from "@/lib/pipeline";
 
 interface ItemInput {
   product_name: string;
@@ -15,21 +16,38 @@ interface PrintInput {
   placement: string;
   size_cm: string;
   text_content: string;
-  technique: string;
 }
 
 export async function createPipelineOrder(formData: FormData) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const contact_id = String(formData.get("contact_id") ?? "");
   const description = (formData.get("description") as string) || null;
-  const assigned_to = (formData.get("assigned_to") as string) || null;
+  const technique = String(formData.get("technique") ?? "") as Technique;
+  const logo_placement = (formData.get("logo_placement") as string) || null;
+  const logo_placement_note = (formData.get("logo_placement_note") as string) || null;
+  const logo_source = (formData.get("logo_source") as string) || null;
+  const logo_source_value = (formData.get("logo_source_value") as string) || null;
 
   if (!contact_id) throw new Error("Le client est requis.");
+  if (!["dtf", "broderie", "simple"].includes(technique)) throw new Error("La technique est requise.");
 
   const { data: order, error } = await supabase
     .from("pipeline_orders")
-    .insert({ contact_id, description, assigned_to, stage: "reception_whatsapp" })
+    .insert({
+      contact_id,
+      description,
+      technique,
+      logo_placement,
+      logo_placement_note,
+      logo_source,
+      logo_source_value,
+      status: initialStatus(technique),
+      created_by: user?.id ?? null,
+    })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -58,7 +76,6 @@ export async function createPipelineOrder(formData: FormData) {
         placement: p.placement,
         size_cm: p.size_cm || null,
         text_content: p.text_content || null,
-        technique: p.technique || null,
         position: i,
       }))
     );
@@ -68,6 +85,70 @@ export async function createPipelineOrder(formData: FormData) {
 
   revalidatePath("/production");
   redirect(`/production/${order.id}`);
+}
+
+/** Renvoie l'employé (fiche RH) lié au compte actuellement connecté, s'il existe */
+async function currentEmployeeId(): Promise<string | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from("employees").select("id").eq("profile_id", user.id).maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * Fait avancer une commande au statut suivant (bouton "Prendre la commande" /
+ * "Marquer imprimée" / "Marquer terminée" / "Livrer au client").
+ * Si personne n'est encore assigné, assigne automatiquement l'employé connecté.
+ */
+export async function advancePipelineOrder(orderId: string, fromStatus: OrderStatus, currentAssignee: string | null) {
+  const def = STATUS_DEFS[fromStatus];
+  if (!def.next) return;
+
+  const supabase = createClient();
+  const payload: Record<string, unknown> = { status: def.next };
+  if (!currentAssignee) {
+    const employeeId = await currentEmployeeId();
+    if (employeeId) payload.assigned_to = employeeId;
+  }
+
+  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/production");
+  revalidatePath(`/production/${orderId}`);
+}
+
+/** Changement manuel de statut / assignation depuis la fiche détail (admin/commercial) */
+export async function setPipelineStatus(orderId: string, status: string, assignedTo?: string | null) {
+  const supabase = createClient();
+  const payload: Record<string, unknown> = { status };
+  if (assignedTo !== undefined) payload.assigned_to = assignedTo || null;
+
+  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/production");
+  revalidatePath(`/production/${orderId}`);
+}
+
+export async function addPipelineNote(id: string, currentStatus: string, formData: FormData) {
+  const supabase = createClient();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) return;
+
+  const { error } = await supabase.from("pipeline_stage_log").insert({ pipeline_order_id: id, status: currentStatus, note });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/production/${id}`);
+}
+
+export async function deletePipelineOrder(id: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from("pipeline_orders").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/production");
+  redirect("/production");
 }
 
 export async function uploadPipelineFile(orderId: string, file: File | null) {
@@ -133,7 +214,6 @@ export async function addPipelinePrint(orderId: string, formData: FormData) {
     placement,
     size_cm: (formData.get("size_cm") as string) || null,
     text_content: (formData.get("text_content") as string) || null,
-    technique: (formData.get("technique") as string) || null,
   });
   if (error) throw new Error(error.message);
   revalidatePath(`/production/${orderId}`);
@@ -146,41 +226,30 @@ export async function deletePipelinePrint(orderId: string, printId: string) {
   revalidatePath(`/production/${orderId}`);
 }
 
-export async function updatePipelineStage(id: string, stage: string, assignedTo?: string | null) {
+export async function addPipelineFault(orderId: string | null, employeeId: string, formData: FormData) {
   const supabase = createClient();
-  const payload: Record<string, unknown> = { stage };
-  if (assignedTo !== undefined) payload.assigned_to = assignedTo || null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const description = String(formData.get("description") ?? "").trim();
+  if (!description || !employeeId) return;
 
-  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", id);
+  const { error } = await supabase.from("employee_faults").insert({
+    employee_id: employeeId,
+    pipeline_order_id: orderId,
+    description,
+    severity: (formData.get("severity") as string) || "mineure",
+    created_by: user?.id ?? null,
+  });
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
-  revalidatePath(`/production/${id}`);
+
+  if (orderId) revalidatePath(`/production/${orderId}`);
+  revalidatePath(`/hr/employees/${employeeId}`);
 }
 
-export async function assignPipelineOrder(id: string, employeeId: string | null) {
+export async function deletePipelineFault(employeeId: string, faultId: string) {
   const supabase = createClient();
-  const { error } = await supabase.from("pipeline_orders").update({ assigned_to: employeeId }).eq("id", id);
+  const { error } = await supabase.from("employee_faults").delete().eq("id", faultId);
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
-  revalidatePath(`/production/${id}`);
-}
-
-export async function addPipelineNote(id: string, currentStage: string, formData: FormData) {
-  const supabase = createClient();
-  const note = String(formData.get("note") ?? "").trim();
-  if (!note) return;
-
-  const { error } = await supabase
-    .from("pipeline_stage_log")
-    .insert({ pipeline_order_id: id, stage: currentStage as any, note });
-  if (error) throw new Error(error.message);
-  revalidatePath(`/production/${id}`);
-}
-
-export async function deletePipelineOrder(id: string) {
-  const supabase = createClient();
-  const { error } = await supabase.from("pipeline_orders").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/production");
-  redirect("/production");
+  revalidatePath(`/hr/employees/${employeeId}`);
 }

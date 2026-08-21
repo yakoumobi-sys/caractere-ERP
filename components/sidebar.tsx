@@ -11,7 +11,15 @@ const NAV = [
   },
   {
     section: "Production",
-    items: [{ href: "/production", label: "Suivi des commandes" }],
+    items: [
+      { href: "/production", label: "Vue d'ensemble" },
+      { href: "/production/new", label: "Nouvelle commande" },
+      { href: "/production/dtf", label: "File DTF" },
+      { href: "/production/broderie", label: "File Broderie" },
+      { href: "/production/simple", label: "File Simple" },
+      { href: "/production/flocage", label: "File Flocage" },
+      { href: "/production/ready", label: "Commandes prêtes" },
+    ],
   },
   {
     section: "CRM",

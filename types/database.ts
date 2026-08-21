@@ -9,6 +9,7 @@ export type UserRole =
   | "accounting"
   | "stock"
   | "hr"
+  | "atelier"
   | "readonly";
 
 export type ContactType = "client" | "prospect" | "fournisseur" | "autre";

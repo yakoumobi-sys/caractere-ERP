@@ -35,11 +35,9 @@ configuration d'écran plutôt qu'à reconstruire l'infrastructure.
 ### 1. Créer le projet Supabase
 
 1. Créer un projet sur [supabase.com](https://supabase.com).
-2. Dans **SQL Editor**, exécuter dans l'ordre :
-   - `supabase/migrations/0001_init.sql`
-   - `supabase/migrations/0002_functions_triggers.sql`
-   - `supabase/migrations/0003_rls.sql`
-   - `supabase/seed.sql`
+2. Dans **SQL Editor**, exécuter dans l'ordre les fichiers de `supabase/migrations/` (0001 → 0006),
+   puis `supabase/seed.sql`. Chaque fichier se colle et s'exécute indépendamment (`Run`), dans
+   l'ordre numérique — ne pas sauter de fichier, chacun peut dépendre du précédent.
 3. Dans **Project Settings → API**, récupérer l'URL du projet et la clé `anon public`.
 
 ### 2. Configurer l'application
@@ -75,37 +73,45 @@ l'assignation dans **Suivi de production**.
 
 ## Suivi de production
 
-Le module central de Caractère : chaque commande suit un parcours fixe, modélisé en base
-(`pipeline_orders` + `pipeline_stage_log`, migration `0004_production_pipeline.sql`) :
+Le module central de Caractère. Le commercial configure la commande dans un **configurateur**
+(`/production/new`) : articles (vêtement/couleur/taille/quantité), zones de personnalisation
+(emplacement/taille/texte), emplacement du logo (Coeur, Coeur + dos, Dos, Poitrine, Spécial), où
+le récupérer (WhatsApp/Viber/Email — ou upload direct du fichier), puis choisit la **technique**
+(DTF / Broderie / Simple) — c'est ce choix qui route la commande dans la bonne file :
 
 ```
-Réception WhatsApp (Lilia/Lydia)
-      ↓
-  Commercial (Kholoud/Abderahmane/Hafid)
-      ↓
-  Atelier DTF (Imene/Nesro)  ─ ou ─  Atelier Broderie (Manel)
-      ↓
-  Flocage (Ikram/Hanane/Aymen)
-      ↓
-  retour Commercial
-      ↓
-  Livré au client
+                    ┌─────────────┐
+     technique DTF  │ File DTF    │ opérateur "prend" → Impression → "imprimée"
+        ┌──────────▶│ attente_dtf │──────────────────────────────────┐
+        │           └─────────────┘                                  ▼
+Configurateur                                                 ┌───────────────┐
+commercial                                                    │ File Flocage  │ floqueur "prend" → "terminée"
+        │           ┌─────────────────┐                       │ attente_flocage│──────┐
+        ├──────────▶│ File Broderie   │──── "terminée" ───┐   └───────────────┘      │
+technique Broderie  │ attente_broderie│                    │                          │
+        │           └─────────────────┘                    ▼                          ▼
+        │           ┌─────────────────┐            ┌──────────────────┐
+        └──────────▶│ File Simple     │─"terminée"─▶│ Commandes prêtes │──▶ Livrée
+technique Simple     │ attente_simple  │            │      prete       │   (commercial)
+                     └─────────────────┘            └──────────────────┘
 ```
 
-- Chaque commande entre en base dès la réception (le client est créé/rattaché immédiatement).
-- Une commande détaille les **articles** (vêtement, couleur, taille, quantité — ex: "5 T-shirt
-  noir L") et les **zones de personnalisation** (emplacement, taille, texte, technique DTF/
-  broderie/flocage — ex: "Dos, 30cm, `eurl flex`, flocage"), avec **upload du logo/visuel**
-  (stocké dans le bucket Supabase Storage `order-files`).
-- Le sélecteur "assigné à" ne propose que les employés du département correspondant à l'étape.
-- Chaque changement d'étape est journalisé (`pipeline_stage_log`) : on sait qui a fait quoi et
-  **depuis quand** la commande est dans son étape actuelle (affiché sur chaque carte).
-- Le `status` (`en_cours` / `livre`) est une colonne générée par Postgres à partir de l'étape —
-  impossible qu'il se désynchronise.
+- Chaque changement de statut journalise **qui** (l'employé qui a cliqué) et **quand**
+  (`pipeline_stage_log`) → affiché comme "depuis 2h", "depuis 3j" sur chaque commande.
+- Cliquer sur "Prendre la commande" assigne automatiquement l'employé connecté (si son compte est
+  lié à sa fiche RH) et fait avancer le statut — sinon la fiche détail permet une correction
+  manuelle (statut + assignation).
+- Toute la logique de statut/transition/libellé de bouton vit dans `lib/pipeline.ts`
+  (`STATUS_DEFS`) — un seul endroit à modifier si le parcours évolue.
+- Comptes employés : dans **RH → Employés**, le champ "Compte utilisateur lié" rattache la fiche
+  RH d'un employé au compte qu'il utilise pour se connecter (créé via `/login?mode=signup`, rôle
+  à passer sur `atelier` ensuite dans **Paramètres → Utilisateurs**). Chaque fiche employé affiche
+  ses **KPI** (actions des 14 derniers jours, graphique, commandes traitées) et ses **fautes**
+  signalées (mineure/majeure), avec formulaire d'ajout.
 
 ## Rôles
 
-`admin`, `manager`, `sales`, `purchasing`, `accounting`, `stock`, `hr`, `readonly`.
+`admin`, `manager`, `sales`, `purchasing`, `accounting`, `stock`, `hr`, `atelier`, `readonly`.
 
 - Tout utilisateur actif peut lire l'ensemble des données (application interne mono-société).
 - L'écriture est bloquée pour le rôle `readonly`.
