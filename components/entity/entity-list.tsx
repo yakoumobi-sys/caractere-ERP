@@ -5,9 +5,19 @@ import { deleteEntity } from "@/lib/actions/entity-actions";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
 function renderCell(value: unknown) {
   if (typeof value === "boolean") return value ? "Oui" : "Non";
   if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" && HEX_COLOR.test(value)) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: value }} />
+        {value}
+      </span>
+    );
+  }
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) return formatDate(value);
   return String(value);
 }

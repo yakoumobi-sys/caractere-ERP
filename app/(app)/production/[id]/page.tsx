@@ -24,7 +24,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
       supabase
         .from("pipeline_stage_log")
-        .select("id, status, note, created_at, employees(first_name, last_name)")
+        .select("id, status, note, created_at, employees(first_name, last_name, color)")
         .eq("pipeline_order_id", params.id)
         .order("created_at", { ascending: false }),
       supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
@@ -77,7 +77,10 @@ export default async function Page({ params }: { params: { id: string } }) {
         }
       />
 
-      <Card className="p-4 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+      <Card
+        className="p-4 mb-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm"
+        style={order.assigned_to ? { borderLeft: `4px solid ${order.assignee_color}` } : undefined}
+      >
         <div>
           <p className="text-slate-400 text-xs">Technique</p>
           <p className="text-slate-900 font-medium">{techniqueLabel}</p>
@@ -99,6 +102,17 @@ export default async function Page({ params }: { params: { id: string } }) {
         <div>
           <p className="text-slate-400 text-xs">Client</p>
           <p className="text-slate-900 font-medium">{order.contact_phone ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Assigné à</p>
+          {order.assigned_to ? (
+            <p className="text-slate-900 font-medium flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: order.assignee_color }} />
+              {order.assignee_first_name} {order.assignee_last_name}
+            </p>
+          ) : (
+            <p className="text-slate-400">Non assigné</p>
+          )}
         </div>
       </Card>
 
@@ -246,8 +260,9 @@ export default async function Page({ params }: { params: { id: string } }) {
                 <Badge tone={h.status === "livree" ? "green" : "blue"}>{statusLabel(h.status)}</Badge>
                 <p className="text-xs text-slate-400">{formatDate(h.created_at)}</p>
                 {h.employees && (
-                  <p className="text-xs text-slate-400">
-                    · {h.employees.first_name} {h.employees.last_name}
+                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: h.employees.color }} />
+                    {h.employees.first_name} {h.employees.last_name}
                   </p>
                 )}
               </div>

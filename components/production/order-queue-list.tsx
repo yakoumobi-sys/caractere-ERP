@@ -29,8 +29,13 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
           "use server";
           await advancePipelineOrder(o.id, o.status, o.assigned_to);
         }
+        const employeeColor: string | null = o.assigned_to ? o.assignee_color : null;
         return (
-          <Card key={o.id} className="p-4">
+          <Card
+            key={o.id}
+            className="p-4"
+            style={employeeColor ? { borderLeft: `4px solid ${employeeColor}` } : undefined}
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <Link href={`/production/${o.id}`} className="text-base font-semibold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400">
@@ -41,8 +46,9 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
                   <Badge tone="blue">{statusLabel(o.status)}</Badge>
                   <span className="text-xs text-slate-400 dark:text-slate-500">{formatSince(o.status_since)}</span>
                   {o.assignee_first_name && (
-                    <span className="text-xs text-slate-400 dark:text-slate-500">
-                      · {o.assignee_first_name} {o.assignee_last_name}
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: employeeColor ?? undefined }} />
+                      {o.assignee_first_name} {o.assignee_last_name}
                     </span>
                   )}
                 </div>

@@ -131,6 +131,10 @@ d'étape de flocage forcée après l'impression — une fois imprimée, la comma
   à passer sur `atelier` ensuite dans **Paramètres → Utilisateurs**). Chaque fiche employé affiche
   ses **KPI** (actions des 14 derniers jours, graphique, commandes traitées) et ses **fautes**
   signalées (mineure/majeure), avec formulaire d'ajout.
+- Chaque employé a une **couleur** (`RH → Employés → Couleur`, palette de 12 teintes). Tant qu'une
+  commande est assignée à quelqu'un, sa carte (dans les files DTF/Broderie/Gros/Prêtes et sur sa
+  fiche détail) prend un liseré de sa couleur, avec un point coloré à côté de son nom — repérage
+  instantané de qui a quoi, sans avoir à lire le texte.
 
 ## Présences (pointage)
 

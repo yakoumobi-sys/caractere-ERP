@@ -2,6 +2,8 @@
 // est décrit ici par une configuration plutôt que par du code dupliqué —
 // approche inspirée des ORM/vues déclaratives des grands ERP (Odoo, etc.).
 
+import { EMPLOYEE_COLORS } from "@/lib/colors";
+
 export type FieldType =
   | "text"
   | "email"
@@ -223,6 +225,7 @@ export const employeesConfig: EntityConfig = {
   orderBy: "last_name",
   ascending: true,
   columns: [
+    { key: "color", label: "Couleur" },
     { key: "last_name", label: "Nom" },
     { key: "first_name", label: "Prénom" },
     { key: "position", label: "Poste" },
@@ -235,6 +238,7 @@ export const employeesConfig: EntityConfig = {
     { name: "email", label: "Email", type: "email" },
     { name: "phone", label: "Téléphone", type: "tel" },
     { name: "position", label: "Poste", type: "text" },
+    { name: "color", label: "Couleur (repérage sur les commandes)", type: "select", options: EMPLOYEE_COLORS },
     {
       name: "department",
       label: "Service",
