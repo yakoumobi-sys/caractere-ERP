@@ -104,3 +104,13 @@ export function LinkButton({ href, children, className }: { href: string; childr
     </a>
   );
 }
+
+export function EmptyState({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="text-4xl mb-4">📭</div>
+      <h3 className="text-lg font-medium text-slate-900 dark:text-white">{title}</h3>
+      {description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
+    </div>
+  );
+}

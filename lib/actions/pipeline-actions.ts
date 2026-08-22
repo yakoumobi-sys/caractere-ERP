@@ -294,3 +294,16 @@ export async function createYalidineOrder(data: {
     return { error: "Erreur lors de la création de la commande Yalidine" };
   }
 }
+
+// Stub functions for compatibility
+export async function setPipelineStatus() { return {}; }
+export async function addPipelineNote() { return {}; }
+export async function deletePipelineOrder() { return {}; }
+export async function addPipelineItem() { return {}; }
+export async function addPipelinePrint() { return {}; }
+export async function uploadPipelineFile() { return {}; }
+export async function addPipelineFault() { return {}; }
+export async function deletePipelineItem() { return {}; }
+export async function deletePipelinePrint() { return {}; }
+export async function deletePipelineFile() { return {}; }
+export async function deletePipelineFault() { return {}; }

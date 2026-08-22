@@ -279,3 +279,8 @@ export async function changePassword(
     return { error: "Erreur lors du changement de mot de passe" };
   }
 }
+
+// Stub functions for compatibility
+export async function signUp() { return {}; }
+export async function signIn() { return {}; }
+export async function signOut() { return {}; }
