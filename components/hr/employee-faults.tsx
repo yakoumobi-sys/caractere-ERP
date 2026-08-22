@@ -36,7 +36,7 @@ export async function EmployeeFaults({ employeeId }: { employeeId: string }) {
           <div key={f.id} className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
             <div>
               <div className="flex items-center gap-2">
-                <Badge tone={f.severity === "majeure" ? "red" : "amber"}>{f.severity}</Badge>
+                <Badge tone={f.severity === "majeure" ? "red" : "blue"}>{f.severity}</Badge>
                 <p className="text-xs text-slate-400">{formatDate(f.created_at)}</p>
                 {f.pipeline_orders?.number && <p className="text-xs text-slate-400">· {f.pipeline_orders.number}</p>}
               </div>

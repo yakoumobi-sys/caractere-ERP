@@ -14,7 +14,7 @@ export async function OrderTasks({ orderId }: { orderId: string }) {
     await addProductionTask(orderId, formData.get("title") as string, formData.get("description") as string);
   }
 
-  const statusColors: { [key: string]: "slate" | "blue" | "green" } = { todo: "slate", in_progress: "blue", done: "green" };
+  const statusColors: { [key: string]: "gray" | "blue" | "green" } = { todo: "gray", in_progress: "blue", done: "green" };
   const statusLabels = { todo: "À faire", in_progress: "En cours", done: "Fait" };
 
   return (

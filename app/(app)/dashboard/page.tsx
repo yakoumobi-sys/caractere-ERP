@@ -255,7 +255,7 @@ export default async function DashboardPage() {
                   icon={<IconTrend />}
                   hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
                 />
-                <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="produits à quantité ≤ 0" />
+                <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="blue" icon={<IconBox />} hint="produits à quantité ≤ 0" />
               </div>
             </div>
           </Card>
@@ -302,7 +302,7 @@ export default async function DashboardPage() {
                       <span className="text-slate-400 dark:text-slate-500"> · {q.contacts?.name ?? "—"}</span>
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
-                      <Badge tone={q.status === "accepte" ? "green" : q.status === "refuse" ? "red" : "slate"}>{q.status}</Badge>
+                      <Badge tone={q.status === "accepte" ? "green" : q.status === "refuse" ? "red" : "gray"}>{q.status}</Badge>
                       <span className="font-medium text-slate-700 dark:text-slate-300">{formatMoney(q.total)}</span>
                     </span>
                   </Link>

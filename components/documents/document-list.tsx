@@ -4,14 +4,14 @@ import type { DocumentConfig } from "@/lib/documents";
 import { Card, EmptyState, LinkButton, PageHeader, Badge } from "@/components/ui";
 import { formatDate, formatMoney } from "@/lib/utils";
 
-const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = {
-  brouillon: "slate",
+const STATUS_TONE: Record<string, "gray" | "green" | "blue" | "red" | "blue"> = {
+  brouillon: "gray",
   envoye: "blue",
   envoyee: "blue",
   accepte: "green",
   confirmee: "blue",
   validee: "blue",
-  livree: "amber",
+  livree: "blue",
   recue: "green",
   facturee: "green",
   payee: "green",
@@ -60,7 +60,7 @@ export async function DocumentListPage({ config }: { config: DocumentConfig }) {
                   <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300">{row[config.contactTable]?.name ?? "—"}</td>
                   <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">{formatDate(row[config.dateField])}</td>
                   <td className="px-4 py-2.5">
-                    <Badge tone={STATUS_TONE[row.status] ?? "slate"}>{row.status}</Badge>
+                    <Badge tone={STATUS_TONE[row.status] ?? "gray"}>{row.status}</Badge>
                   </td>
                   <td className="px-4 py-2.5 text-right font-medium">{formatMoney(row.total)}</td>
                 </tr>

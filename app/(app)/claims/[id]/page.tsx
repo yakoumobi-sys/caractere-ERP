@@ -15,7 +15,7 @@ export default async function ClaimDetailPage({ params }: { params: { id: string
 
   if (error || !claim) notFound();
 
-  const statusColors: { [key: string]: "amber" | "blue" | "green" | "slate" } = { open: "amber", in_progress: "blue", resolved: "green", closed: "slate" };
+  const statusColors: { [key: string]: "blue" | "blue" | "green" | "gray" } = { open: "blue", in_progress: "blue", resolved: "green", closed: "gray" };
   const statusLabels = {
     open: "Ouverte",
     in_progress: "En cours",
@@ -65,7 +65,7 @@ export default async function ClaimDetailPage({ params }: { params: { id: string
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-1">Priorité</p>
-            <Badge tone={claim.priority === "urgent" ? "red" : claim.priority === "high" ? "amber" : "blue"}>
+            <Badge tone={claim.priority === "urgent" ? "red" : claim.priority === "high" ? "blue" : "blue"}>
               {claim.priority}
             </Badge>
           </div>

@@ -10,14 +10,14 @@ export default async function ClaimsPage() {
     .select("id, number, status, priority, issue_type, created_at, contacts(name), pipeline_orders(number)")
     .order("created_at", { ascending: false });
 
-  const statusColors: { [key: string]: "amber" | "blue" | "green" | "slate" } = { open: "amber", in_progress: "blue", resolved: "green", closed: "slate" };
+  const statusColors: { [key: string]: "blue" | "blue" | "green" | "gray" } = { open: "blue", in_progress: "blue", resolved: "green", closed: "gray" };
   const statusLabels = {
     open: "Ouverte",
     in_progress: "En cours",
     resolved: "Résolue",
     closed: "Fermée",
   };
-  const priorityColors: { [key: string]: "slate" | "blue" | "amber" | "red" } = { low: "slate", normal: "blue", high: "amber", urgent: "red" };
+  const priorityColors: { [key: string]: "gray" | "blue" | "blue" | "red" } = { low: "gray", normal: "blue", high: "blue", urgent: "red" };
   const issueTypes = {
     quality: "Qualité",
     damage: "Dommage",

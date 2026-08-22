@@ -3,10 +3,10 @@ import { addStockMove } from "@/lib/actions/inventory-actions";
 import { Badge, Button, Card, EmptyState, Field, PageHeader, inputClass } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
-const TYPE_TONE: Record<string, "green" | "red" | "amber" | "blue"> = {
+const TYPE_TONE: Record<string, "green" | "red" | "blue" | "blue"> = {
   entree: "green",
   sortie: "red",
-  ajustement: "amber",
+  ajustement: "blue",
   transfert: "blue",
 };
 
@@ -104,7 +104,7 @@ export default async function Page() {
                   </td>
                   <td className="px-4 py-2.5 text-slate-600">{m.warehouses?.name}</td>
                   <td className="px-4 py-2.5">
-                    <Badge tone={TYPE_TONE[m.type] ?? "slate"}>{m.type}</Badge>
+                    <Badge tone={TYPE_TONE[m.type] ?? "gray"}>{m.type}</Badge>
                   </td>
                   <td className="px-4 py-2.5 text-slate-500">{m.reference ?? m.note ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right font-medium">{m.quantity}</td>

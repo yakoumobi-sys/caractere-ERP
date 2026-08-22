@@ -40,11 +40,11 @@ export async function EmployeesSummary() {
               </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <Badge tone={emp.completion_rate >= 80 ? "green" : emp.completion_rate >= 60 ? "amber" : "red"}>
+              <Badge tone={emp.completion_rate >= 80 ? "green" : emp.completion_rate >= 60 ? "blue" : "red"}>
                 {emp.completion_rate?.toFixed(0) ?? 0}%
               </Badge>
               {emp.total_faults > 0 && (
-                <Badge tone={emp.total_faults <= 2 ? "amber" : "red"}>
+                <Badge tone={emp.total_faults <= 2 ? "blue" : "red"}>
                   {emp.total_faults} err
                 </Badge>
               )}

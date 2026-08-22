@@ -103,7 +103,7 @@ export default async function ReportsPage() {
                   <td className="py-2.5 text-right text-slate-700 dark:text-slate-300">{d.total}</td>
                   <td className="py-2.5 text-right text-slate-700 dark:text-slate-300">{d.completed}</td>
                   <td className="py-2.5 text-right">
-                    <Badge tone={d.efficiency >= 80 ? "green" : d.efficiency >= 60 ? "amber" : "red"}>{d.efficiency}%</Badge>
+                    <Badge tone={d.efficiency >= 80 ? "green" : d.efficiency >= 60 ? "blue" : "red"}>{d.efficiency}%</Badge>
                   </td>
                 </tr>
               ))}
@@ -137,13 +137,13 @@ export default async function ReportsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-600 dark:text-slate-300">Taux complétude</span>
-                  <Badge tone={emp.completion_rate >= 80 ? "green" : emp.completion_rate >= 60 ? "amber" : "red"}>
+                  <Badge tone={emp.completion_rate >= 80 ? "green" : emp.completion_rate >= 60 ? "blue" : "red"}>
                     {emp.completion_rate?.toFixed(1) ?? 0}%
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-600 dark:text-slate-300">Erreurs signalées</span>
-                  <Badge tone={emp.total_faults === 0 ? "green" : emp.total_faults <= 2 ? "amber" : "red"}>
+                  <Badge tone={emp.total_faults === 0 ? "green" : emp.total_faults <= 2 ? "blue" : "red"}>
                     {emp.total_faults}
                   </Badge>
                 </div>

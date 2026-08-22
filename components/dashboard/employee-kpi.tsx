@@ -35,8 +35,8 @@ export async function EmployeeKpi() {
           <p className="text-slate-600 dark:text-slate-300">Erreurs signalées</p>
           <div className="flex items-center gap-1.5">
             {majorFaults > 0 && <Badge tone="red">{majorFaults} majeures</Badge>}
-            {minorFaults > 0 && <Badge tone="amber">{minorFaults} mineures</Badge>}
-            {totalFaults === 0 && <Badge tone="slate">Aucune ✓</Badge>}
+            {minorFaults > 0 && <Badge tone="blue">{minorFaults} mineures</Badge>}
+            {totalFaults === 0 && <Badge tone="gray">Aucune ✓</Badge>}
           </div>
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 pt-2">
