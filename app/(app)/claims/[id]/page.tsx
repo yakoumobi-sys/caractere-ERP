@@ -98,8 +98,8 @@ export default async function ClaimDetailPage({ params }: { params: { id: string
         <Card className="p-6">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Mettre à jour le statut</h2>
           <form action={updateStatus} className="space-y-4">
-            <Field label="Nouveau statut" required>
-              <select name="status" className={inputClass} defaultValue={claim.status} required>
+            <Field label="Nouveau statut" htmlFor="status" required>
+              <select id="status" name="status" className={inputClass} defaultValue={claim.status} required>
                 <option value="open">Ouverte</option>
                 <option value="in_progress">En cours</option>
                 <option value="resolved">Résolue</option>
