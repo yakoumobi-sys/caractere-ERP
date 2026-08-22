@@ -15,7 +15,7 @@ export default async function Page() {
       <PageHeader title="Présences" description="Heure de connexion / déconnexion de chaque compte" />
       <Card className="overflow-x-auto">
         {error && <div className="p-4 text-sm text-red-600">{error.message}</div>}
-        {!error && (!logs || logs.length === 0) && <EmptyState message="Aucun pointage enregistré." />}
+        {!error && (!logs || logs.length === 0) && <EmptyState title="Aucun pointage enregistré." />}
         {!error && logs && logs.length > 0 && (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500 border-b border-slate-200">

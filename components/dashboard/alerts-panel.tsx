@@ -39,7 +39,7 @@ export async function AlertsPanel() {
     return (
       <Card className="p-5">
         <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Alertes en cours</h2>
-        <EmptyState message="Aucun problème détecté ✓" />
+        <EmptyState title="Aucun problème détecté ✓" />
       </Card>
     );
   }

@@ -16,7 +16,7 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
   if (!orders || orders.length === 0) {
     return (
       <Card className="p-4">
-        <EmptyState message="Aucune commande dans cette file." />
+        <EmptyState title="Aucune commande dans cette file." />
       </Card>
     );
   }

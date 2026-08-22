@@ -48,7 +48,7 @@ export default async function Page() {
       </div>
 
       <Card className="overflow-x-auto">
-        {rows.length === 0 && <EmptyState message="Aucune écriture comptabilisée." />}
+        {rows.length === 0 && <EmptyState title="Aucune écriture comptabilisée." />}
         {rows.length > 0 && (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500 border-b border-slate-200">

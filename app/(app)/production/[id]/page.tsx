@@ -250,7 +250,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 
       <Card className="p-6">
         <h2 className="text-sm font-semibold text-slate-900 mb-3">Historique du parcours</h2>
-        {(!history || history.length === 0) && <EmptyState message="Aucun historique." />}
+        {(!history || history.length === 0) && <EmptyState title="Aucun historique." />}
         <div className="flex flex-col gap-3">
           {history?.map((h: any) => (
             <div key={h.id} className="border-l-2 border-brand-200 pl-3">

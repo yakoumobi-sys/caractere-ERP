@@ -39,7 +39,7 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
       <Card className="overflow-x-auto">
         {error && <div className="p-4 text-sm text-red-600">{error.message}</div>}
         {!error && (!data || data.length === 0) && (
-          <EmptyState message={`Aucun ${config.titleSingular.toLowerCase()} pour l'instant.`} />
+          <EmptyState title={`Aucun ${config.titleSingular.toLowerCase()} pour l'instant.`} />
         )}
         {!error && data && data.length > 0 && (
           <table className="w-full text-sm">

@@ -12,7 +12,7 @@ export async function ActivityFeed() {
     .order("created_at", { ascending: false })
     .limit(8);
 
-  if (!logs || logs.length === 0) return <EmptyState message="Aucune activité récente." />;
+  if (!logs || logs.length === 0) return <EmptyState title="Aucune activité récente." />;
 
   return (
     <div className="flex flex-col gap-3">

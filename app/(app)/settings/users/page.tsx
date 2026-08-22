@@ -13,7 +13,7 @@ export default async function Page() {
         description="Gestion des accès — les nouveaux comptes se créent depuis l'écran de connexion"
       />
       <Card className="overflow-x-auto">
-        {(!users || users.length === 0) && <EmptyState message="Aucun utilisateur." />}
+        {(!users || users.length === 0) && <EmptyState title="Aucun utilisateur." />}
         {users && users.length > 0 && (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500 border-b border-slate-200">

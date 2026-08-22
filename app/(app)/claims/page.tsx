@@ -36,7 +36,7 @@ export default async function ClaimsPage() {
 
       <Card className="overflow-x-auto">
         {!claims || claims.length === 0 ? (
-          <EmptyState message="Aucune réclamation pour l'instant." />
+          <EmptyState title="Aucune réclamation pour l'instant." />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">

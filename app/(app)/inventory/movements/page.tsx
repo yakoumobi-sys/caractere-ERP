@@ -82,7 +82,7 @@ export default async function Page() {
       </Card>
 
       <Card className="overflow-x-auto">
-        {(!moves || moves.length === 0) && <EmptyState message="Aucun mouvement enregistré." />}
+        {(!moves || moves.length === 0) && <EmptyState title="Aucun mouvement enregistré." />}
         {moves && moves.length > 0 && (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500 border-b border-slate-200">

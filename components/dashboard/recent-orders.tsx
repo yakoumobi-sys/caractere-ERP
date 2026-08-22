@@ -16,7 +16,7 @@ export async function RecentOrders({ limit = 8 }: { limit?: number }) {
     return (
       <Card className="p-5">
         <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Commandes récentes</h2>
-        <EmptyState message="Aucune commande pour l'instant." />
+        <EmptyState title="Aucune commande pour l'instant." />
       </Card>
     );
   }

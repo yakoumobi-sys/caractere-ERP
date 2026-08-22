@@ -20,7 +20,7 @@ export default async function Page() {
       <JournalEntryForm accounts={accounts ?? []} />
 
       <Card className="p-4">
-        {(!entries || entries.length === 0) && <EmptyState message="Aucune écriture pour l'instant." />}
+        {(!entries || entries.length === 0) && <EmptyState title="Aucune écriture pour l'instant." />}
         <div className="flex flex-col divide-y divide-slate-100">
           {entries?.map((entry: any) => {
             const total = entry.journal_lines.reduce((s: number, l: any) => s + Number(l.debit), 0);
