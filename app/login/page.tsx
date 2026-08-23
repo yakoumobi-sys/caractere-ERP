@@ -9,15 +9,31 @@ export default async function LoginPage({
 }) {
   const isSignup = searchParams.mode === "signup";
 
-  // Récupérer la liste des utilisateurs
+  // Récupérer la liste des employés actifs
   let users: Array<{ id: string; full_name: string }> = [];
   if (!isSignup) {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .order("full_name");
-    users = data || [];
+    // Essayer d'abord de charger depuis employees (plus complet)
+    const { data: employeeData, error: empError } = await supabase
+      .from("employees")
+      .select("id, first_name, last_name")
+      .eq("status", "actif")
+      .order("first_name");
+
+    if (!empError && employeeData) {
+      users = employeeData.map((emp: any) => ({
+        id: emp.id,
+        full_name: `${emp.first_name} ${emp.last_name}`.trim(),
+      }));
+    } else {
+      // Fallback: charger depuis profiles
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("is_active", true)
+        .order("full_name");
+      users = profileData || [];
+    }
   }
 
   return (
