@@ -108,8 +108,9 @@ export default async function ClaimDetailPage({ params }: { params: { id: string
             </Field>
 
             {(claim.status === "resolved" || claim.status === "closed") && (
-              <Field label="Résolution">
+              <Field label="Résolution" htmlFor="resolution">
                 <textarea
+                  id="resolution"
                   name="resolution"
                   placeholder="Comment le problème a-t-il été résolu?"
                   className={`${inputClass} min-h-[80px]`}

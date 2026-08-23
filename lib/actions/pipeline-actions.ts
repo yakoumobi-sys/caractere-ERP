@@ -296,14 +296,14 @@ export async function createYalidineOrder(data: {
 }
 
 // Stub functions for compatibility
-export async function setPipelineStatus() { return {}; }
-export async function addPipelineNote() { return {}; }
-export async function deletePipelineOrder() { return {}; }
-export async function addPipelineItem() { return {}; }
-export async function addPipelinePrint() { return {}; }
-export async function uploadPipelineFile() { return {}; }
-export async function addPipelineFault() { return {}; }
-export async function deletePipelineItem() { return {}; }
-export async function deletePipelinePrint() { return {}; }
-export async function deletePipelineFile() { return {}; }
-export async function deletePipelineFault() { return {}; }
+export async function setPipelineStatus(...args: any[]) { return {}; }
+export async function addPipelineNote(...args: any[]) { return {}; }
+export async function deletePipelineOrder(...args: any[]) { return {}; }
+export async function addPipelineItem(...args: any[]) { return {}; }
+export async function addPipelinePrint(...args: any[]) { return {}; }
+export async function uploadPipelineFile(...args: any[]) { return {}; }
+export async function addPipelineFault(...args: any[]) { return {}; }
+export async function deletePipelineItem(...args: any[]) { return {}; }
+export async function deletePipelinePrint(...args: any[]) { return {}; }
+export async function deletePipelineFile(...args: any[]) { return {}; }
+export async function deletePipelineFault(...args: any[]) { return {}; }

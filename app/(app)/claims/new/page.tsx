@@ -29,8 +29,8 @@ export default async function NewClaimPage() {
 
       <Card className="p-6">
         <form action={submit} className="space-y-4">
-          <Field label="Commande" required>
-            <select name="order_id" className={inputClass} required>
+          <Field label="Commande" htmlFor="order_id" required>
+            <select id="order_id" name="order_id" className={inputClass} required>
               <option value="">Sélectionner une commande...</option>
               {(orders as any[])?.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -40,8 +40,8 @@ export default async function NewClaimPage() {
             </select>
           </Field>
 
-          <Field label="Client" required>
-            <select name="contact_id" className={inputClass} required>
+          <Field label="Client" htmlFor="contact_id" required>
+            <select id="contact_id" name="contact_id" className={inputClass} required>
               <option value="">Sélectionner un client...</option>
               {(contacts as any[])?.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -51,8 +51,8 @@ export default async function NewClaimPage() {
             </select>
           </Field>
 
-          <Field label="Type de problème" required>
-            <select name="issue_type" className={inputClass} required>
+          <Field label="Type de problème" htmlFor="issue_type" required>
+            <select id="issue_type" name="issue_type" className={inputClass} required>
               <option value="">Choisir...</option>
               <option value="quality">Problème de qualité</option>
               <option value="damage">Dommage à la livraison</option>
@@ -62,8 +62,8 @@ export default async function NewClaimPage() {
             </select>
           </Field>
 
-          <Field label="Priorité" required>
-            <select name="priority" className={inputClass} defaultValue="normal">
+          <Field label="Priorité" htmlFor="priority" required>
+            <select id="priority" name="priority" className={inputClass} defaultValue="normal">
               <option value="low">Basse</option>
               <option value="normal">Normal</option>
               <option value="high">Haute</option>
@@ -71,8 +71,8 @@ export default async function NewClaimPage() {
             </select>
           </Field>
 
-          <Field label="Description détaillée" required>
-            <textarea name="description" className={`${inputClass} min-h-[100px]`} placeholder="Décrire le problème, ce qui s'est passé..." required />
+          <Field label="Description détaillée" htmlFor="description" required>
+            <textarea id="description" name="description" className={`${inputClass} min-h-[100px]`} placeholder="Décrire le problème, ce qui s'est passé..." required />
           </Field>
 
           <div className="flex gap-2 pt-4">

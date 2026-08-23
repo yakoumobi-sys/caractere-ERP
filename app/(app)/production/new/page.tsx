@@ -2,6 +2,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createPipelineOrder } from "@/lib/actions/pipeline-actions";
 import { OrderDetailsFields } from "@/components/production/order-details-fields";
 import { Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
+import { redirect } from "next/navigation";
+
+async function handleCreateOrder(formData: FormData) {
+  "use server";
+  const result = await createPipelineOrder(formData);
+  if (!("error" in result)) {
+    redirect(`/production/${result.orderId}`);
+  }
+}
 
 export default async function Page() {
   const supabase = createClient();
@@ -10,7 +19,7 @@ export default async function Page() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Nouvelle commande" description="Configurateur — Client, Article, Impression" />
-      <form action={createPipelineOrder} className="flex flex-col gap-6">
+      <form action={handleCreateOrder} className="flex flex-col gap-6">
         <OrderDetailsFields contacts={(contacts as any) ?? []} />
 
         <Card className="p-6">

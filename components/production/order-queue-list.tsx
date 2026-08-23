@@ -27,7 +27,7 @@ export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) 
         const def = STATUS_DEFS[o.status as OrderStatus];
         async function advance() {
           "use server";
-          await advancePipelineOrder(o.id, o.status, o.assigned_to);
+          await advancePipelineOrder(o.id, o.status);
         }
         const employeeColor: string | null = o.assigned_to ? o.assignee_color : null;
         return (

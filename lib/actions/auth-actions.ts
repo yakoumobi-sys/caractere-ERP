@@ -280,7 +280,64 @@ export async function changePassword(
   }
 }
 
-// Stub functions for compatibility
-export async function signUp() { return {}; }
-export async function signIn() { return {}; }
-export async function signOut() { return {}; }
+/**
+ * Connexion via formulaire
+ */
+export async function signIn(formData: FormData) {
+  "use server";
+  const { redirect } = await import("next/navigation");
+  const firstName = formData.get("first_name") as string;
+  const lastName = formData.get("last_name") as string;
+  const password = formData.get("password") as string;
+
+  if (!firstName || !lastName || !password) {
+    redirect("/login?error=Tous les champs sont requis");
+  }
+
+  const result = await loginEmployee(firstName, lastName, password, false);
+
+  if ("error" in result) {
+    redirect(`/login?error=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect("/admin/dashboard");
+}
+
+/**
+ * Inscription - première connexion
+ */
+export async function signUp(formData: FormData) {
+  "use server";
+  const { redirect } = await import("next/navigation");
+  const firstName = formData.get("first_name") as string;
+  const lastName = formData.get("last_name") as string;
+  const password = formData.get("password") as string;
+
+  if (!firstName || !lastName || !password) {
+    redirect("/login?mode=signup&error=Tous les champs sont requis");
+  }
+
+  const result = await loginEmployee(firstName, lastName, password, true);
+
+  if ("error" in result) {
+    redirect(`/login?mode=signup&error=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect("/admin/dashboard");
+}
+
+/**
+ * Déconnexion
+ */
+export async function signOut() {
+  "use server";
+  const { redirect } = await import("next/navigation");
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+
+  if (token) {
+    await logoutEmployee(token);
+  }
+
+  redirect("/login");
+}
