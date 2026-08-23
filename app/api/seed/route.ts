@@ -28,9 +28,8 @@ export async function POST(req: NextRequest) {
         email: 'admin@caractere.dz',
         password_hash: passwordHash,
         password_set_at: new Date().toISOString(),
-        is_active: true,
+        active: true,
         department: 'Admin',
-        position: 'Administrateur',
       })
       .select()
       .single();

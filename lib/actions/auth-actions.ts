@@ -46,8 +46,8 @@ export async function getEmployeesList() {
   try {
     const { data: employees, error } = await supabase
       .from("employees")
-      .select("id, first_name, last_name, is_active")
-      .eq("is_active", true)
+      .select("id, first_name, last_name, active")
+      .eq("active", true)
       .order("first_name", { ascending: true });
 
     if (error) {
@@ -78,7 +78,7 @@ export async function loginEmployeeByEmail(
     // 1. Trouver l'employé par email
     const { data: employee, error: employeeError } = await supabase
       .from("employees")
-      .select("id, first_name, last_name, email, password_hash, password_set_at, is_active")
+      .select("id, first_name, last_name, email, password_hash, password_set_at, active")
       .eq("email", email)
       .single();
 
@@ -86,7 +86,7 @@ export async function loginEmployeeByEmail(
       return { error: "Email ou mot de passe incorrect" };
     }
 
-    if (!employee.is_active) {
+    if (!employee.active) {
       return { error: "Ce compte est désactivé" };
     }
 
@@ -155,7 +155,7 @@ export async function loginEmployee(
     // 1. Trouver l'employé par nom
     const { data: employee, error: employeeError } = await supabase
       .from("employees")
-      .select("id, first_name, last_name, email, password_hash, password_set_at, is_active")
+      .select("id, first_name, last_name, email, password_hash, password_set_at, active")
       .eq("first_name", firstName)
       .eq("last_name", lastName)
       .single();
@@ -164,7 +164,7 @@ export async function loginEmployee(
       return { error: "Employé non trouvé ou mot de passe incorrect" };
     }
 
-    if (!employee.is_active) {
+    if (!employee.active) {
       return { error: "Ce compte est désactivé" };
     }
 
