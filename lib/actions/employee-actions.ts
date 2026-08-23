@@ -80,13 +80,13 @@ export async function reportAbsence(formData: FormData) {
 
   if (!user) throw new Error("Non authentifié");
 
-  const date = String(formData.get("date"));
+  const absenceDate = String(formData.get("date"));
   const reason = String(formData.get("reason"));
   const notes = (formData.get("notes") as string) || null;
 
   const { error } = await supabase.from("employee_absences").insert({
     employee_id: user.id,
-    date,
+    absence_date: absenceDate,
     reason,
     notes,
     status: "pending",
@@ -103,13 +103,13 @@ export async function getAbsences(employeeId: string, month?: string) {
     .from("employee_absences")
     .select("*")
     .eq("employee_id", employeeId)
-    .order("date", { ascending: false });
+    .order("absence_date", { ascending: false });
 
   if (month) {
     const [year, m] = month.split("-");
     const start = `${year}-${m}-01`;
     const end = `${year}-${m}-31`;
-    query = query.gte("date", start).lte("date", end);
+    query = query.gte("absence_date", start).lte("absence_date", end);
   }
 
   const { data, error } = await query;
@@ -138,7 +138,7 @@ export async function getEmployeeStats(employeeId: string) {
     .select("id")
     .eq("employee_id", employeeId)
     .eq("status", "approved")
-    .gte("date", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+    .gte("absence_date", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
 
   // Commandes livrées assignées ce mois
   const { data: ordersData } = await supabase

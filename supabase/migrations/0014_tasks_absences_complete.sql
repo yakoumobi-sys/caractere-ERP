@@ -23,7 +23,7 @@ create index employee_tasks_completed_idx on public.employee_tasks(completed_at)
 create table if not exists public.employee_absences (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references public.profiles(id) on delete cascade,
-  date date not null,
+  absence_date date not null,
   reason text not null,
   notes text,
   status text check (status in ('pending', 'approved', 'rejected')) default 'pending',
@@ -32,7 +32,7 @@ create table if not exists public.employee_absences (
 );
 
 create index employee_absences_employee_idx on public.employee_absences(employee_id);
-create index employee_absences_date_idx on public.employee_absences(date);
+create index employee_absences_date_idx on public.employee_absences(absence_date);
 
 -- Table pour Yalidine Tracking
 create table if not exists public.yalidine_shipments (
