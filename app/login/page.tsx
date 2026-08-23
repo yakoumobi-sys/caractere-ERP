@@ -55,9 +55,12 @@ export default function LoginPage({
               J&apos;ai déjà un compte
             </a>
           ) : (
-            <a href="/login?mode=signup" className="text-brand-600 dark:text-brand-400 hover:underline">
-              Premier lancement ? Créer le compte administrateur
-            </a>
+            <>
+              Nouveau sur Caractère?{' '}
+              <a href="/signup" className="text-brand-600 dark:text-brand-400 hover:underline">
+                Créer un compte
+              </a>
+            </>
           )}
         </p>
       </Card>

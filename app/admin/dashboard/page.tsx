@@ -86,200 +86,201 @@ export default async function DashboardPage() {
   const urgentCount = data.supplyAlerts.filter((a) => a.priority === "urgent").length + data.failedDeliveries.length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="mb-10 flex items-center gap-4">
-          <img src="/logo-caractere.png" alt="Caractère" className="w-12 h-12 rounded-lg" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
-              Tableau de bord
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Vue d'ensemble de Caractère Store
-            </p>
-          </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white mb-1">
+            Tableau de bord
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Bienvenue sur Caractère ERP
+          </p>
         </div>
+        <div className="text-4xl opacity-20">📊</div>
+      </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[
-            {
-              label: "Commandes totales",
-              value: data.totalOrders,
-              icon: "📦",
-              color: "text-slate-600",
-            },
-            {
-              label: "En production",
-              value: data.pendingOrders,
-              icon: "⚙️",
-              color: "text-blue-600",
-            },
-            {
-              label: "Prêtes à livrer",
-              value: data.readyOrders,
-              icon: "✅",
-              color: "text-green-600",
-            },
-            {
-              label: "Alertes",
-              value: alertsCount,
-              icon: urgentCount > 0 ? "🚨" : "⚠️",
-              color: urgentCount > 0 ? "text-red-600" : "text-orange-600",
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800"
-            >
-              <div className="text-2xl mb-2">{stat.icon}</div>
-              <div className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-              <div className="text-xs text-slate-600 dark:text-slate-400">{stat.label}</div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: "Commandes totales",
+            value: data.totalOrders,
+            icon: "📦",
+            color: "from-slate-500 to-slate-600",
+          },
+          {
+            label: "En production",
+            value: data.pendingOrders,
+            icon: "⚙️",
+            color: "from-blue-500 to-blue-600",
+          },
+          {
+            label: "Prêtes à livrer",
+            value: data.readyOrders,
+            icon: "✅",
+            color: "from-green-500 to-green-600",
+          },
+          {
+            label: "Alertes",
+            value: alertsCount,
+            icon: urgentCount > 0 ? "🚨" : "⚠️",
+            color: urgentCount > 0 ? "from-red-500 to-red-600" : "from-orange-500 to-orange-600",
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br ${stat.color} text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1`}
+          >
+            <div className="absolute inset-0 opacity-20 bg-white/10 rounded-2xl" />
+            <div className="relative z-10">
+              <div className="text-3xl mb-3">{stat.icon}</div>
+              <div className="text-3xl font-bold mb-1">{stat.value}</div>
+              <div className="text-xs opacity-90">{stat.label}</div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
 
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Alerts Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Supply Alerts */}
-            {data.supplyAlerts.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                  <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    📦 Alertes d'approvisionnement
-                  </h2>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {data.supplyAlerts.map((alert) => {
-                    const colors = PRIORITY_COLORS[alert.priority] || PRIORITY_COLORS.normal;
-                    return (
-                      <Link
-                        key={alert.id}
-                        href={`/admin/alerts/${alert.id}`}
-                        className="px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors block"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="text-lg shrink-0">{colors.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 dark:text-white">
-                              {alert.title}
-                            </p>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                              {alert.number} • {alert.department}
-                            </p>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${colors.bg} ${colors.text} shrink-0`}>
-                            {alert.priority === "urgent" ? "🚨 Urgent" : alert.priority === "high" ? "⚠️ Haute" : "Normal"}
-                          </span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+      {/* Main content grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Alerts Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Supply Alerts */}
+          {data.supplyAlerts.length > 0 && (
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  📦 Alertes d'approvisionnement
+                </h2>
               </div>
-            )}
-
-            {/* Delayed Orders */}
-            {data.delayedOrders.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-orange-200 dark:border-orange-900 overflow-hidden">
-                <div className="px-6 py-4 border-b border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30">
-                  <h2 className="text-base font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
-                    ⏰ Commandes retardées (&gt; 2 jours)
-                  </h2>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {data.delayedOrders.slice(0, 5).map((order) => (
+              <div className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+                {data.supplyAlerts.map((alert) => {
+                  const colors = PRIORITY_COLORS[alert.priority] || PRIORITY_COLORS.normal;
+                  return (
                     <Link
-                      key={order.id}
-                      href={`/admin/commandes/${order.id}`}
-                      className="px-6 py-4 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors block"
+                      key={alert.id}
+                      href={`/admin/alerts/${alert.id}`}
+                      className="px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors block"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg shrink-0">{colors.icon}</span>
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900 dark:text-white">
-                            Commande #{order.number}
+                            {alert.title}
                           </p>
-                          <p className="text-xs text-slate-600 dark:text-slate-400">
-                            {order.contact_name} • Depuis{" "}
-                            {Math.floor(
-                              (Date.now() - new Date(order.created_at).getTime()) / (24 * 60 * 60 * 1000)
-                            )}{" "}
-                            jours
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                            {alert.number} • {alert.department}
                           </p>
                         </div>
-                        <span className="text-lg">⏳</span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${colors.bg} ${colors.text} shrink-0`}>
+                          {alert.priority === "urgent" ? "🚨" : alert.priority === "high" ? "⚠️" : "ℹ️"}
+                        </span>
                       </div>
                     </Link>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Failed Yalidine Deliveries */}
-            {data.failedDeliveries.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-red-200 dark:border-red-900 overflow-hidden">
-                <div className="px-6 py-4 border-b border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30">
-                  <h2 className="text-base font-semibold text-red-900 dark:text-red-100 flex items-center gap-2">
-                    ❌ Livraisons échouées (Yalidine)
-                  </h2>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {data.failedDeliveries.slice(0, 5).map((order) => (
-                    <Link
-                      key={order.id}
-                      href={`/admin/commandes/${order.id}`}
-                      className="px-6 py-4 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors block"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-900 dark:text-white">
-                            Commande #{order.number}
-                          </p>
-                          <p className="text-xs text-slate-600 dark:text-slate-400">
-                            {order.contact_name} • {order.yalidine_tracking}
-                          </p>
-                        </div>
-                        <span className="text-lg">🚨</span>
+          {/* Delayed Orders */}
+          {data.delayedOrders.length > 0 && (
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-orange-200/50 dark:border-orange-900/50 overflow-hidden">
+              <div className="px-6 py-4 border-b border-orange-200/50 dark:border-orange-900/50">
+                <h2 className="text-lg font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
+                  ⏰ Commandes retardées (&gt; 2 jours)
+                </h2>
+              </div>
+              <div className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+                {data.delayedOrders.slice(0, 5).map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/admin/commandes/${order.id}`}
+                    className="px-6 py-4 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 transition-colors block"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          Commande #{order.number}
+                        </p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {order.contact_name} • Depuis{" "}
+                          {Math.floor(
+                            (Date.now() - new Date(order.created_at).getTime()) / (24 * 60 * 60 * 1000)
+                          )}{" "}
+                          jours
+                        </p>
                       </div>
-                    </Link>
-                  ))}
-                </div>
+                      <span className="text-lg">⏳</span>
+                    </div>
+                  </Link>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Sidebar - Recent Orders */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden h-fit">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center justify-between">
-                Dernières commandes
-                <Link href="/admin/commandes" className="text-xs text-blue-600 dark:text-blue-400 font-normal hover:underline">
-                  Voir tout
-                </Link>
-              </h2>
+          {/* Failed Yalidine Deliveries */}
+          {data.failedDeliveries.length > 0 && (
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-red-200/50 dark:border-red-900/50 overflow-hidden">
+              <div className="px-6 py-4 border-b border-red-200/50 dark:border-red-900/50">
+                <h2 className="text-lg font-semibold text-red-900 dark:text-red-100 flex items-center gap-2">
+                  ❌ Livraisons échouées (Yalidine)
+                </h2>
+              </div>
+              <div className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+                {data.failedDeliveries.slice(0, 5).map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/admin/commandes/${order.id}`}
+                    className="px-6 py-4 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-colors block"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          Commande #{order.number}
+                        </p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {order.contact_name} • {order.yalidine_tracking}
+                        </p>
+                      </div>
+                      <span className="text-lg">🚨</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-slate-200 dark:divide-slate-800">
-              {data.recentOrders.map((order) => (
-                <Link
-                  key={order.id}
-                  href={`/admin/commandes/${order.id}`}
-                  className="px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors block text-sm"
-                >
-                  <p className="font-medium text-slate-900 dark:text-white truncate">#{order.number}</p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{order.contact_name}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Champion du Mois Section */}
-        <div className="mt-8">
-          <DashboardClient />
+        {/* Sidebar - Recent Orders */}
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden h-fit sticky top-24">
+          <div className="px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center justify-between">
+              Dernières commandes
+              <Link href="/admin/commandes" className="text-xs text-blue-600 dark:text-blue-400 font-normal hover:underline">
+                Voir tout →
+              </Link>
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-200/50 dark:divide-slate-800/50">
+            {data.recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/admin/commandes/${order.id}`}
+                className="px-6 py-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors block text-sm"
+              >
+                <p className="font-medium text-slate-900 dark:text-white truncate">#{order.number}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{order.contact_name}</p>
+              </Link>
+            ))}
+          </div>
         </div>
+      </div>
+
+      {/* Champion du Mois Section */}
+      <div>
+        <DashboardClient />
       </div>
     </div>
   );
