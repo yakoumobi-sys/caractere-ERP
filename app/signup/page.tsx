@@ -55,8 +55,14 @@ export default async function SignUpPage() {
   if (session) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Décoration avec glassmorphism */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-brand-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 dark:opacity-10" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 dark:opacity-10" />
+      </div>
+
+      <Card glass className="w-full max-w-md p-8 relative z-10">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Créer un compte</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
           Rejoignez Caractère ERP pour améliorer votre productivité

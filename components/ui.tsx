@@ -114,16 +114,19 @@ export function Card({
   children,
   className,
   style,
+  glass = false,
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  glass?: boolean;
 }) {
+  const baseClass = glass
+    ? "bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-shadow"
+    : "bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm";
+
   return (
-    <div
-      className={cx("bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm", className)}
-      style={style}
-    >
+    <div className={cx(baseClass, className)} style={style}>
       {children}
     </div>
   );
