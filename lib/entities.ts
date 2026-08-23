@@ -238,7 +238,7 @@ export const employeesConfig: EntityConfig = {
     { name: "email", label: "Email", type: "email" },
     { name: "phone", label: "Téléphone", type: "tel" },
     { name: "position", label: "Poste", type: "text" },
-    { name: "color", label: "Couleur (repérage sur les commandes)", type: "select", options: EMPLOYEE_COLORS },
+    { name: "color", label: "Couleur (repérage sur les commandes)", type: "select", options: EMPLOYEE_COLORS.map(c => ({ value: c, label: c })) },
     {
       name: "department",
       label: "Service",
