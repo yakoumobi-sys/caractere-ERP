@@ -1,12 +1,24 @@
 import { signIn, signUp } from "@/lib/actions/auth-actions";
 import { Button, Card, Field, inputClass } from "@/components/ui";
+import { createClient } from "@/lib/supabase/server";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { mode?: string; error?: string; message?: string };
 }) {
   const isSignup = searchParams.mode === "signup";
+
+  // Récupérer la liste des utilisateurs
+  let users: Array<{ id: string; full_name: string }> = [];
+  if (!isSignup) {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .order("full_name");
+    users = data || [];
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
@@ -44,8 +56,15 @@ export default function LoginPage({
             </>
           )}
           {!isSignup && (
-            <Field label="Nom d&apos;utilisateur" htmlFor="username" required>
-              <input id="username" name="username" type="text" required className={inputClass} placeholder="Ex: John Doe" />
+            <Field label="Utilisateur" htmlFor="username" required>
+              <select id="username" name="username" required className={inputClass}>
+                <option value="">-- Sélectionne ton nom --</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.full_name}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </select>
             </Field>
           )}
           <Field label="Mot de passe" htmlFor="password" required>
