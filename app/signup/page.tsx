@@ -6,7 +6,6 @@ async function signUp(formData: FormData) {
   "use server";
 
   const supabase = createClient();
-  const fullName = String(formData.get("full_name"));
   const email = String(formData.get("email"));
   const password = String(formData.get("password"));
   const confirmPassword = String(formData.get("confirm_password"));
@@ -20,26 +19,16 @@ async function signUp(formData: FormData) {
   }
 
   try {
-    // Create auth user
+    // Create auth user only
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
     });
 
     if (authError) throw authError;
-    if (!authData.user) throw new Error("Impossible de créer l&apos;utilisateur");
+    if (!authData.user) throw new Error("Impossible de créer l'utilisateur");
 
-    // Create profile with email and full_name
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: authData.user.id,
-      full_name: fullName,
-      email,
-      is_active: false, // Admin doit approuver
-    });
-
-    if (profileError) throw profileError;
-
-    // Redirect to login
+    // Success - redirect to login
     redirect("/login?registered=true");
   } catch (error) {
     console.error("Signup error:", error);
@@ -63,23 +52,15 @@ export default async function SignUpPage() {
       </div>
 
       <Card glass className="w-full max-w-md p-8 relative z-10">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Créer un compte</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-          Rejoignez Caractère ERP pour améliorer votre productivité
-        </p>
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 h-10 w-10 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold">
+            C
+          </div>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Caractère ERP</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Créer un compte</p>
+        </div>
 
         <form action={signUp} className="flex flex-col gap-4">
-          <Field label="Nom complet" htmlFor="full_name" required>
-            <input
-              id="full_name"
-              name="full_name"
-              type="text"
-              placeholder="Jean Dupont"
-              required
-              className={inputClass}
-            />
-          </Field>
-
           <Field label="Email professionnel" htmlFor="email" required>
             <input
               id="email"
