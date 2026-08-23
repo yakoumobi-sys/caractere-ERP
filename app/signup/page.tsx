@@ -12,11 +12,11 @@ async function signUp(formData: FormData) {
   const confirmPassword = String(formData.get("confirm_password"));
 
   if (password !== confirmPassword) {
-    return { error: "Les mots de passe ne correspondent pas" };
+    throw new Error("Les mots de passe ne correspondent pas");
   }
 
   if (password.length < 6) {
-    return { error: "Le mot de passe doit faire au minimum 6 caractères" };
+    throw new Error("Le mot de passe doit faire au minimum 6 caractères");
   }
 
   try {
@@ -43,7 +43,7 @@ async function signUp(formData: FormData) {
     redirect("/login?registered=true");
   } catch (error) {
     console.error("Signup error:", error);
-    return { error: (error as Error).message };
+    throw error;
   }
 }
 

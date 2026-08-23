@@ -56,7 +56,7 @@ export function MyTasks({ initialTasks }: { initialTasks: Task[] }) {
             {completed}/{total} complétées
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowForm(!showForm)}>
           {showForm ? "Annuler" : "+ Ajouter"}
         </Button>
       </div>
@@ -124,10 +124,10 @@ export function MyTasks({ initialTasks }: { initialTasks: Task[] }) {
                     task.priority === "urgent"
                       ? "red"
                       : task.priority === "high"
-                        ? "orange"
+                        ? "amber"
                         : task.priority === "low"
                           ? "blue"
-                          : "gray"
+                          : "slate"
                   }
                 >
                   {task.priority}

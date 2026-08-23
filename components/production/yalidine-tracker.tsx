@@ -75,7 +75,6 @@ export function YalidineTracker({ shipments }: { shipments: YalidineShipment[] }
                     <>
                       {shipment.status === "pending" && (
                         <Button
-                          size="xs"
                           onClick={() => handleStatusUpdate(shipment.yalidine_tracking_id, "in_transit")}
                         >
                           Marquer en route
@@ -83,14 +82,12 @@ export function YalidineTracker({ shipments }: { shipments: YalidineShipment[] }
                       )}
                       {shipment.status === "in_transit" && (
                         <Button
-                          size="xs"
                           onClick={() => handleStatusUpdate(shipment.yalidine_tracking_id, "delivered")}
                         >
                           Marquer livrée
                         </Button>
                       )}
                       <Button
-                        size="xs"
                         variant="secondary"
                         onClick={() => handleStatusUpdate(shipment.yalidine_tracking_id, "failed")}
                       >
