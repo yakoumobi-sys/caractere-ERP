@@ -65,6 +65,82 @@ export async function getEmployeesList() {
 }
 
 /**
+ * Login par email
+ */
+export async function loginEmployeeByEmail(
+  email: string,
+  password: string,
+  isFirstLogin: boolean = false
+) {
+  const supabase = createClient();
+
+  try {
+    // 1. Trouver l'employé par email
+    const { data: employee, error: employeeError } = await supabase
+      .from("employees")
+      .select("id, first_name, last_name, email, password_hash, password_set_at, is_active")
+      .eq("email", email)
+      .single();
+
+    if (employeeError || !employee) {
+      return { error: "Email ou mot de passe incorrect" };
+    }
+
+    if (!employee.is_active) {
+      return { error: "Ce compte est désactivé" };
+    }
+
+    // 2. Si première connexion
+    if (isFirstLogin) {
+      if (employee.password_set_at) {
+        return { error: "Ce compte est déjà activé" };
+      }
+
+      // Créer le hash du password
+      const passwordHash = await hashPassword(password);
+
+      // Mettre à jour le password
+      const { error: updateError } = await supabase
+        .from("employees")
+        .update({
+          password_hash: passwordHash,
+          password_set_at: new Date().toISOString(),
+        })
+        .eq("id", employee.id);
+
+      if (updateError) {
+        return { error: "Erreur lors de la création du mot de passe" };
+      }
+
+      // Créer une session
+      return await createSession(employee.id, employee.email);
+    }
+
+    // 3. Login régulier - vérifier le password
+    if (!employee.password_hash) {
+      return { error: "Ce compte n'est pas activé. Veuillez créer un mot de passe." };
+    }
+
+    const isPasswordValid = await verifyPassword(password, employee.password_hash);
+    if (!isPasswordValid) {
+      return { error: "Email ou mot de passe incorrect" };
+    }
+
+    // Mettre à jour last_login
+    await supabase
+      .from("employees")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("id", employee.id);
+
+    // Créer une session
+    return await createSession(employee.id, employee.email);
+  } catch (error) {
+    console.error("Login error:", error);
+    return { error: "Erreur lors de la connexion" };
+  }
+}
+
+/**
  * Login employé - Première connexion ou connexion régulière
  */
 export async function loginEmployee(
@@ -286,15 +362,14 @@ export async function changePassword(
 export async function signIn(formData: FormData) {
   "use server";
   const { redirect } = await import("next/navigation");
-  const firstName = formData.get("first_name") as string;
-  const lastName = formData.get("last_name") as string;
+  const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  if (!firstName || !lastName || !password) {
+  if (!email || !password) {
     redirect("/login?error=Tous les champs sont requis");
   }
 
-  const result = await loginEmployee(firstName, lastName, password, false);
+  const result = await loginEmployeeByEmail(email, password, false);
 
   if ("error" in result && result.error) {
     redirect(`/login?error=${encodeURIComponent(result.error)}`);
@@ -309,15 +384,14 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   "use server";
   const { redirect } = await import("next/navigation");
-  const firstName = formData.get("first_name") as string;
-  const lastName = formData.get("last_name") as string;
+  const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  if (!firstName || !lastName || !password) {
+  if (!email || !password) {
     redirect("/login?mode=signup&error=Tous les champs sont requis");
   }
 
-  const result = await loginEmployee(firstName, lastName, password, true);
+  const result = await loginEmployeeByEmail(email, password, true);
 
   if ("error" in result && result.error) {
     redirect(`/login?mode=signup&error=${encodeURIComponent(result.error)}`);
