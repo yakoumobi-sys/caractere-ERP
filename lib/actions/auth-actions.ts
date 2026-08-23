@@ -296,7 +296,7 @@ export async function signIn(formData: FormData) {
 
   const result = await loginEmployee(firstName, lastName, password, false);
 
-  if ("error" in result) {
+  if ("error" in result && result.error) {
     redirect(`/login?error=${encodeURIComponent(result.error)}`);
   }
 
@@ -319,7 +319,7 @@ export async function signUp(formData: FormData) {
 
   const result = await loginEmployee(firstName, lastName, password, true);
 
-  if ("error" in result) {
+  if ("error" in result && result.error) {
     redirect(`/login?mode=signup&error=${encodeURIComponent(result.error)}`);
   }
 
