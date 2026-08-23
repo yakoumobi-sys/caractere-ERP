@@ -34,13 +34,20 @@ export default function LoginPage({
 
         <form action={isSignup ? signUp : signIn} className="flex flex-col gap-4">
           {isSignup && (
-            <Field label="Nom complet" htmlFor="full_name" required>
-              <input id="full_name" name="full_name" type="text" required className={inputClass} />
+            <>
+              <Field label="Nom complet" htmlFor="full_name" required>
+                <input id="full_name" name="full_name" type="text" required className={inputClass} />
+              </Field>
+              <Field label="Email" htmlFor="email" required>
+                <input id="email" name="email" type="email" required className={inputClass} />
+              </Field>
+            </>
+          )}
+          {!isSignup && (
+            <Field label="Nom d&apos;utilisateur" htmlFor="username" required>
+              <input id="username" name="username" type="text" required className={inputClass} placeholder="Ex: John Doe" />
             </Field>
           )}
-          <Field label="Email" htmlFor="email" required>
-            <input id="email" name="email" type="email" required className={inputClass} />
-          </Field>
           <Field label="Mot de passe" htmlFor="password" required>
             <input id="password" name="password" type="password" required minLength={6} className={inputClass} />
           </Field>
