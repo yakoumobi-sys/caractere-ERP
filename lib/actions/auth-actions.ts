@@ -37,17 +37,6 @@ export async function signIn(formData: FormData) {
       redirect(`/login?error=${encodeURIComponent(error.message)}`);
     }
 
-    if (data.user) {
-      // Ferme toute session restée ouverte (déconnexion manquée, fermeture d'onglet...)
-      // puis ouvre le pointage du jour.
-      await supabase
-        .from("time_logs")
-        .update({ ended_at: new Date().toISOString() })
-        .eq("profile_id", data.user.id)
-        .is("ended_at", null);
-      await supabase.from("time_logs").insert({ profile_id: data.user.id });
-    }
-
     redirect("/dashboard");
   } catch (error) {
     redirect(`/login?error=${encodeURIComponent("Une erreur s'est produite. Réessaye.")}`);
@@ -96,18 +85,6 @@ export async function signUp(formData: FormData) {
 
 export async function signOut() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    await supabase
-      .from("time_logs")
-      .update({ ended_at: new Date().toISOString() })
-      .eq("profile_id", user.id)
-      .is("ended_at", null);
-  }
-
   await supabase.auth.signOut();
   redirect("/login");
 }
