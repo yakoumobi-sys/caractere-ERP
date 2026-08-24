@@ -45,15 +45,20 @@ export async function signIn(formData: FormData) {
 
 export async function signUp(formData: FormData) {
   try {
-    const email = String(formData.get("email") ?? "");
+    const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
-    const fullName = String(formData.get("full_name") ?? "");
+    const confirmPassword = String(formData.get("confirm_password") ?? "");
 
-    // Valider les données
-    const result = signUpSchema.safeParse({ email, password, full_name: fullName });
-    if (!result.success) {
-      const firstError = result.error.errors[0]?.message || "Données invalides";
-      redirect(`/login?mode=signup&error=${encodeURIComponent(firstError)}`);
+    if (!email || !password) {
+      redirect(`/login?mode=signup&error=${encodeURIComponent("Email et mot de passe requis")}`);
+    }
+
+    if (password !== confirmPassword) {
+      redirect(`/login?mode=signup&error=${encodeURIComponent("Les mots de passe ne correspondent pas")}`);
+    }
+
+    if (password.length < 6) {
+      redirect(`/login?mode=signup&error=${encodeURIComponent("Le mot de passe doit faire au minimum 6 caractères")}`);
     }
 
     const supabase = createClient();
@@ -61,18 +66,10 @@ export async function signUp(formData: FormData) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
     });
+
     if (error) {
       redirect(`/login?mode=signup&error=${encodeURIComponent(error.message)}`);
-    }
-
-    // Stocker l'email dans la table profiles aussi (pour le lookup lors de la connexion)
-    if (data.user) {
-      await supabase
-        .from("profiles")
-        .update({ email })
-        .eq("id", data.user.id);
     }
 
     redirect("/login?message=Compte créé, connecte-toi.");
