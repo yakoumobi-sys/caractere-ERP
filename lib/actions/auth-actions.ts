@@ -15,21 +15,19 @@ export async function signIn(formData: FormData) {
 
     const supabase = createClient();
 
-    // Retrouver l'email à partir du full_name (nom d'utilisateur) dans les profiles
-    const { data: profiles, error: profileError } = await supabase
-      .from("profiles")
-      .select("email")
-      .ilike("full_name", username)
+    // Retrouver l'employé par first_name ou first_name + last_name
+    const { data: employees, error: empError } = await supabase
+      .from("employees")
+      .select("first_name")
+      .ilike("first_name", username)
       .limit(1);
 
-    if (profileError || !profiles || profiles.length === 0) {
+    if (empError || !employees || employees.length === 0) {
       redirect(`/login?error=${encodeURIComponent("Utilisateur introuvable")}`);
     }
 
-    const email = profiles[0].email;
-    if (!email) {
-      redirect(`/login?error=${encodeURIComponent("Email non trouvé pour cet utilisateur")}`);
-    }
+    // Générer l'email à partir du first_name
+    const email = employees[0].first_name.toLowerCase() + "@caractere.com";
 
     // Authentifier avec l'email trouvé
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
