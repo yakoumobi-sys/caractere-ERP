@@ -22,7 +22,7 @@ export default async function LoginPage({
     if (!empError && employeeData && employeeData.length > 0) {
       users = employeeData.map((emp: any) => ({
         id: emp.id,
-        full_name: `${emp.first_name} ${emp.last_name}`.trim(),
+        full_name: emp.last_name ? `${emp.first_name} ${emp.last_name}` : emp.first_name,
       }));
     } else {
       // Fallback: charger depuis profiles (pour les nouveaux comptes)
