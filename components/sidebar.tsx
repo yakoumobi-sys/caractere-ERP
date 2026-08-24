@@ -27,6 +27,10 @@ const NAV = [
     ],
   },
   {
+    section: "Confirmation",
+    items: [{ href: "/confirmation", label: "Commandes COD / web" }],
+  },
+  {
     section: "CRM",
     items: [
       { href: "/crm/contacts", label: "Contacts" },
