@@ -19,22 +19,25 @@ export async function signIn(formData: FormData) {
   // complet est saisi.
   const firstName = username.split(" ")[0];
 
-  // Retrouver l'employé par prénom
+  // Retrouver l'employé par prénom et son vrai email de connexion (via le
+  // profil lié). Ne JAMAIS reconstruire l'email à partir du prénom : ça ne
+  // vaut que pour les comptes créés via prenom@caractere.com — pour un compte
+  // créé autrement (ex: l'admin, inscrit avec sa propre adresse), deviner
+  // l'email empêche la connexion quel que soit le mot de passe.
   const { data: employees, error: empError } = await supabase
     .from("employees")
-    .select("first_name")
+    .select("first_name, profiles(email)")
     .ilike("first_name", firstName)
     .limit(1);
 
-  if (empError || !employees || employees.length === 0) {
-    redirect(`/login?error=${encodeURIComponent("Utilisateur introuvable")}`);
+  const email = (employees?.[0] as any)?.profiles?.email as string | undefined;
+
+  if (empError || !employees || employees.length === 0 || !email) {
+    redirect(`/login?error=${encodeURIComponent("Utilisateur introuvable ou compte non configuré")}`);
   }
 
-  // Générer l'email à partir du first_name
-  const email = employees[0].first_name.toLowerCase() + "@caractere.com";
-
   // Authentifier avec l'email trouvé
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email!, password });
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
