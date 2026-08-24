@@ -1,14 +1,8 @@
-import { DocumentForm } from "@/components/documents/document-form";
-import { getDocumentFormData } from "@/lib/documents-data";
-import { ordersConfig } from "@/lib/documents";
-import { PageHeader } from "@/components/ui";
+import { redirect } from "next/navigation";
 
-export default async function Page() {
-  const { contacts, products } = await getDocumentFormData(ordersConfig);
-  return (
-    <div className="max-w-4xl">
-      <PageHeader title={`Nouveau ${ordersConfig.titleSingular.toLowerCase()}`} />
-      <DocumentForm config={ordersConfig} record={null} existingLines={[]} contacts={contacts} products={products} />
-    </div>
-  );
+// Les commandes clients suivent désormais uniquement le configurateur de production
+// (le même formulaire que "+ Nouvelle commande" sur le tableau de bord) — voir
+// lib/documents.ts (ordersConfig.newHref).
+export default function Page() {
+  redirect("/production/new");
 }

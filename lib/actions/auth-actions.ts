@@ -34,10 +34,50 @@ export async function signIn(formData: FormData) {
   const email = employees[0].first_name.toLowerCase() + "@caractere.com";
 
   // Authentifier avec l'email trouvé
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("must_change_password")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profile?.must_change_password) {
+    redirect("/change-password");
+  }
+
+  redirect("/dashboard");
+}
+
+export async function changePassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  if (password.length < 6) {
+    redirect(`/change-password?error=${encodeURIComponent("Le mot de passe doit faire au minimum 6 caractères")}`);
+  }
+  if (password !== confirmPassword) {
+    redirect(`/change-password?error=${encodeURIComponent("Les mots de passe ne correspondent pas")}`);
+  }
+
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password });
+  if (updateError) {
+    redirect(`/change-password?error=${encodeURIComponent(updateError.message)}`);
+  }
+
+  await supabase.from("profiles").update({ must_change_password: false }).eq("id", user.id);
 
   redirect("/dashboard");
 }

@@ -10,7 +10,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const NAV = [
   {
     section: "Général",
-    items: [{ href: "/dashboard", label: "Tableau de bord", exact: true }],
+    items: [
+      { href: "/dashboard", label: "Tableau de bord", exact: true },
+      { href: "/alerts", label: "Alertes" },
+    ],
   },
   {
     section: "Production",
@@ -94,7 +97,15 @@ const NAV = [
   },
 ];
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({
+  onNavigate,
+  logoUrl,
+  companyName = "Caractère",
+}: {
+  onNavigate?: () => void;
+  logoUrl?: string | null;
+  companyName?: string;
+}) {
   const pathname = usePathname();
   const activeSection = NAV.find((g) => g.items.some((it) => pathname.startsWith(it.href)))?.section;
   const [openSection, setOpenSection] = useState<string | null>(activeSection ?? "Général");
@@ -102,11 +113,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="h-full w-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0">
-          C
+        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={companyName} className="h-full w-full object-cover" />
+          ) : (
+            companyName[0]?.toUpperCase() ?? "C"
+          )}
         </div>
         <div className="leading-tight">
-          <p className="font-semibold text-slate-900 dark:text-white text-sm">CARACTÈRE</p>
+          <p className="font-semibold text-slate-900 dark:text-white text-sm">{companyName.toUpperCase()}</p>
           <p className="text-[10px] tracking-wide text-slate-400 dark:text-slate-500 uppercase">ERP System</p>
         </div>
       </div>

@@ -4,7 +4,17 @@ import { useState } from "react";
 import { cx } from "@/lib/utils";
 import { Sidebar } from "@/components/sidebar";
 
-export function AppShell({ topbar, children }: { topbar: React.ReactNode; children: React.ReactNode }) {
+export function AppShell({
+  topbar,
+  children,
+  logoUrl,
+  companyName,
+}: {
+  topbar: React.ReactNode;
+  children: React.ReactNode;
+  logoUrl?: string | null;
+  companyName?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -19,7 +29,7 @@ export function AppShell({ topbar, children }: { topbar: React.ReactNode; childr
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <Sidebar onNavigate={() => setOpen(false)} />
+        <Sidebar onNavigate={() => setOpen(false)} logoUrl={logoUrl} companyName={companyName} />
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col">

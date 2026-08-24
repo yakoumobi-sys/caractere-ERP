@@ -31,7 +31,11 @@ export async function DocumentListPage({ config }: { config: DocumentConfig }) {
     <div>
       <PageHeader
         title={config.titlePlural}
-        action={<LinkButton href={`${config.basePath}/new`}>+ Nouveau {config.titleSingular.toLowerCase()}</LinkButton>}
+        action={
+          <LinkButton href={config.newHref ?? `${config.basePath}/new`}>
+            + Nouveau {config.titleSingular.toLowerCase()}
+          </LinkButton>
+        }
       />
       <Card className="overflow-x-auto">
         {error && <div className="p-4 text-sm text-red-600">{error.message}</div>}
