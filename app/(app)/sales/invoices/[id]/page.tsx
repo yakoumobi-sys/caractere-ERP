@@ -43,16 +43,26 @@ export default async function Page({ params }: { params: { id: string } }) {
                 </Button>
               </form>
             )}
-            <form action={remove}>
-              <Button type="submit" variant="danger">
-                Supprimer
-              </Button>
-            </form>
+            {record?.status === "brouillon" && (
+              <form action={remove}>
+                <Button type="submit" variant="danger">
+                  Supprimer
+                </Button>
+              </form>
+            )}
           </div>
         }
       />
 
-      <DocumentForm config={invoicesConfig} record={record} existingLines={lines} contacts={contacts} products={products} />
+      <DocumentForm
+        config={invoicesConfig}
+        record={record}
+        existingLines={lines}
+        contacts={contacts}
+        products={products}
+        locked={!!record && record.status !== "brouillon"}
+        lockedMessage="Facture validée : les montants sont déjà comptabilisés et la sortie de stock effectuée. Pour corriger, utilisez l'annulation ou un avoir."
+      />
 
       {record && record.status !== "brouillon" && (
         <Card className="p-6 mt-6">

@@ -38,12 +38,17 @@ export function DocumentForm({
   existingLines,
   contacts,
   products,
+  locked = false,
+  lockedMessage,
 }: {
   config: DocumentConfig;
   record: Record<string, any> | null;
   existingLines: Array<Record<string, any>>;
   contacts: { id: string; name: string }[];
   products: ProductOption[];
+  /** Formulaire en lecture seule (ex: facture déjà validée — la base de données refuse de toute façon la modification). */
+  locked?: boolean;
+  lockedMessage?: string;
 }) {
   const [rows, setRows] = useState<LineRow[]>(
     existingLines.length > 0
@@ -90,6 +95,11 @@ export function DocumentForm({
 
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-6">
+      {locked && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {lockedMessage ?? "Ce document est validé et n'est plus modifiable — la base de données refuserait de toute façon l'enregistrement."}
+        </div>
+      )}
       <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label={config.contactLabel} htmlFor={config.contactField} required>
           <select
@@ -97,6 +107,7 @@ export function DocumentForm({
             name={config.contactField}
             defaultValue={record?.[config.contactField] ?? ""}
             required
+            disabled={locked}
             className={inputClass}
           >
             <option value="">—</option>
@@ -108,7 +119,7 @@ export function DocumentForm({
           </select>
         </Field>
         <Field label="Statut" htmlFor="status">
-          <select id="status" name="status" defaultValue={record?.status ?? "brouillon"} className={inputClass}>
+          <select id="status" name="status" defaultValue={record?.status ?? "brouillon"} disabled={locked} className={inputClass}>
             {config.statusOptions.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
@@ -123,13 +134,14 @@ export function DocumentForm({
               name={f.name}
               type="date"
               defaultValue={record?.[f.name] ?? ""}
+              disabled={locked}
               className={inputClass}
             />
           </Field>
         ))}
         <div className="sm:col-span-2">
           <Field label="Notes" htmlFor="notes">
-            <textarea id="notes" name="notes" rows={2} defaultValue={record?.notes ?? ""} className={inputClass} />
+            <textarea id="notes" name="notes" rows={2} defaultValue={record?.notes ?? ""} disabled={locked} className={inputClass} />
           </Field>
         </div>
       </Card>
@@ -137,9 +149,11 @@ export function DocumentForm({
       <Card className="p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-900">Lignes</h2>
-          <Button type="button" variant="secondary" onClick={addRow}>
-            + Ajouter une ligne
-          </Button>
+          {!locked && (
+            <Button type="button" variant="secondary" onClick={addRow}>
+              + Ajouter une ligne
+            </Button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -161,6 +175,7 @@ export function DocumentForm({
                     <select
                       value={row.product_id}
                       onChange={(e) => onProductChange(i, e.target.value)}
+                      disabled={locked}
                       className={inputClass}
                     >
                       <option value="">—</option>
@@ -175,6 +190,7 @@ export function DocumentForm({
                     <input
                       value={row.description}
                       onChange={(e) => updateRow(i, { description: e.target.value })}
+                      disabled={locked}
                       className={inputClass}
                     />
                   </td>
@@ -184,6 +200,7 @@ export function DocumentForm({
                       step="0.01"
                       value={row.quantity}
                       onChange={(e) => updateRow(i, { quantity: Number(e.target.value) })}
+                      disabled={locked}
                       className={inputClass}
                     />
                   </td>
@@ -193,6 +210,7 @@ export function DocumentForm({
                       step="0.01"
                       value={row.price}
                       onChange={(e) => updateRow(i, { price: Number(e.target.value) })}
+                      disabled={locked}
                       className={inputClass}
                     />
                   </td>
@@ -202,14 +220,17 @@ export function DocumentForm({
                       step="0.01"
                       value={row.tax_rate}
                       onChange={(e) => updateRow(i, { tax_rate: Number(e.target.value) })}
+                      disabled={locked}
                       className={inputClass}
                     />
                   </td>
                   <td className="py-2 pr-2 text-right font-medium">{formatMoney(row.quantity * row.price)}</td>
                   <td className="py-2 text-right">
-                    <button type="button" onClick={() => removeRow(i)} className="text-xs text-red-500 hover:underline">
-                      Retirer
-                    </button>
+                    {!locked && (
+                      <button type="button" onClick={() => removeRow(i)} className="text-xs text-red-500 hover:underline">
+                        Retirer
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -235,10 +256,14 @@ export function DocumentForm({
         </div>
       </Card>
 
-      <input type="hidden" name="lines_json" value={JSON.stringify(rows)} />
-      <div>
-        <SubmitButton />
-      </div>
+      {!locked && (
+        <>
+          <input type="hidden" name="lines_json" value={JSON.stringify(rows)} />
+          <div>
+            <SubmitButton />
+          </div>
+        </>
+      )}
     </form>
   );
 }
