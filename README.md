@@ -170,6 +170,16 @@ resserrer séparément si besoin.
 
 Voir `supabase/migrations/0003_rls.sql` pour le détail des policies.
 
+## Comptes de l'équipe
+
+Chaque employé du seed se connecte avec `prenom@caractere.com` (ex: `lilia@caractere.com`) et
+le mot de passe initial **`123456`** — à faire changer par chacun dès que possible (rôle par
+défaut : `readonly`, à ajuster dans **Paramètres → Utilisateurs**). Voir
+`supabase/migrations/0016_fix_employee_accounts_and_rls.sql` pour le détail : cette migration
+corrige un état incohérent où ces comptes n'avaient en réalité jamais été créés en base (seul le
+compte admin fonctionnait), où une vingtaine de fiches employé en double/test polluaient la table,
+et où 5 tables métier étaient exposées en lecture/écriture publique faute de policy RLS.
+
 ## Automatisations métier (triggers Postgres)
 
 - **Numérotation** : `DEV-2026-0001`, `CMD-2026-0001`, `FAC-2026-0001`, `BC-2026-0001`.
