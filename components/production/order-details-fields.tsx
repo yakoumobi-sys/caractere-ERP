@@ -183,6 +183,13 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           ))}
         </div>
 
+        {technique === "dtf" && (
+          <label className="flex items-center gap-2 mb-4 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" name="requires_flocage" className="h-4 w-4 rounded border-slate-300" />
+            Envoyer en flocage après l&apos;impression
+          </label>
+        )}
+
         {technique !== "aucune" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Emplacement du logo" htmlFor="logo_placement" required>
