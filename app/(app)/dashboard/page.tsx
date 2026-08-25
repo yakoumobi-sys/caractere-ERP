@@ -13,6 +13,8 @@ import { EmployeeKpi } from "@/components/dashboard/employee-kpi";
 import { OrdersSummary } from "@/components/dashboard/orders-summary";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { EmployeesSummary } from "@/components/dashboard/employees-summary";
+import { MyTasks } from "@/components/dashboard/my-tasks";
+import { AbsentColleaguesTasks } from "@/components/dashboard/absent-colleagues-tasks";
 import { formatMoney } from "@/lib/utils";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
 import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconBag, IconCalculator, IconUsers, IconContacts } from "@/components/icons";
@@ -193,6 +195,12 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <EmployeesSummary />
         {isAdmin && <CapacityByWorkshop data={capacityData} />}
+      </div>
+
+      {/* Mes tâches (checklist + déclaration d'absence) et tâches des absents */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <MyTasks />
+        <AbsentColleaguesTasks />
       </div>
 
       {/* 4. COMMANDES RÉCENTES */}

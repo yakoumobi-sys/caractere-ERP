@@ -8,6 +8,8 @@ export default async function LoginPage({
   searchParams: { mode?: string; error?: string; message?: string };
 }) {
   const isSignup = searchParams.mode === "signup";
+  const supabaseForCompany = createClient();
+  const { data: company } = await supabaseForCompany.from("companies").select("name,logo_url").limit(1).single();
 
   // Récupérer la liste des employés
   let users: Array<{ id: string; full_name: string }> = [];
@@ -44,10 +46,15 @@ export default async function LoginPage({
 
       <Card glass className="w-full max-w-sm p-8 relative z-10">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 h-10 w-10 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold">
-            C
+          <div className="mx-auto mb-3 h-10 w-10 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold overflow-hidden">
+            {company?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={company.logo_url} alt={company.name ?? "Logo"} className="h-full w-full object-cover" />
+            ) : (
+              (company?.name?.[0] ?? "C").toUpperCase()
+            )}
           </div>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Caractère ERP</h1>
+          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{company?.name ?? "Caractère"} ERP</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {isSignup ? "Créer le compte administrateur" : "Connecte-toi à ton espace"}
           </p>

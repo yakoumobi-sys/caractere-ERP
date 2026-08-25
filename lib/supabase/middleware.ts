@@ -28,6 +28,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
+  const isChangePasswordRoute = request.nextUrl.pathname.startsWith("/change-password");
   const isPublicAsset = request.nextUrl.pathname.startsWith("/_next");
 
   if (!user && !isAuthRoute && !isPublicAsset) {
@@ -40,6 +41,20 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  if (user && !isChangePasswordRoute && !isPublicAsset) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("must_change_password")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.must_change_password) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/change-password";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

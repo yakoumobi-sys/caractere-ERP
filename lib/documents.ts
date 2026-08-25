@@ -15,6 +15,8 @@ export interface DocumentConfig {
   statusOptions: { value: string; label: string }[];
   extraHeaderFields: FieldConfig[];
   dateField: string;
+  /** Si défini, le bouton "+ Nouveau" pointe ici au lieu de `${basePath}/new` (ex: commandes -> configurateur production). */
+  newHref?: string;
 }
 
 export const quotesConfig: DocumentConfig = {
@@ -54,6 +56,9 @@ export const ordersConfig: DocumentConfig = {
   titleSingular: "Commande client",
   titlePlural: "Commandes clients",
   dateField: "order_date",
+  // Le suivi de production (/production/new) est le seul point d'entrée de création : une commande
+  // client suit forcément le parcours atelier (DTF/Broderie/Flocage/gros), donc un seul formulaire.
+  newHref: "/production/new",
   statusOptions: [
     { value: "brouillon", label: "Brouillon" },
     { value: "confirmee", label: "Confirmée" },

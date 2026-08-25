@@ -73,7 +73,7 @@ export const contactsConfig: EntityConfig = {
     },
     { name: "company_name", label: "Société", type: "text" },
     { name: "email", label: "Email", type: "email" },
-    { name: "phone", label: "Téléphone", type: "tel" },
+    { name: "phone", label: "Téléphone (WhatsApp)", type: "tel" },
     { name: "address", label: "Adresse", type: "text" },
     { name: "city", label: "Ville", type: "text" },
     { name: "postal_code", label: "Code postal", type: "text" },

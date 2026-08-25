@@ -20,6 +20,24 @@ export async function updateCompany(companyId: string, formData: FormData) {
   revalidatePath("/settings/company");
 }
 
+export async function updateCompanyLogo(companyId: string, formData: FormData) {
+  const supabase = createClient();
+  const file = formData.get("logo") as File | null;
+  if (!file || file.size === 0) return;
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+  const path = `${companyId}/${Date.now()}-${safeName}`;
+  const { error: uploadError } = await supabase.storage.from("company-assets").upload(path, file);
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data: pub } = supabase.storage.from("company-assets").getPublicUrl(path);
+  const { error } = await supabase.from("companies").update({ logo_url: pub.publicUrl }).eq("id", companyId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/settings/company");
+  revalidatePath("/", "layout");
+}
+
 export async function updateUserRole(userId: string, role: string) {
   const supabase = createClient();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
