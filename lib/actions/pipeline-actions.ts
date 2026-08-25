@@ -32,6 +32,7 @@ export async function createPipelineOrder(formData: FormData) {
   const logo_placement_note = (formData.get("logo_placement_note") as string) || null;
   const logo_source = (formData.get("logo_source") as string) || null;
   const logo_source_value = (formData.get("logo_source_value") as string) || null;
+  const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
 
   if (clientMode === "new") {
     const name = String(formData.get("client_new_name") ?? "").trim();
@@ -62,6 +63,7 @@ export async function createPipelineOrder(formData: FormData) {
       logo_placement_note,
       logo_source,
       logo_source_value,
+      requires_flocage,
       status: initialStatus(technique),
       created_by: user?.id ?? null,
     })
@@ -125,8 +127,22 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   if (!def.next) return;
 
   const supabase = createClient();
-  const payload: Record<string, unknown> = { status: def.next };
-  if (!currentAssignee) {
+  let nextStatus: OrderStatus = def.next;
+
+  // Une impression DTF marquée "requires_flocage" part en file Flocage au
+  // lieu de passer directement "prête" — voir la case à cocher du
+  // configurateur (Étape 3, technique DTF).
+  if (fromStatus === "impression_dtf") {
+    const { data: order } = await supabase.from("pipeline_orders").select("requires_flocage").eq("id", orderId).single();
+    if (order?.requires_flocage) nextStatus = "attente_flocage";
+  }
+
+  const payload: Record<string, unknown> = { status: nextStatus };
+  // On repart d'un atelier "vierge" en changeant de file (DTF -> Flocage) :
+  // libérer l'assignation précédente pour que l'équipe Flocage la reprenne.
+  if (nextStatus === "attente_flocage") {
+    payload.assigned_to = null;
+  } else if (!currentAssignee) {
     const employeeId = await currentEmployeeId();
     if (employeeId) payload.assigned_to = employeeId;
   }

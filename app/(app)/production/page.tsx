@@ -6,6 +6,7 @@ import { QUEUE_TITLES, statusesForQueue, type QueueName, type OrderStatus } from
 
 const QUEUES: { name: QueueName; href: string; icon: string }[] = [
   { name: "dtf", href: "/production/dtf", icon: "🖨️" },
+  { name: "flocage", href: "/production/flocage", icon: "🎨" },
   { name: "broderie", href: "/production/broderie", icon: "🧵" },
   { name: "gros", href: "/production/gros", icon: "📦" },
   { name: "ready", href: "/production/ready", icon: "✅" },
@@ -36,7 +37,7 @@ export default async function Page() {
       />
 
       {/* Résumé des files */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
         {queueData.map((qd) => (
           <Link key={qd.queue.name} href={qd.queue.href}>
             <Card className="p-5 hover:border-brand-300 dark:hover:border-brand-500/50 hover:shadow-sm transition-all">

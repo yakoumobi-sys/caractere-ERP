@@ -8,6 +8,8 @@ export type Technique = "dtf" | "broderie" | "aucune";
 export type OrderStatus =
   | "attente_dtf"
   | "impression_dtf"
+  | "attente_flocage"
+  | "en_flocage"
   | "attente_broderie"
   | "en_broderie"
   | "attente_gros"
@@ -15,7 +17,7 @@ export type OrderStatus =
   | "prete"
   | "livree";
 
-export type QueueName = "dtf" | "broderie" | "gros" | "ready";
+export type QueueName = "dtf" | "flocage" | "broderie" | "gros" | "ready";
 
 export const TECHNIQUES: { value: Technique; label: string }[] = [
   { value: "dtf", label: "DTF" },
@@ -71,6 +73,26 @@ export const STATUS_DEFS: Record<OrderStatus, StatusDef> = {
     label: "Impression en cours",
     queue: "dtf",
     department: "Atelier DTF",
+    // Valeur par défaut si la commande ne nécessite pas de flocage — voir
+    // advancePipelineOrder() dans lib/actions/pipeline-actions.ts, qui
+    // redirige vers "attente_flocage" au lieu de "prete" quand
+    // pipeline_orders.requires_flocage est vrai.
+    next: "prete",
+    action: "Marquer terminée",
+  },
+  attente_flocage: {
+    value: "attente_flocage",
+    label: "En attente (Flocage)",
+    queue: "flocage",
+    department: "Atelier Flocage",
+    next: "en_flocage",
+    action: "Prendre la commande",
+  },
+  en_flocage: {
+    value: "en_flocage",
+    label: "En flocage",
+    queue: "flocage",
+    department: "Atelier Flocage",
     next: "prete",
     action: "Marquer terminée",
   },
@@ -136,6 +158,7 @@ export function statusesForQueue(queue: QueueName): OrderStatus[] {
 
 export const QUEUE_TITLES: Record<QueueName, string> = {
   dtf: "File DTF",
+  flocage: "File Flocage",
   broderie: "File Broderie",
   gros: "Commande gros",
   ready: "Commandes prêtes",

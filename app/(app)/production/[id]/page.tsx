@@ -87,6 +87,12 @@ export default async function Page({ params }: { params: { id: string } }) {
           <p className="text-slate-400 text-xs">Technique</p>
           <p className="text-slate-900 font-medium">{techniqueLabel}</p>
         </div>
+        {order.technique === "dtf" && (
+          <div>
+            <p className="text-slate-400 text-xs">Flocage</p>
+            <p className="text-slate-900 font-medium">{order.requires_flocage ? "Requis" : "Non requis"}</p>
+          </div>
+        )}
         <div>
           <p className="text-slate-400 text-xs">Emplacement logo</p>
           <p className="text-slate-900 font-medium">

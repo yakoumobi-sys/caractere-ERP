@@ -21,6 +21,7 @@ const NAV = [
       { href: "/production", label: "Vue d'ensemble", exact: true },
       { href: "/production/new", label: "+ Nouvelle commande" },
       { href: "/production/dtf", label: "File DTF" },
+      { href: "/production/flocage", label: "File Flocage" },
       { href: "/production/broderie", label: "File Broderie" },
       { href: "/production/gros", label: "Commande gros" },
       { href: "/production/ready", label: "Commandes prêtes" },
