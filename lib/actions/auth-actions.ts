@@ -1,8 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validation";
+
+// Doit rester synchronisé avec MUST_CHANGE_PASSWORD_COOKIE dans
+// lib/supabase/middleware.ts — évite au middleware de re-questionner
+// Supabase sur must_change_password à chaque navigation.
+const MUST_CHANGE_PASSWORD_COOKIE = "cpw";
 
 export async function signIn(formData: FormData) {
   const username = String(formData.get("username") ?? "").trim();
@@ -46,7 +52,14 @@ export async function signIn(formData: FormData) {
     .eq("id", data.user.id)
     .single();
 
-  if (profile?.must_change_password) {
+  const mustChangePassword = !!profile?.must_change_password;
+  cookies().set(MUST_CHANGE_PASSWORD_COOKIE, mustChangePassword ? "1" : "0", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+  });
+
+  if (mustChangePassword) {
     redirect("/change-password");
   }
 
@@ -79,6 +92,7 @@ export async function changePassword(formData: FormData) {
   }
 
   await supabase.from("profiles").update({ must_change_password: false }).eq("id", user.id);
+  cookies().set(MUST_CHANGE_PASSWORD_COOKIE, "0", { httpOnly: true, sameSite: "lax", path: "/" });
 
   redirect("/dashboard");
 }
@@ -117,5 +131,6 @@ export async function signUp(formData: FormData) {
 export async function signOut() {
   const supabase = createClient();
   await supabase.auth.signOut();
+  cookies().delete(MUST_CHANGE_PASSWORD_COOKIE);
   redirect("/login");
 }

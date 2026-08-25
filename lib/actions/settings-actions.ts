@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function updateCompany(companyId: string, formData: FormData) {
@@ -18,6 +18,7 @@ export async function updateCompany(companyId: string, formData: FormData) {
   const { error } = await supabase.from("companies").update(data).eq("id", companyId);
   if (error) throw new Error(error.message);
   revalidatePath("/settings/company");
+  revalidateTag("company");
 }
 
 export async function updateCompanyLogo(companyId: string, formData: FormData) {
@@ -36,6 +37,7 @@ export async function updateCompanyLogo(companyId: string, formData: FormData) {
 
   revalidatePath("/settings/company");
   revalidatePath("/", "layout");
+  revalidateTag("company");
 }
 
 export async function updateUserRole(userId: string, role: string) {

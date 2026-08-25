@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Card, Badge, LinkButton } from "@/components/ui";
+import { Card, Badge, LinkButton, CardSkeleton } from "@/components/ui";
 import { KpiCard } from "@/components/kpi-card";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { OrdersChart } from "@/components/dashboard/orders-chart";
@@ -185,26 +186,36 @@ export default async function DashboardPage() {
 
       {/* 1. ALERTES / KPI PERSONNALISÉ */}
       <div className="mb-6">
-        {isAdmin ? <AlertsPanel /> : <EmployeeKpi />}
+        <Suspense fallback={<CardSkeleton height="h-24" />}>{isAdmin ? <AlertsPanel /> : <EmployeeKpi />}</Suspense>
       </div>
 
       {/* 2. RÉSUMÉ DES COMMANDES */}
-      <OrdersSummary />
+      <Suspense fallback={<CardSkeleton height="h-24" className="mb-6" />}>
+        <OrdersSummary />
+      </Suspense>
 
       {/* 3. RÉSUMÉ DES EMPLOYÉS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <EmployeesSummary />
+        <Suspense fallback={<CardSkeleton />}>
+          <EmployeesSummary />
+        </Suspense>
         {isAdmin && <CapacityByWorkshop data={capacityData} />}
       </div>
 
       {/* Mes tâches (checklist + déclaration d'absence) et tâches des absents */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <MyTasks />
-        <AbsentColleaguesTasks />
+        <Suspense fallback={<CardSkeleton />}>
+          <MyTasks />
+        </Suspense>
+        <Suspense fallback={null}>
+          <AbsentColleaguesTasks />
+        </Suspense>
       </div>
 
       {/* 4. COMMANDES RÉCENTES */}
-      <RecentOrders limit={8} />
+      <Suspense fallback={<CardSkeleton height="h-64" className="mb-6" />}>
+        <RecentOrders limit={8} />
+      </Suspense>
 
       {/* Accès rapide aux modules */}
       <Card className="p-4 my-6">
@@ -278,7 +289,9 @@ export default async function DashboardPage() {
               Voir tout
             </Link>
           </div>
-          <ActivityFeed />
+          <Suspense fallback={<div className="h-40 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />}>
+            <ActivityFeed />
+          </Suspense>
         </Card>
 
         {isAdmin && (
