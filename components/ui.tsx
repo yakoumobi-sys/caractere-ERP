@@ -137,3 +137,17 @@ export function EmptyState({ message }: { message: string }) {
     <div className="flex items-center justify-center py-16 text-sm text-slate-400 dark:text-slate-500">{message}</div>
   );
 }
+
+/**
+ * Squelette de chargement — utilisé comme fallback de <Suspense> pour les
+ * sections qui vont chercher leurs propres données (voir dashboard/page.tsx)
+ * : la page s'affiche immédiatement, chaque section apparaît dès que sa
+ * requête répond, au lieu d'attendre la plus lente de toutes.
+ */
+export function CardSkeleton({ className, height = "h-40" }: { className?: string; height?: string }) {
+  return (
+    <Card className={cx("p-5 animate-pulse", className)}>
+      <div className={cx("rounded-lg bg-slate-100 dark:bg-slate-800", height)} />
+    </Card>
+  );
+}

@@ -27,6 +27,9 @@ interface SiteOrderPayload {
  * Webhook du site caracterestore.com : fait entrer les commandes passées sur
  * le site dans la file d'appel "Confirmation" de l'ERP (même module que les
  * commandes WhatsApp/COD), pour que l'équipe les confirme avant fulfillment.
+ * Crée aussi le client dans le CRM (contacts) s'il n'existe pas déjà —
+ * identifié par téléphone — pour qu'il apparaisse dans la base client au
+ * même titre qu'un contact ajouté manuellement.
  *
  * Sécurisé par un secret partagé (pas d'auth utilisateur possible ici, le
  * site et l'ERP sont deux projets Supabase distincts) — voir
@@ -64,6 +67,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, id: existing.id, number: existing.number, duplicate: true });
   }
 
+  // Client de la base CRM : on identifie par téléphone (même convention que
+  // le reste de l'ERP — le numéro du client est aussi son identifiant
+  // WhatsApp). Un client qui recommande sur plusieurs commandes n'est donc
+  // créé qu'une seule fois.
+  const phone = payload.telephone.trim();
+  const { data: existingContact } = await supabase.from("contacts").select("id").eq("phone", phone).maybeSingle();
+
+  let contactId = existingContact?.id ?? null;
+  if (!contactId) {
+    const { data: newContact, error: contactError } = await supabase
+      .from("contacts")
+      .insert({
+        name: payload.nom_client,
+        company_name: payload.entreprise || null,
+        phone,
+        email: payload.email || null,
+        country: "Algérie",
+        type: "client",
+      })
+      .select("id")
+      .single();
+    if (contactError) console.error("site-orders webhook contact insert error:", contactError.message);
+    else contactId = newContact.id;
+  }
+
   const productDescription = [
     `${payload.quantite}× ${payload.produit}`,
     payload.couleur,
@@ -88,6 +116,7 @@ export async function POST(req: NextRequest) {
     .insert({
       customer_name: payload.nom_client,
       customer_phone: payload.telephone,
+      contact_id: contactId,
       product_description: productDescription,
       quantity: payload.quantite,
       sales_channel: "Site web",
