@@ -14,13 +14,14 @@ import {
 import { PipelineControls } from "@/components/production/pipeline-controls";
 import { OrderComments } from "@/components/production/order-comments";
 import { OrderTasks } from "@/components/production/order-tasks";
+import { YalidineShipmentPanel } from "@/components/production/yalidine-shipment-panel";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }] =
+  const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
     await Promise.all([
       supabase.from("pipeline_orders_view").select("*").eq("id", params.id).single(),
       supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
@@ -32,6 +33,13 @@ export default async function Page({ params }: { params: { id: string } }) {
       supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
       supabase.from("pipeline_order_prints").select("*").eq("pipeline_order_id", params.id).order("position"),
       supabase.from("pipeline_order_files").select("*").eq("pipeline_order_id", params.id).order("created_at", { ascending: false }),
+      supabase
+        .from("yalidine_shipments")
+        .select("*")
+        .eq("order_id", params.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   if (error || !order) notFound();
@@ -133,6 +141,12 @@ export default async function Page({ params }: { params: { id: string } }) {
       <div className="mb-6">
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
+
+      {order.status === "prete" && (
+        <div className="mb-6">
+          <YalidineShipmentPanel orderId={order.id} shipment={(shipment as any) ?? null} />
+        </div>
+      )}
 
       <Card className="p-6 mb-6">
         <h2 className="text-sm font-semibold text-slate-900 mb-3">Articles commandés</h2>
