@@ -19,20 +19,18 @@ export async function signIn(formData: FormData) {
   // complet est saisi.
   const firstName = username.split(" ")[0];
 
-  // Retrouver l'employé par prénom et son vrai email de connexion (via le
-  // profil lié). Ne JAMAIS reconstruire l'email à partir du prénom : ça ne
-  // vaut que pour les comptes créés via prenom@caractere.com — pour un compte
-  // créé autrement (ex: l'admin, inscrit avec sa propre adresse), deviner
-  // l'email empêche la connexion quel que soit le mot de passe.
-  const { data: employees, error: empError } = await supabase
-    .from("employees")
-    .select("first_name, profiles(email)")
-    .ilike("first_name", firstName)
-    .limit(1);
+  // Retrouver le vrai email de connexion via une fonction dédiée : à ce stade
+  // (avant authentification) le client tourne avec le rôle "anon", qui n'a
+  // pas accès à la table profiles (seule "employees" a une policy publique,
+  // pour alimenter le menu déroulant) — un embed employees->profiles(email)
+  // renverrait toujours null. Ne JAMAIS reconstruire l'email à partir du
+  // prénom non plus : ça ne vaut que pour les comptes créés via
+  // prenom@caractere.com — pour un compte créé autrement (ex: l'admin,
+  // inscrit avec sa propre adresse), deviner l'email empêche la connexion
+  // quel que soit le mot de passe.
+  const { data: email, error: empError } = await supabase.rpc("get_login_email", { p_first_name: firstName });
 
-  const email = (employees?.[0] as any)?.profiles?.email as string | undefined;
-
-  if (empError || !employees || employees.length === 0 || !email) {
+  if (empError || !email) {
     redirect(`/login?error=${encodeURIComponent("Utilisateur introuvable ou compte non configuré")}`);
   }
 
