@@ -103,6 +103,53 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
             </Field>
           </div>
         )}
+
+        <div className="mt-5 pt-5 border-t border-slate-200">
+          <p className="text-sm font-medium text-slate-700 mb-2">Livraison</p>
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setUseYalidine(false)}
+              className={`rounded-md px-3.5 py-2 text-sm font-medium border ${!useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
+            >
+              Livraison manuelle
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseYalidine(true)}
+              className={`rounded-md px-3.5 py-2 text-sm font-medium border ${useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
+            >
+              Envoyer par Yalidine
+            </button>
+          </div>
+          <input type="hidden" name="use_yalidine" value={useYalidine ? "on" : ""} />
+
+          {useYalidine && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Wilaya" htmlFor="yalidine_wilaya" required>
+                <select id="yalidine_wilaya" name="yalidine_wilaya" required={useYalidine} className={inputClass}>
+                  <option value="">{wilayas.length === 0 ? "Chargement…" : "— Sélectionner —"}</option>
+                  {wilayas.map((w) => (
+                    <option key={w.id} value={w.name}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Commune" htmlFor="yalidine_commune" required>
+                <input id="yalidine_commune" name="yalidine_commune" required={useYalidine} className={inputClass} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Adresse" htmlFor="yalidine_address" required>
+                  <input id="yalidine_address" name="yalidine_address" required={useYalidine} className={inputClass} />
+                </Field>
+              </div>
+              <Field label="Montant à collecter (DA)" htmlFor="yalidine_price" required>
+                <input id="yalidine_price" name="yalidine_price" type="number" step="1" min="0" required={useYalidine} className={inputClass} />
+              </Field>
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* 2. Article */}
@@ -252,54 +299,6 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           </div>
         ) : (
           <p className="text-sm text-slate-400">Vêtements bruts, sans personnalisation — la commande part directement en préparation.</p>
-        )}
-      </Card>
-
-      {/* 4. Livraison */}
-      <Card className="p-6">
-        <StepLabel n={4} title="Livraison" />
-        <div className="flex gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setUseYalidine(false)}
-            className={`rounded-md px-3.5 py-2 text-sm font-medium border ${!useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
-          >
-            Livraison manuelle
-          </button>
-          <button
-            type="button"
-            onClick={() => setUseYalidine(true)}
-            className={`rounded-md px-3.5 py-2 text-sm font-medium border ${useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
-          >
-            Envoyer par Yalidine
-          </button>
-        </div>
-        <input type="hidden" name="use_yalidine" value={useYalidine ? "on" : ""} />
-
-        {useYalidine && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Wilaya" htmlFor="yalidine_wilaya" required>
-              <select id="yalidine_wilaya" name="yalidine_wilaya" required={useYalidine} className={inputClass}>
-                <option value="">{wilayas.length === 0 ? "Chargement…" : "— Sélectionner —"}</option>
-                {wilayas.map((w) => (
-                  <option key={w.id} value={w.name}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Commune" htmlFor="yalidine_commune" required>
-              <input id="yalidine_commune" name="yalidine_commune" required={useYalidine} className={inputClass} />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Adresse" htmlFor="yalidine_address" required>
-                <input id="yalidine_address" name="yalidine_address" required={useYalidine} className={inputClass} />
-              </Field>
-            </div>
-            <Field label="Montant à collecter (DA)" htmlFor="yalidine_price" required>
-              <input id="yalidine_price" name="yalidine_price" type="number" step="1" min="0" required={useYalidine} className={inputClass} />
-            </Field>
-          </div>
         )}
       </Card>
     </>
