@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
+import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
 
 interface ItemRow {
   product_name: string;
@@ -38,6 +39,15 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
   const [technique, setTechnique] = useState<Technique>("dtf");
   const [logoPlacement, setLogoPlacement] = useState("coeur");
   const [logoSource, setLogoSource] = useState("whatsapp");
+  const [useYalidine, setUseYalidine] = useState(false);
+  const [wilayas, setWilayas] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!useYalidine || wilayas.length > 0) return;
+    fetchYalidineWilayas()
+      .then(setWilayas)
+      .catch(() => setWilayas([]));
+  }, [useYalidine, wilayas.length]);
 
   function updateItem(i: number, patch: Partial<ItemRow>) {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -242,6 +252,54 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           </div>
         ) : (
           <p className="text-sm text-slate-400">Vêtements bruts, sans personnalisation — la commande part directement en préparation.</p>
+        )}
+      </Card>
+
+      {/* 4. Livraison */}
+      <Card className="p-6">
+        <StepLabel n={4} title="Livraison" />
+        <div className="flex gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setUseYalidine(false)}
+            className={`rounded-md px-3.5 py-2 text-sm font-medium border ${!useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
+          >
+            Livraison manuelle
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseYalidine(true)}
+            className={`rounded-md px-3.5 py-2 text-sm font-medium border ${useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
+          >
+            Envoyer par Yalidine
+          </button>
+        </div>
+        <input type="hidden" name="use_yalidine" value={useYalidine ? "on" : ""} />
+
+        {useYalidine && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Wilaya" htmlFor="yalidine_wilaya" required>
+              <select id="yalidine_wilaya" name="yalidine_wilaya" required={useYalidine} className={inputClass}>
+                <option value="">{wilayas.length === 0 ? "Chargement…" : "— Sélectionner —"}</option>
+                {wilayas.map((w) => (
+                  <option key={w.id} value={w.name}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Commune" htmlFor="yalidine_commune" required>
+              <input id="yalidine_commune" name="yalidine_commune" required={useYalidine} className={inputClass} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Adresse" htmlFor="yalidine_address" required>
+                <input id="yalidine_address" name="yalidine_address" required={useYalidine} className={inputClass} />
+              </Field>
+            </div>
+            <Field label="Montant à collecter (DA)" htmlFor="yalidine_price" required>
+              <input id="yalidine_price" name="yalidine_price" type="number" step="1" min="0" required={useYalidine} className={inputClass} />
+            </Field>
+          </div>
         )}
       </Card>
     </>
