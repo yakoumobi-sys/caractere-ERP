@@ -142,7 +142,12 @@ export default async function Page({ params }: { params: { id: string } }) {
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
 
-      {order.status === "prete" && (
+      {/* Le colis Yalidine est en général créé dès la commande (choix fait au
+          configurateur) — ce panneau affiche alors juste son statut, quel
+          que soit l'avancement en production. S'il n'a pas été créé (échec,
+          ou "livraison manuelle" choisie au départ), il sert de repli une
+          fois la commande prête à livrer. */}
+      {(shipment || order.status === "prete") && (
         <div className="mb-6">
           <YalidineShipmentPanel orderId={order.id} shipment={(shipment as any) ?? null} />
         </div>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { initialStatus, STATUS_DEFS, type OrderStatus, type Technique } from "@/lib/pipeline";
+import { createYalidineParcel } from "@/lib/yalidine";
 
 interface ItemInput {
   product_name: string;
@@ -33,6 +34,12 @@ export async function createPipelineOrder(formData: FormData) {
   const logo_source = (formData.get("logo_source") as string) || null;
   const logo_source_value = (formData.get("logo_source_value") as string) || null;
   const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
+
+  const useYalidine = formData.get("use_yalidine") === "on";
+  const yalidineWilaya = String(formData.get("yalidine_wilaya") ?? "").trim();
+  const yalidineCommune = String(formData.get("yalidine_commune") ?? "").trim();
+  const yalidineAddress = String(formData.get("yalidine_address") ?? "").trim();
+  const yalidinePrice = Number(formData.get("yalidine_price") ?? 0);
 
   if (clientMode === "new") {
     const name = String(formData.get("client_new_name") ?? "").trim();
@@ -67,7 +74,7 @@ export async function createPipelineOrder(formData: FormData) {
       status: initialStatus(technique),
       created_by: user?.id ?? null,
     })
-    .select("id")
+    .select("id, number")
     .single();
   if (error) throw new Error(error.message);
 
@@ -101,6 +108,43 @@ export async function createPipelineOrder(formData: FormData) {
   }
 
   await uploadPipelineFile(order.id, formData.get("logo") as File | null);
+
+  // Expédition Yalidine choisie dès la création de la commande (demande
+  // explicite du propriétaire : plus besoin de repasser par la fiche
+  // commande plus tard). Le vrai colis est créé immédiatement — un échec
+  // ici (ex: nom de commune mal orthographié) ne doit pas empêcher la
+  // commande d'être créée : l'employé peut toujours créer l'expédition
+  // manuellement depuis la fiche commande (panneau Yalidine, sert de repli).
+  if (useYalidine && yalidineWilaya && yalidineCommune && yalidineAddress && yalidinePrice > 0) {
+    try {
+      const { data: contact } = await supabase.from("contacts").select("name, phone").eq("id", contact_id).single();
+      const [firstname, ...rest] = (contact?.name || "Client").trim().split(/\s+/);
+      const productList =
+        validItems.length > 0 ? validItems.map((it) => `${it.quantity}× ${it.product_name}`).join(", ") : description || order.number || "Commande Caractère";
+
+      const result = await createYalidineParcel({
+        orderId: order.number || order.id,
+        firstname,
+        familyname: rest.join(" "),
+        contactPhone: contact?.phone || "",
+        address: yalidineAddress,
+        toWilayaName: yalidineWilaya,
+        toCommuneName: yalidineCommune,
+        productList,
+        price: yalidinePrice,
+      });
+
+      if (result.tracking) {
+        await supabase.from("yalidine_shipments").insert({
+          order_id: order.id,
+          yalidine_tracking_id: result.tracking,
+          status: "pending",
+        });
+      }
+    } catch (e) {
+      console.error("Yalidine à la création de la commande — échec :", (e as Error).message);
+    }
+  }
 
   revalidatePath("/production");
   redirect(`/production/${order.id}`);
