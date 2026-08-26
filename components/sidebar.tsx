@@ -116,9 +116,9 @@ export function Sidebar({
   const [openSection, setOpenSection] = useState<string | null>(activeSection ?? "Général");
 
   return (
-    <aside className="h-full w-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">
+    <aside className="h-full w-full border-r border-white/50 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl overflow-y-auto flex flex-col">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-white/50 dark:border-slate-800/60 shrink-0">
+        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-sm shadow-brand-500/40">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt={companyName} className="h-full w-full object-cover" />
@@ -143,10 +143,10 @@ export function Sidebar({
                 type="button"
                 onClick={() => setOpenSection(isOpen ? null : group.section)}
                 className={cx(
-                  "w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                   hasActive
-                    ? "bg-brand-50 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    ? "bg-brand-50/80 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 ring-1 ring-inset ring-brand-100 dark:ring-brand-500/20"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60"
                 )}
               >
                 {Icon && <Icon className="shrink-0" />}
@@ -155,7 +155,7 @@ export function Sidebar({
               </button>
 
               {(isOpen || group.items.length === 1) && (
-                <div className="mt-0.5 ml-4 pl-4 border-l border-slate-100 dark:border-slate-800 flex flex-col gap-0.5">
+                <div className="mt-0.5 ml-4 pl-4 border-l border-slate-200/70 dark:border-slate-800 flex flex-col gap-0.5">
                   {group.items.map((item) => {
                     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                     return (
@@ -164,10 +164,10 @@ export function Sidebar({
                         href={item.href}
                         onClick={onNavigate}
                         className={cx(
-                          "rounded-md px-3 py-1.5 text-sm transition-colors",
+                          "rounded-lg px-3 py-1.5 text-sm transition-colors",
                           active
-                            ? "bg-brand-500 text-white font-medium"
-                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                            ? "bg-gradient-to-r from-brand-500 to-brand-600 text-white font-medium shadow-sm shadow-brand-500/30"
+                            : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                         )}
                       >
                         {item.label}
@@ -181,7 +181,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="px-3 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="px-3 py-3 border-t border-white/50 dark:border-slate-800/60 shrink-0">
         <ThemeToggle />
       </div>
     </aside>
