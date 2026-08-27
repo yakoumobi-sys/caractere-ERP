@@ -89,7 +89,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 
       <Card
         className="p-4 mb-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm"
-        style={order.assigned_to ? { borderLeft: `4px solid ${order.assignee_color}` } : undefined}
+        style={order.assigned_to && order.assignee_color ? { borderLeft: `4px solid ${order.assignee_color}` } : undefined}
       >
         <div>
           <p className="text-slate-400 text-xs">Technique</p>
