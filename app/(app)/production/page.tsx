@@ -72,7 +72,7 @@ export default async function Page() {
                     key={o.id}
                     href={`/production/${o.id}`}
                     className="block p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
-                    style={o.assigned_to ? { borderLeftWidth: "4px", borderLeftColor: o.assignee_color } : undefined}
+                    style={o.assigned_to && o.assignee_color ? { borderLeftWidth: "4px", borderLeftColor: o.assignee_color } : undefined}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -89,7 +89,7 @@ export default async function Page() {
                           </p>
                         )}
                       </div>
-                      {o.assignee_first_name && (
+                      {o.assignee_first_name && o.assignee_color && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs shrink-0 whitespace-nowrap">
                           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: o.assignee_color }} />
                           {o.assignee_first_name}

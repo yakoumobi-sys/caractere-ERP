@@ -121,7 +121,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         </div>
         <div>
           <p className="text-slate-400 text-xs">Assigné à</p>
-          {order.assigned_to ? (
+          {order.assigned_to && order.assignee_color ? (
             <p className="text-slate-900 font-medium flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: order.assignee_color }} />
               {order.assignee_first_name} {order.assignee_last_name}
