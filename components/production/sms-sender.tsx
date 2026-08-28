@@ -67,7 +67,7 @@ export function SMSSender({
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         onClick={() => setIsOpen(true)}
         className="w-full"
       >
@@ -115,7 +115,7 @@ export function SMSSender({
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => setIsOpen(false)}
                   disabled={loading}
                   className="flex-1"

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, Badge, Button } from "@/components/ui";
 
@@ -70,7 +71,7 @@ export default async function SuppliersPage() {
                     {supplier.lead_time_days} jours
                   </p>
                 </div>
-                <Badge className={supplier.status === "actif" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"}>
+                <Badge tone={supplier.status === "actif" ? "green" : "slate"}>
                   {supplier.status}
                 </Badge>
               </div>

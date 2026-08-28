@@ -64,7 +64,7 @@ export default async function MessagingPage() {
       <PageHeader
         title="💬 Messagerie Employés"
         description="Communication en temps réel avec vos collègues"
-        className="lg:col-span-4"
+        
       />
 
       {/* Sidebar: Liste des employés */}

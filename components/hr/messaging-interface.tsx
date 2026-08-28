@@ -105,8 +105,8 @@ export function MessagingInterface({
           </div>
           <select
             value={selectedEmployee.id}
-            onChange={(e) => {
-              const emp = employees.find((e) => e.id === e.target.value);
+            onChange={(event) => {
+              const emp = employees.find((e) => e.id === event.target.value);
               setSelectedEmployee(emp || null);
             }}
             className={`${inputClass} w-48`}

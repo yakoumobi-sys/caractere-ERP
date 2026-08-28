@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { PageHeader, Card, Badge } from "@/components/ui";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { addMonthlyObjective, updateObjectiveProgress } from "@/app/actions/objectives-actions";
@@ -38,27 +38,10 @@ export default async function ObjectivesPage() {
       .order("created_at"),
   ]);
 
-  const allEmployees = await supabase
-    .from("employees")
-    .select("id, first_name, last_name")
-    .eq("status", "actif");
-
   async function handleAddObjective(formData: FormData) {
     "use server";
-    await addMonthlyObjective(currentMonth, formData, currentEmployee.id);
+    if (currentEmployee) await addMonthlyObjective(currentMonth, formData, currentEmployee.id);
   }
-
-  async function handleUpdateProgress(objectiveId: string, newProgress: number) {
-    "use server";
-    await updateObjectiveProgress(objectiveId, newProgress);
-  }
-
-  const statusColors: Record<string, string> = {
-    planification: "bg-slate-100 text-slate-800",
-    en_cours: "bg-blue-100 text-blue-800",
-    completed: "bg-green-100 text-green-800",
-    missed: "bg-red-100 text-red-800",
-  };
 
   return (
     <div className="max-w-4xl">
@@ -84,9 +67,7 @@ export default async function ObjectivesPage() {
                     </p>
                   )}
                 </div>
-                <Badge className={statusColors[obj.status] || ""}>
-                  {obj.status}
-                </Badge>
+                <Badge tone="blue">{obj.status}</Badge>
               </div>
               {obj.target_value && (
                 <div className="mt-3">
@@ -113,24 +94,11 @@ export default async function ObjectivesPage() {
 
       {/* Objectifs individuels */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            👤 Mes objectifs
-          </h2>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              const modal = document.getElementById("add-objective-modal");
-              if (modal) (modal as any).showModal?.();
-            }}
-          >
-            + Ajouter
-          </Button>
-        </div>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+          👤 Mes objectifs
+        </h2>
 
-        <div className="space-y-3">
+        <div className="space-y-3 mb-6">
           {individualObjectives?.map((obj: any) => (
             <Card key={obj.id} className="p-4">
               <div className="flex items-start justify-between mb-2">
@@ -142,9 +110,7 @@ export default async function ObjectivesPage() {
                     </p>
                   )}
                 </div>
-                <Badge className={statusColors[obj.status] || ""}>
-                  {obj.status}
-                </Badge>
+                <Badge tone="green">{obj.status}</Badge>
               </div>
               {obj.target_value && (
                 <div className="mt-3">
@@ -166,50 +132,18 @@ export default async function ObjectivesPage() {
               )}
             </Card>
           ))}
-          {!individualObjectives?.length && (
-            <Card className="p-6 text-center">
-              <p className="text-slate-500 dark:text-slate-400">
-                Aucun objectif personnel. Ajoutes-en un pour ce mois! 🚀
-              </p>
-            </Card>
-          )}
         </div>
-      </div>
 
-      {/* Modal ajout objectif */}
-      <dialog id="add-objective-modal" className="backdrop:bg-black/50 p-6 rounded-lg max-w-md">
-        <form action={handleAddObjective} className="space-y-4">
-          <h3 className="text-lg font-semibold">Ajouter un objectif</h3>
-          <input name="title" placeholder="Titre" required className="w-full px-3 py-2 border rounded" />
-          <textarea
-            name="description"
-            placeholder="Description (optionnel)"
-            className="w-full px-3 py-2 border rounded text-sm"
-          />
-          <input
-            name="target_value"
-            type="number"
-            placeholder="Valeur cible (optionnel)"
-            className="w-full px-3 py-2 border rounded"
-          />
-          <div className="flex gap-2">
-            <Button type="submit" className="flex-1">
-              Créer
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                const modal = document.getElementById("add-objective-modal");
-                if (modal) (modal as any).close?.();
-              }}
-            >
-              Annuler
-            </Button>
-          </div>
+        <form action={handleAddObjective} className="bg-slate-50 dark:bg-slate-900/30 p-6 rounded-lg space-y-4">
+          <h3 className="font-semibold text-slate-900 dark:text-white">➕ Ajouter un objectif</h3>
+          <input name="title" placeholder="Titre" required className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" />
+          <textarea name="description" placeholder="Description (optionnel)" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm" />
+          <input name="target_value" type="number" placeholder="Valeur cible (optionnel)" className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800" />
+          <button type="submit" className="w-full px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium">
+            Créer l&apos;objectif
+          </button>
         </form>
-      </dialog>
+      </div>
     </div>
   );
 }

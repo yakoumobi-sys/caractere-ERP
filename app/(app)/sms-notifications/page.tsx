@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, Badge } from "@/components/ui";
 import { format } from "date-fns";
@@ -94,7 +95,7 @@ export default async function SMSPage() {
                     {delivery.stage}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge className={statusColors[delivery.status] || ""}>
+                    <Badge tone="blue">
                       {delivery.status}
                     </Badge>
                   </td>
