@@ -42,6 +42,7 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
   const [logoSource, setLogoSource] = useState("whatsapp");
   const [useYalidine, setUseYalidine] = useState(false);
   const [wilayas, setWilayas] = useState<{ id: number; name: string }[]>([]);
+  const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
 
   useEffect(() => {
     if (!useYalidine || wilayas.length > 0) return;
@@ -215,9 +216,22 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
 
         {technique === "dtf" && (
           <label className="flex items-center gap-2 mb-4 text-sm text-slate-700 cursor-pointer">
-            <input type="checkbox" name="requires_flocage" className="h-4 w-4 rounded border-slate-300" />
-            Envoyer en flocage après l&apos;impression
+            <input
+              type="checkbox"
+              name="skip_flocage"
+              checked={!requiresFlocage}
+              onChange={(e) => setRequiresFlocage(!e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            <span>
+              Pas de flocage après impression
+              <br />
+              <span className="text-xs text-slate-500">(Par défaut: envoyé en flocage)</span>
+            </span>
           </label>
+        )}
+        {technique === "dtf" && (
+          <input type="hidden" name="requires_flocage" value={requiresFlocage ? "on" : ""} />
         )}
 
         {technique !== "aucune" ? (
