@@ -13,6 +13,7 @@ const NAV = [
     items: [
       { href: "/dashboard", label: "Tableau de bord", exact: true },
       { href: "/alerts", label: "Alertes" },
+      { href: "/sms-notifications", label: "📱 SMS Notifications" },
     ],
   },
   {
@@ -53,10 +54,10 @@ const NAV = [
     ],
   },
   {
-    section: "Achats",
+    section: "Achats & Supply Chain",
     items: [
-      { href: "/purchasing/suppliers", label: "Fournisseurs" },
-      { href: "/purchasing/orders", label: "Commandes fournisseurs" },
+      { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
+      { href: "/purchasing/orders", label: "📦 Commandes fournisseurs" },
     ],
   },
   {
@@ -87,6 +88,8 @@ const NAV = [
     items: [
       { href: "/hr/employees", label: "Employés" },
       { href: "/hr/attendance", label: "Présences" },
+      { href: "/hr/messaging", label: "💬 Messagerie" },
+      { href: "/hr/objectives", label: "🎯 Objectifs du mois" },
     ],
   },
   {
@@ -116,9 +119,9 @@ export function Sidebar({
   const [openSection, setOpenSection] = useState<string | null>(activeSection ?? "Général");
 
   return (
-    <aside className="h-full w-full border-r border-white/50 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl overflow-y-auto flex flex-col">
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-white/50 dark:border-slate-800/60 shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-sm shadow-brand-500/40">
+    <aside className="h-full w-full border-r border-slate-200 dark:border-slate-700 bg-gradient-to-b from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 overflow-y-auto flex flex-col shadow-lg">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50">
+        <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-lg shadow-indigo-600/40">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt={companyName} className="h-full w-full object-cover" />
@@ -143,10 +146,10 @@ export function Sidebar({
                 type="button"
                 onClick={() => setOpenSection(isOpen ? null : group.section)}
                 className={cx(
-                  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  "w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   hasActive
-                    ? "bg-brand-50/80 dark:bg-brand-500/15 text-brand-700 dark:text-brand-300 ring-1 ring-inset ring-brand-100 dark:ring-brand-500/20"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60"
+                    ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                 )}
               >
                 {Icon && <Icon className="shrink-0" />}
@@ -166,8 +169,8 @@ export function Sidebar({
                         className={cx(
                           "rounded-lg px-3 py-1.5 text-sm transition-colors",
                           active
-                            ? "bg-gradient-to-r from-brand-500 to-brand-600 text-white font-medium shadow-sm shadow-brand-500/30"
-                            : "text-slate-500 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                            ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-md shadow-indigo-500/30"
+                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white"
                         )}
                       >
                         {item.label}
@@ -181,7 +184,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="px-3 py-3 border-t border-white/50 dark:border-slate-800/60 shrink-0">
+      <div className="px-3 py-3 border-t border-slate-200 dark:border-slate-700 shrink-0">
         <ThemeToggle />
       </div>
     </aside>

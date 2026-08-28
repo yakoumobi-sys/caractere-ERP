@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
+import { SmartArticleSelector } from "./smart-article-selector";
 
 interface ItemRow {
   product_name: string;
@@ -41,6 +42,7 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
   const [logoSource, setLogoSource] = useState("whatsapp");
   const [useYalidine, setUseYalidine] = useState(false);
   const [wilayas, setWilayas] = useState<{ id: number; name: string }[]>([]);
+  const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
 
   useEffect(() => {
     if (!useYalidine || wilayas.length > 0) return;
@@ -176,40 +178,12 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((row, i) => (
-              <tr key={i}>
-                <td className="py-2 pr-2">
-                  <input
-                    value={row.product_name}
-                    onChange={(e) => updateItem(i, { product_name: e.target.value })}
-                    placeholder="T-shirt, Polo, Tote bag..."
-                    className={inputClass}
-                  />
-                </td>
-                <td className="py-2 pr-2">
-                  <input value={row.color} onChange={(e) => updateItem(i, { color: e.target.value })} className={inputClass} />
-                </td>
-                <td className="py-2 pr-2">
-                  <input value={row.size} onChange={(e) => updateItem(i, { size: e.target.value })} className={inputClass} />
-                </td>
-                <td className="py-2 pr-2">
-                  <input
-                    type="number"
-                    step="1"
-                    value={row.quantity}
-                    onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })}
-                    className={inputClass}
-                  />
-                </td>
-                <td className="py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Retirer
-                  </button>
-                </td>
-              </tr>
+              <SmartArticleSelector
+                key={i}
+                value={row}
+                onChange={(patch) => updateItem(i, patch)}
+                onRemove={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+              />
             ))}
           </tbody>
         </table>
@@ -242,9 +216,22 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
 
         {technique === "dtf" && (
           <label className="flex items-center gap-2 mb-4 text-sm text-slate-700 cursor-pointer">
-            <input type="checkbox" name="requires_flocage" className="h-4 w-4 rounded border-slate-300" />
-            Envoyer en flocage après l&apos;impression
+            <input
+              type="checkbox"
+              name="skip_flocage"
+              checked={!requiresFlocage}
+              onChange={(e) => setRequiresFlocage(!e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            <span>
+              Pas de flocage après impression
+              <br />
+              <span className="text-xs text-slate-500">(Par défaut: envoyé en flocage)</span>
+            </span>
           </label>
+        )}
+        {technique === "dtf" && (
+          <input type="hidden" name="requires_flocage" value={requiresFlocage ? "on" : ""} />
         )}
 
         {technique !== "aucune" ? (

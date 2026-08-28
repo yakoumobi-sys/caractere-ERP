@@ -7,12 +7,12 @@ export function Button({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium px-3.5 py-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100";
+  const base = "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold px-4 py-2.5 transition-all active:scale-[0.95] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100";
   const variants = {
-    primary: "bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-sm shadow-brand-500/30 hover:shadow-md hover:shadow-brand-500/40 hover:from-brand-600 hover:to-brand-700",
-    secondary: "bg-white/70 dark:bg-slate-800/70 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70 hover:bg-white dark:hover:bg-slate-700",
-    danger: "bg-white/70 dark:bg-slate-800/70 backdrop-blur-md text-red-600 dark:text-red-400 border border-red-200/70 dark:border-red-900/70 hover:bg-red-50 dark:hover:bg-red-950",
-    ghost: "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60",
+    primary: "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/40 hover:shadow-xl hover:shadow-indigo-600/50 hover:from-indigo-700 hover:to-blue-700",
+    secondary: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700",
+    danger: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50",
+    ghost: "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
   };
   return (
     <button className={cx(base, variants[variant], className)} {...props}>
@@ -32,10 +32,10 @@ export function LinkButton({
   variant?: "primary" | "secondary";
   className?: string;
 }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium px-3.5 py-2 transition-all active:scale-[0.98]";
+  const base = "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold px-4 py-2.5 transition-all active:scale-[0.95]";
   const variants = {
-    primary: "bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-sm shadow-brand-500/30 hover:shadow-md hover:shadow-brand-500/40 hover:from-brand-600 hover:to-brand-700",
-    secondary: "bg-white/70 dark:bg-slate-800/70 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70 hover:bg-white dark:hover:bg-slate-700",
+    primary: "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/40 hover:shadow-xl hover:shadow-indigo-600/50 hover:from-indigo-700 hover:to-blue-700",
+    secondary: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700",
   };
   return (
     <Link href={href} className={cx(base, variants[variant], className)}>
@@ -45,7 +45,7 @@ export function LinkButton({
 }
 
 export const inputClass =
-  "w-full rounded-xl border border-slate-200/70 dark:border-slate-700/60 bg-white/70 dark:bg-slate-800/60 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-shadow focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30";
+  "w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/30";
 
 export function Field({
   label,
@@ -77,14 +77,14 @@ export function Badge({
   tone?: "slate" | "green" | "amber" | "red" | "blue";
 }) {
   const tones = {
-    slate: "bg-slate-100/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 ring-1 ring-inset ring-slate-200/60 dark:ring-slate-700/50",
-    green: "bg-emerald-100/80 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-200/60 dark:ring-emerald-500/20",
-    amber: "bg-amber-100/80 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-200/60 dark:ring-amber-500/20",
-    red: "bg-red-100/80 dark:bg-red-500/15 text-red-700 dark:text-red-400 ring-1 ring-inset ring-red-200/60 dark:ring-red-500/20",
-    blue: "bg-blue-100/80 dark:bg-blue-500/15 text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-200/60 dark:ring-blue-500/20",
+    slate: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
+    green: "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
+    amber: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300",
+    red: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300",
+    blue: "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300",
   };
   return (
-    <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone])}>
+    <span className={cx("inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold", tones[tone])}>
       {children}
     </span>
   );
@@ -122,8 +122,8 @@ export function Card({
   glass?: boolean;
 }) {
   const baseClass = glass
-    ? "bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-shadow"
-    : "bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow";
+    ? "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-shadow"
+    : "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-lg transition-shadow";
 
   return (
     <div className={cx(baseClass, className)} style={style}>

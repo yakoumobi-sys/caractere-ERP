@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { OrderQueueList } from "@/components/production/order-queue-list";
 import { PageHeader, LinkButton, Card, Badge } from "@/components/ui";
+import { OrderColorBadge } from "@/components/production/order-color-badge";
 import { QUEUE_TITLES, statusesForQueue, type QueueName, type OrderStatus } from "@/lib/pipeline";
 
 const QUEUES: { name: QueueName; href: string; icon: string }[] = [
@@ -71,8 +72,11 @@ export default async function Page() {
                   <Link
                     key={o.id}
                     href={`/production/${o.id}`}
-                    className="block p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
-                    style={o.assigned_to ? { borderLeftWidth: "4px", borderLeftColor: o.assignee_color } : undefined}
+                    className="block p-3 rounded-lg border-2 transition-all hover:shadow-md"
+                    style={{
+                      borderColor: o.assigned_to && o.assignee_color ? o.assignee_color : "#e2e8f0",
+                      backgroundColor: o.assigned_to && o.assignee_color ? `${o.assignee_color}08` : "transparent",
+                    }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -89,11 +93,17 @@ export default async function Page() {
                           </p>
                         )}
                       </div>
-                      {o.assignee_first_name && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs shrink-0 whitespace-nowrap">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: o.assignee_color }} />
-                          {o.assignee_first_name}
-                        </span>
+                      {o.assignee_first_name && o.assignee_color && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <OrderColorBadge
+                            assigneeName={o.assignee_first_name}
+                            assigneeColor={o.assignee_color}
+                            size="md"
+                          />
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {o.assignee_first_name}
+                          </span>
+                        </div>
                       )}
                     </div>
                   </Link>
