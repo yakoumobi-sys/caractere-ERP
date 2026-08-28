@@ -5,6 +5,7 @@ import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
 import { SmartArticleSelector } from "./smart-article-selector";
+import { SmartClientSelector } from "./smart-client-selector";
 
 interface ItemRow {
   product_name: string;
@@ -36,6 +37,7 @@ function StepLabel({ n, title }: { n: number; title: string }) {
  */
 export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) {
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
+  const [selectedContactId, setSelectedContactId] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ product_name: "", color: "", size: "", quantity: 1 }]);
   const [technique, setTechnique] = useState<Technique>("dtf");
   const [logoPlacement, setLogoPlacement] = useState("coeur");
@@ -79,16 +81,14 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
         <input type="hidden" name="client_mode" value={clientMode} />
 
         {clientMode === "existing" ? (
-          <Field label="Client" htmlFor="contact_id" required>
-            <select id="contact_id" name="contact_id" required={clientMode === "existing"} className={inputClass}>
-              <option value="">— Sélectionner —</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <>
+            <SmartClientSelector
+              contacts={contacts}
+              value={selectedContactId}
+              onChange={setSelectedContactId}
+            />
+            <input type="hidden" name="contact_id" value={selectedContactId} required={clientMode === "existing"} />
+          </>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Nom" htmlFor="client_new_name" required>

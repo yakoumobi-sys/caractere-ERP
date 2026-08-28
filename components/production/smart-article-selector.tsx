@@ -22,6 +22,10 @@ export function SmartArticleSelector({
 }: SmartArticleSelectorProps) {
   const [colors, setColors] = useState<Array<{ id: string; color: string }>>([]);
   const [sizes, setSizes] = useState<Array<{ id: string; size: string }>>([]);
+  const [colorSearch, setColorSearch] = useState("");
+  const [sizeSearch, setSizeSearch] = useState("");
+  const [showColorDropdown, setShowColorDropdown] = useState(false);
+  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [showColorInput, setShowColorInput] = useState(false);
   const [showSizeInput, setShowSizeInput] = useState(false);
   const [newColor, setNewColor] = useState("");
@@ -62,12 +66,15 @@ export function SmartArticleSelector({
 
       if (data) {
         setColors((prev) => [...prev, data]);
-        onChange({ color: newColor });
+        onChange({ color: data.color });
         setNewColor("");
+        setColorSearch(data.color);
         setShowColorInput(false);
+        setShowColorDropdown(false);
       }
     } catch (error) {
       console.error("Erreur ajout couleur:", error);
+      alert("Erreur lors de l'ajout de la couleur");
     }
   };
 
@@ -84,14 +91,25 @@ export function SmartArticleSelector({
 
       if (data) {
         setSizes((prev) => [...prev, data]);
-        onChange({ size: newSize });
+        onChange({ size: data.size });
         setNewSize("");
+        setSizeSearch(data.size);
         setShowSizeInput(false);
+        setShowSizeDropdown(false);
       }
     } catch (error) {
       console.error("Erreur ajout taille:", error);
+      alert("Erreur lors de l'ajout de la taille");
     }
   };
+
+  const filteredColors = colors.filter((c) =>
+    c.color.toLowerCase().includes(colorSearch.toLowerCase())
+  );
+
+  const filteredSizes = sizes.filter((s) =>
+    s.size.toLowerCase().includes(sizeSearch.toLowerCase())
+  );
 
   if (loading) {
     return <tr><td colSpan={5} className="py-2">Chargement...</td></tr>;
@@ -104,13 +122,13 @@ export function SmartArticleSelector({
         <input
           value={value.product_name}
           onChange={(e) => onChange({ product_name: e.target.value })}
-          placeholder="T-shirt, Polo, Tote bag..."
+          placeholder="T-shirt, Polo..."
           className={inputClass}
         />
       </td>
 
-      {/* Couleur avec dropdown intelligent */}
-      <td className="py-2 pr-2">
+      {/* Couleur avec autocomplete */}
+      <td className="py-2 pr-2 relative">
         {showColorInput ? (
           <div className="flex gap-1">
             <input
@@ -124,7 +142,7 @@ export function SmartArticleSelector({
                   setNewColor("");
                 }
               }}
-              placeholder="Nouvelle couleur..."
+              placeholder="Nouvelle..."
               autoFocus
               className={inputClass}
             />
@@ -135,44 +153,54 @@ export function SmartArticleSelector({
             >
               ✓
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowColorInput(false);
-                setNewColor("");
-              }}
-              className="px-2 text-xs bg-slate-300 rounded hover:bg-slate-400"
-            >
-              ✕
-            </button>
           </div>
         ) : (
-          <select
-            value={value.color}
-            onChange={(e) => {
-              if (e.target.value === "__add__") {
-                setShowColorInput(true);
-              } else {
-                onChange({ color: e.target.value });
-              }
-            }}
-            className={inputClass}
-          >
-            <option value="">— Couleur —</option>
-            {colors.map((c) => (
-              <option key={c.id} value={c.color}>
-                {c.color}
-              </option>
-            ))}
-            <option value="__add__" className="italic">
-              + Ajouter nouvelle couleur
-            </option>
-          </select>
+          <>
+            <input
+              type="text"
+              value={colorSearch || value.color}
+              onChange={(e) => {
+                setColorSearch(e.target.value);
+                setShowColorDropdown(true);
+              }}
+              onFocus={() => setShowColorDropdown(true)}
+              placeholder="Couleur..."
+              className={inputClass}
+            />
+            {showColorDropdown && (
+              <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded mt-1 max-h-48 overflow-y-auto z-10 shadow-lg">
+                {filteredColors.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onChange({ color: c.color });
+                      setColorSearch(c.color);
+                      setShowColorDropdown(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    {c.color}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowColorInput(true);
+                    setShowColorDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs italic text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-t border-slate-200 dark:border-slate-700"
+                >
+                  + Ajouter nouvelle couleur
+                </button>
+              </div>
+            )}
+          </>
         )}
       </td>
 
-      {/* Taille avec dropdown intelligent */}
-      <td className="py-2 pr-2">
+      {/* Taille avec autocomplete */}
+      <td className="py-2 pr-2 relative">
         {showSizeInput ? (
           <div className="flex gap-1">
             <input
@@ -186,7 +214,7 @@ export function SmartArticleSelector({
                   setNewSize("");
                 }
               }}
-              placeholder="Nouvelle taille..."
+              placeholder="Nouvelle..."
               autoFocus
               className={inputClass}
             />
@@ -197,39 +225,49 @@ export function SmartArticleSelector({
             >
               ✓
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowSizeInput(false);
-                setNewSize("");
-              }}
-              className="px-2 text-xs bg-slate-300 rounded hover:bg-slate-400"
-            >
-              ✕
-            </button>
           </div>
         ) : (
-          <select
-            value={value.size}
-            onChange={(e) => {
-              if (e.target.value === "__add__") {
-                setShowSizeInput(true);
-              } else {
-                onChange({ size: e.target.value });
-              }
-            }}
-            className={`${inputClass} w-full`}
-          >
-            <option value="">— Taille —</option>
-            {sizes.map((s) => (
-              <option key={s.id} value={s.size}>
-                {s.size}
-              </option>
-            ))}
-            <option value="__add__" className="italic">
-              + Ajouter nouvelle taille
-            </option>
-          </select>
+          <>
+            <input
+              type="text"
+              value={sizeSearch || value.size}
+              onChange={(e) => {
+                setSizeSearch(e.target.value);
+                setShowSizeDropdown(true);
+              }}
+              onFocus={() => setShowSizeDropdown(true)}
+              placeholder="Taille..."
+              className={`${inputClass} w-full`}
+            />
+            {showSizeDropdown && (
+              <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded mt-1 max-h-48 overflow-y-auto z-10 shadow-lg">
+                {filteredSizes.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      onChange({ size: s.size });
+                      setSizeSearch(s.size);
+                      setShowSizeDropdown(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    {s.size}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSizeInput(true);
+                    setShowSizeDropdown(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs italic text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-700 border-t border-slate-200 dark:border-slate-700"
+                >
+                  + Ajouter nouvelle taille
+                </button>
+              </div>
+            )}
+          </>
         )}
       </td>
 
