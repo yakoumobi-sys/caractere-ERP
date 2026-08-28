@@ -15,6 +15,8 @@ import { PipelineControls } from "@/components/production/pipeline-controls";
 import { OrderComments } from "@/components/production/order-comments";
 import { OrderTasks } from "@/components/production/order-tasks";
 import { YalidineShipmentPanel } from "@/components/production/yalidine-shipment-panel";
+import { OrderColorBadge, OrderColorCard } from "@/components/production/order-color-badge";
+import { SMSSender } from "@/components/production/sms-sender";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
@@ -75,17 +77,28 @@ export default async function Page({ params }: { params: { id: string } }) {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader
-        title={`Commande ${order.number ?? ""} — ${order.contact_name ?? ""}`}
-        description={`${statusLabel(order.status)} · ${formatSince(order.status_since)}`}
-        action={
-          <form action={remove}>
-            <Button type="submit" variant="danger">
-              Supprimer
-            </Button>
-          </form>
-        }
-      />
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            Commande {order.number ?? ""}
+            {order.assigned_to && order.assignee_color && (
+              <OrderColorBadge
+                assigneeName={order.assignee_first_name}
+                assigneeColor={order.assignee_color}
+                size="lg"
+              />
+            )}
+          </h1>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
+            {order.contact_name} · {statusLabel(order.status)} · {formatSince(order.status_since)}
+          </p>
+        </div>
+        <form action={remove}>
+          <Button type="submit" variant="danger">
+            Supprimer
+          </Button>
+        </form>
+      </div>
 
       <Card
         className="p-4 mb-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm"
@@ -152,6 +165,15 @@ export default async function Page({ params }: { params: { id: string } }) {
           <YalidineShipmentPanel orderId={order.id} shipment={(shipment as any) ?? null} />
         </div>
       )}
+
+      {/* SMS Notifications */}
+      <div className="mb-6">
+        <SMSSender
+          orderId={order.id}
+          orderNumber={order.number}
+          customerPhone={order.contact_phone}
+        />
+      </div>
 
       <Card className="p-6 mb-6">
         <h2 className="text-sm font-semibold text-slate-900 mb-3">Articles commandés</h2>
