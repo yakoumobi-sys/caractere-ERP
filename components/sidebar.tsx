@@ -88,6 +88,7 @@ const NAV = [
     items: [
       { href: "/hr/employees", label: "Employés" },
       { href: "/hr/attendance", label: "Présences" },
+      { href: "/hr/messaging", label: "💬 Messagerie" },
     ],
   },
   {
