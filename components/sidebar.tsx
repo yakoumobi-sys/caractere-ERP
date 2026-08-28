@@ -13,6 +13,7 @@ const NAV = [
     items: [
       { href: "/dashboard", label: "Tableau de bord", exact: true },
       { href: "/alerts", label: "Alertes" },
+      { href: "/sms-notifications", label: "📱 SMS Notifications" },
     ],
   },
   {
