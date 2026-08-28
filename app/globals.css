@@ -16,11 +16,10 @@ html.dark body {
   color: #e2e8f0;
 }
 
-/* Scrollbars assorties au thème (Firefox + WebKit) — cohérence avec le
-   reste de la refonte "glass". */
+/* Scrollbars Corporate Modern — indigo/blue gradient */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 58, 237, 0.35) transparent;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
 }
 ::-webkit-scrollbar {
   width: 8px;
@@ -30,9 +29,9 @@ html.dark body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(124, 58, 237, 0.35);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.4) 0%, rgba(59, 130, 246, 0.4) 100%);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.55);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.6) 0%, rgba(59, 130, 246, 0.6) 100%);
 }
