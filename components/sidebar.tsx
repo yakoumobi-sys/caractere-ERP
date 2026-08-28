@@ -54,10 +54,10 @@ const NAV = [
     ],
   },
   {
-    section: "Achats",
+    section: "Achats & Supply Chain",
     items: [
-      { href: "/purchasing/suppliers", label: "Fournisseurs" },
-      { href: "/purchasing/orders", label: "Commandes fournisseurs" },
+      { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
+      { href: "/purchasing/orders", label: "📦 Commandes fournisseurs" },
     ],
   },
   {
@@ -89,6 +89,7 @@ const NAV = [
       { href: "/hr/employees", label: "Employés" },
       { href: "/hr/attendance", label: "Présences" },
       { href: "/hr/messaging", label: "💬 Messagerie" },
+      { href: "/hr/objectives", label: "🎯 Objectifs du mois" },
     ],
   },
   {
