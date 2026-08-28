@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
+import { SmartArticleSelector } from "./smart-article-selector";
 
 interface ItemRow {
   product_name: string;
@@ -176,40 +177,12 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((row, i) => (
-              <tr key={i}>
-                <td className="py-2 pr-2">
-                  <input
-                    value={row.product_name}
-                    onChange={(e) => updateItem(i, { product_name: e.target.value })}
-                    placeholder="T-shirt, Polo, Tote bag..."
-                    className={inputClass}
-                  />
-                </td>
-                <td className="py-2 pr-2">
-                  <input value={row.color} onChange={(e) => updateItem(i, { color: e.target.value })} className={inputClass} />
-                </td>
-                <td className="py-2 pr-2">
-                  <input value={row.size} onChange={(e) => updateItem(i, { size: e.target.value })} className={inputClass} />
-                </td>
-                <td className="py-2 pr-2">
-                  <input
-                    type="number"
-                    step="1"
-                    value={row.quantity}
-                    onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })}
-                    className={inputClass}
-                  />
-                </td>
-                <td className="py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Retirer
-                  </button>
-                </td>
-              </tr>
+              <SmartArticleSelector
+                key={i}
+                value={row}
+                onChange={(patch) => updateItem(i, patch)}
+                onRemove={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
+              />
             ))}
           </tbody>
         </table>
