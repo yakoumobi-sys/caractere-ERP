@@ -77,11 +77,11 @@ export function YalidineShipmentPanel({ orderId, shipment }: { orderId: string; 
     <Card className="p-6">
       <h2 className="text-sm font-semibold text-slate-900 mb-3">📦 Créer l&apos;expédition Yalidine</h2>
       <form action={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Wilaya" htmlFor="to_wilaya_name" required>
-          <select id="to_wilaya_name" name="to_wilaya_name" required disabled={loadingWilayas} className={inputClass}>
+        <Field label="Wilaya" htmlFor="to_wilaya_id" required>
+          <select id="to_wilaya_id" name="to_wilaya_id" required disabled={loadingWilayas} className={inputClass}>
             <option value="">{loadingWilayas ? "Chargement…" : "— Sélectionner —"}</option>
             {wilayas.map((w) => (
-              <option key={w.id} value={w.name}>
+              <option key={w.id} value={w.id}>
                 {w.name}
               </option>
             ))}

@@ -31,10 +31,10 @@ export async function createYalidineShipmentForOrder(orderId: string, formData: 
   const { data: items } = await supabase.from("pipeline_order_items").select("product_name, quantity").eq("pipeline_order_id", orderId);
 
   const address = String(formData.get("address") ?? "").trim();
-  const toWilayaName = String(formData.get("to_wilaya_name") ?? "").trim();
+  const toWilayaId = String(formData.get("to_wilaya_id") ?? "").trim();
   const toCommuneName = String(formData.get("to_commune_name") ?? "").trim();
   const price = Number(formData.get("price") ?? 0);
-  if (!address || !toWilayaName || !toCommuneName || !price) {
+  if (!address || !toWilayaId || !toCommuneName || !price) {
     throw new Error("Adresse, wilaya, commune et prix (à collecter) sont requis.");
   }
 
@@ -50,7 +50,7 @@ export async function createYalidineShipmentForOrder(orderId: string, formData: 
     familyname: rest.join(" "),
     contactPhone: order.contact_phone || "",
     address,
-    toWilayaName,
+    toWilayaId: Number(toWilayaId),
     toCommuneName,
     productList,
     price,

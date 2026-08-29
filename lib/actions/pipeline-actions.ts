@@ -85,7 +85,7 @@ export async function createPipelineOrder(formData: FormData) {
   const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
 
   const useYalidine = formData.get("use_yalidine") === "on";
-  const yalidineWilaya = String(formData.get("yalidine_wilaya") ?? "").trim();
+  const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
   const yalidineCommune = String(formData.get("yalidine_commune") ?? "").trim();
   const yalidineAddress = String(formData.get("yalidine_address") ?? "").trim();
   const yalidinePrice = Number(formData.get("yalidine_price") ?? 0);
@@ -165,10 +165,10 @@ export async function createPipelineOrder(formData: FormData) {
   // Expédition Yalidine choisie dès la création de la commande (demande
   // explicite du propriétaire : plus besoin de repasser par la fiche
   // commande plus tard). Le vrai colis est créé immédiatement — un échec
-  // ici (ex: nom de commune mal orthographié) ne doit pas empêcher la
+  // ici (ex: commune mal orthographiée) ne doit pas empêcher la
   // commande d'être créée : l'employé peut toujours créer l'expédition
   // manuellement depuis la fiche commande (panneau Yalidine, sert de repli).
-  if (useYalidine && yalidineWilaya && yalidineCommune && yalidineAddress && yalidinePrice > 0) {
+  if (useYalidine && yalidineWilayaId && yalidineCommune && yalidineAddress && yalidinePrice > 0) {
     try {
       const { data: contact } = await supabase.from("contacts").select("name, phone").eq("id", contact_id).single();
       const [firstname, ...rest] = (contact?.name || "Client").trim().split(/\s+/);
@@ -181,7 +181,7 @@ export async function createPipelineOrder(formData: FormData) {
         familyname: rest.join(" "),
         contactPhone: contact?.phone || "",
         address: yalidineAddress,
-        toWilayaName: yalidineWilaya,
+        toWilayaId: yalidineWilayaId,
         toCommuneName: yalidineCommune,
         productList,
         price: yalidinePrice,

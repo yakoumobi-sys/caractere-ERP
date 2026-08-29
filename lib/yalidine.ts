@@ -52,7 +52,7 @@ export interface CreateYalidineParcelInput {
   familyname: string;
   contactPhone: string;
   address: string;
-  toWilayaName: string;
+  toWilayaId: number;
   toCommuneName: string;
   productList: string;
   price: number;
@@ -87,7 +87,7 @@ export async function createYalidineParcel(input: CreateYalidineParcelInput): Pr
       contact_phone: input.contactPhone,
       address: input.address,
       to_commune_name: input.toCommuneName,
-      to_wilaya_name: input.toWilayaName,
+      to_wilaya_id: input.toWilayaId,  // Yalidine accepte l'ID, pas le nom
       product_list: input.productList,
       price: input.price,
       is_stopdesk: !!input.isStopdesk,
