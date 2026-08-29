@@ -19,6 +19,52 @@ interface PrintInput {
   text_content: string;
 }
 
+/**
+ * Synchronise les articles d'une commande vers la base de produits.
+ * Ajoute automatiquement les nouveaux produits s'ils n'existent pas.
+ */
+async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
+  for (const item of items) {
+    if (!item.product_name?.trim()) continue;
+
+    const productName = item.product_name.trim();
+    // Générer un SKU unique basé sur le nom du produit
+    const sku = `AUTO-${productName.toLowerCase().replace(/\s+/g, "-").slice(0, 20)}`;
+
+    // Vérifier si le produit existe déjà
+    const { data: existing } = await supabase.from("products").select("id").eq("name", productName).maybeSingle();
+
+    if (!existing) {
+      // Créer le produit si c'est nouveau
+      const { error } = await supabase.from("products").insert({
+        name: productName,
+        sku: sku,
+        unit: "unité",
+        sale_price: 0,
+        purchase_cost: 0,
+        tax_rate: 20,
+        track_inventory: true,
+        is_active: true,
+      });
+
+      if (error) {
+        // Si erreur sur SKU unique, essayer avec timestamp
+        const skuWithTimestamp = `${sku}-${Date.now()}`;
+        await supabase.from("products").insert({
+          name: productName,
+          sku: skuWithTimestamp,
+          unit: "unité",
+          sale_price: 0,
+          purchase_cost: 0,
+          tax_rate: 20,
+          track_inventory: true,
+          is_active: true,
+        });
+      }
+    }
+  }
+}
+
 export async function createPipelineOrder(formData: FormData) {
   const supabase = createClient();
   const {
@@ -81,6 +127,10 @@ export async function createPipelineOrder(formData: FormData) {
   const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
   const validItems = items.filter((it) => it.product_name);
   if (validItems.length > 0) {
+    // Synchroniser les articles vers la base de produits
+    await syncArticlesToProducts(supabase, validItems);
+
+    // Créer les items de la commande
     await supabase.from("pipeline_order_items").insert(
       validItems.map((it, i) => ({
         pipeline_order_id: order.id,
