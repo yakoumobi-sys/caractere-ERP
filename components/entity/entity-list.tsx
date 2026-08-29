@@ -1,11 +1,25 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 import type { EntityConfig } from "@/lib/entities";
 import { deleteEntity } from "@/lib/actions/entity-actions";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+// Rôles autorisés à modifier chaque table (copie depuis entity-actions.ts)
+const TABLE_PERMISSIONS: Record<string, string[]> = {
+  contacts: ["admin", "manager", "sales"],
+  products: ["admin", "manager", "purchasing", "sales"],
+  product_categories: ["admin", "manager", "purchasing"],
+  opportunities: ["admin", "manager", "sales"],
+};
+
+function canEditTable(table: string, role: string | undefined): boolean {
+  const allowedRoles = TABLE_PERMISSIONS[table] || ["admin", "manager"];
+  return allowedRoles.includes(role || "");
+}
 
 function renderCell(value: unknown) {
   if (typeof value === "boolean") return value ? "Oui" : "Non";
@@ -24,6 +38,9 @@ function renderCell(value: unknown) {
 
 export async function EntityListPage({ config }: { config: EntityConfig }) {
   const supabase = createClient();
+  const profile = await getCurrentProfile();
+  const canEdit = canEditTable(config.table, profile?.role);
+
   let query = supabase.from(config.table).select("*");
   if (config.orderBy) query = query.order(config.orderBy, { ascending: config.ascending ?? true });
   const { data, error } = await query;
@@ -64,14 +81,16 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
                     </td>
                   ))}
                   <td className="px-4 py-2.5 text-right">
-                    <form
-                      action={async () => {
-                        "use server";
-                        await deleteEntity(config.table, config.basePath, row.id);
-                      }}
-                    >
-                      <button className="text-xs text-red-500 dark:text-red-400 hover:underline">Supprimer</button>
-                    </form>
+                    {canEdit && (
+                      <form
+                        action={async () => {
+                          "use server";
+                          await deleteEntity(config.table, config.basePath, row.id);
+                        }}
+                      >
+                        <button className="text-xs text-red-500 dark:text-red-400 hover:underline">Supprimer</button>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}
