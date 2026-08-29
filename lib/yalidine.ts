@@ -14,10 +14,21 @@ function authHeaders() {
 }
 
 async function yalidineFetch(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } });
+  const headers = authHeaders();
+  console.log("🌐 YALIDINE Fetch:", path);
+  console.log("   Headers:", {
+    "X-API-ID": headers["X-API-ID"] ? "***" : "MANQUANT",
+    "X-API-TOKEN": headers["X-API-TOKEN"] ? "***" : "MANQUANT",
+  });
+
+  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers: { ...headers, ...(init?.headers ?? {}) } });
   const body = await res.json().catch(() => null);
+
+  console.log(`📊 YALIDINE Réponse: HTTP ${res.status}`, body);
+
   if (!res.ok) {
     const message = body?.error?.message || body?.message || `Erreur Yalidine (HTTP ${res.status})`;
+    console.error("❌ YALIDINE Erreur:", message);
     throw new Error(message);
   }
   return body;
@@ -86,12 +97,26 @@ export async function createYalidineParcel(input: CreateYalidineParcelInput): Pr
     },
   ];
 
-  const body = await yalidineFetch("/parcels/", { method: "POST", body: JSON.stringify(payload) });
+  console.log("🚀 YALIDINE: Envoi du payload:", JSON.stringify(payload, null, 2));
+  console.log("🔑 YALIDINE: API ID configuré?", !!process.env.YALIDINE_API_ID);
+  console.log("🔑 YALIDINE: API TOKEN configuré?", !!process.env.YALIDINE_API_TOKEN);
+
+  let body;
+  try {
+    body = await yalidineFetch("/parcels/", { method: "POST", body: JSON.stringify(payload) });
+    console.log("✅ YALIDINE: Réponse reçue:", JSON.stringify(body, null, 2));
+  } catch (error) {
+    console.error("❌ YALIDINE: Erreur lors de l'appel API:", error);
+    throw error;
+  }
 
   const entry = body?.[input.orderId] ?? (Array.isArray(body) ? body[0] : null) ?? body;
+  console.log("📦 YALIDINE: Entry trouvée:", JSON.stringify(entry, null, 2));
+
   if (!entry) throw new Error("Réponse Yalidine inattendue : impossible de trouver le résultat de la création.");
   if (entry.success === false) throw new Error(entry.message || "Échec de la création de l'expédition Yalidine.");
 
+  console.log("✅ YALIDINE: Colis créé avec tracking:", entry.tracking);
   return { success: true, tracking: entry.tracking, label: entry.label, message: entry.message };
 }
 
