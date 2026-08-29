@@ -63,13 +63,24 @@ export default async function DashboardPage() {
   const since30 = lastNDays(30)[0];
   const since14 = lastNDays(14)[0];
 
-  const [{ data: orderRows }, queueCounts, { data: stockLevels }, { data: allOrders }, { data: employees }] = await Promise.all([
+  // Fetch queue counts with error handling
+  const queueCountsResults = await Promise.allSettled(
+    QUEUES.map((q) =>
+      supabase.from("pipeline_orders").select("id", { count: "exact", head: true }).in("status", statusesForQueue(q.name))
+    )
+  );
+
+  const queueCounts = queueCountsResults.map((result, i) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    console.error(`Queue ${QUEUES[i].name} failed:`, result.reason);
+    return { count: 0, error: result.reason };
+  });
+
+  const [{ data: orderRows }, , { data: stockLevels }, { data: allOrders }, { data: employees }] = await Promise.all([
     supabase.from("pipeline_orders").select("created_at,technique").gte("created_at", since14),
-    Promise.all(
-      QUEUES.map((q) =>
-        supabase.from("pipeline_orders").select("id", { count: "exact", head: true }).in("status", statusesForQueue(q.name))
-      )
-    ),
+    Promise.resolve(queueCounts),
     supabase.from("product_stock_levels").select("*"),
     supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
     supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
