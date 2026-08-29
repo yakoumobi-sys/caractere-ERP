@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { initialStatus, STATUS_DEFS, type OrderStatus, type Technique } from "@/lib/pipeline";
 import { createYalidineParcel } from "@/lib/yalidine";
+import { recordInitialPayment } from "@/lib/actions/payment-actions";
 
 interface ItemInput {
   product_name: string;
@@ -83,6 +84,8 @@ export async function createPipelineOrder(formData: FormData) {
   const logo_source = (formData.get("logo_source") as string) || null;
   const logo_source_value = (formData.get("logo_source_value") as string) || null;
   const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
+  const orderTotal = Number(formData.get("order_total") ?? 0);
+  const initialPayment = Number(formData.get("initial_payment") ?? 0);
 
   const useYalidine = formData.get("use_yalidine") === "on";
   const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
@@ -120,6 +123,9 @@ export async function createPipelineOrder(formData: FormData) {
       logo_source,
       logo_source_value,
       requires_flocage,
+      order_total: orderTotal > 0 ? orderTotal : null,
+      initial_payment: initialPayment > 0 ? initialPayment : 0,
+      payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
       status: initialStatus(technique),
       created_by: user?.id ?? null,
     })
@@ -161,6 +167,16 @@ export async function createPipelineOrder(formData: FormData) {
   }
 
   await uploadPipelineFile(order.id, formData.get("logo") as File | null);
+
+  // Enregistrer le versement initial s'il y en a un
+  if (initialPayment > 0) {
+    try {
+      await recordInitialPayment(order.id, initialPayment, contact_id);
+    } catch (e) {
+      console.error("Erreur lors de l'enregistrement du versement initial:", (e as Error).message);
+      // Ne pas lever l'erreur — la commande est créée de toute façon
+    }
+  }
 
   // Expédition Yalidine choisie dès la création de la commande (demande
   // explicite du propriétaire : plus besoin de repasser par la fiche
