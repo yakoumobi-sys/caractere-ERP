@@ -146,7 +146,7 @@ export async function createPipelineOrder(formData: FormData) {
     }
   }
 
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   redirect(`/production/${order.id}`);
 }
 
@@ -194,7 +194,7 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -206,7 +206,7 @@ export async function setPipelineStatus(orderId: string, status: string, assigne
 
   const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -224,7 +224,7 @@ export async function deletePipelineOrder(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("pipeline_orders").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   redirect("/production");
 }
 
