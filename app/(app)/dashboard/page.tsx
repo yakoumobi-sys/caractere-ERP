@@ -171,6 +171,13 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      {/* 0. ALERTES EN PREMIER — POUR TOUS LES COMPTES */}
+      <div className="mb-6">
+        <Suspense fallback={<CardSkeleton height="h-24" />}>
+          <AlertsPanel />
+        </Suspense>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Bonjour, {firstName} 👋</h1>
@@ -184,9 +191,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* 1. ALERTES / KPI PERSONNALISÉ */}
+      {/* 1. KPI PERSONNALISÉ */}
       <div className="mb-6">
-        <Suspense fallback={<CardSkeleton height="h-24" />}>{isAdmin ? <AlertsPanel /> : <EmployeeKpi />}</Suspense>
+        <Suspense fallback={<CardSkeleton height="h-24" />}>
+          <EmployeeKpi />
+        </Suspense>
       </div>
 
       {/* 2. RÉSUMÉ DES COMMANDES */}

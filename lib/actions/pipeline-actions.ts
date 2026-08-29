@@ -19,6 +19,55 @@ interface PrintInput {
   text_content: string;
 }
 
+/**
+ * Synchronise les articles d'une commande vers la base de produits.
+ * Ajoute automatiquement les nouveaux produits s'ils n'existent pas.
+ */
+async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
+  for (const item of items) {
+    if (!item.product_name?.trim()) continue;
+
+    try {
+      const productName = item.product_name.trim();
+      // Générer un SKU unique basé sur le nom du produit
+      const sku = `AUTO-${productName.toLowerCase().replace(/\s+/g, "-").slice(0, 20)}-${Date.now()}`;
+
+      // Vérifier si le produit existe déjà
+      const { data: existing, error: checkError } = await supabase
+        .from("products")
+        .select("id")
+        .eq("name", productName)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error(`Erreur lors de la recherche du produit "${productName}":`, checkError);
+        continue;
+      }
+
+      if (!existing) {
+        // Créer le produit si c'est nouveau
+        const { error: insertError } = await supabase.from("products").insert({
+          name: productName,
+          sku: sku,
+          unit: "unité",
+          sale_price: 0,
+          purchase_cost: 0,
+          tax_rate: 20,
+          track_inventory: true,
+          is_active: true,
+        });
+
+        if (insertError) {
+          console.error(`Erreur lors de la création du produit "${productName}":`, insertError);
+        }
+      }
+    } catch (err) {
+      console.error("Erreur inattendue lors de la synchronisation du produit:", err);
+      // Ne pas lever l'erreur pour ne pas bloquer la création de la commande
+    }
+  }
+}
+
 export async function createPipelineOrder(formData: FormData) {
   const supabase = createClient();
   const {
@@ -81,6 +130,10 @@ export async function createPipelineOrder(formData: FormData) {
   const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
   const validItems = items.filter((it) => it.product_name);
   if (validItems.length > 0) {
+    // Synchroniser les articles vers la base de produits
+    await syncArticlesToProducts(supabase, validItems);
+
+    // Créer les items de la commande
     await supabase.from("pipeline_order_items").insert(
       validItems.map((it, i) => ({
         pipeline_order_id: order.id,
@@ -146,7 +199,7 @@ export async function createPipelineOrder(formData: FormData) {
     }
   }
 
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   redirect(`/production/${order.id}`);
 }
 
@@ -168,7 +221,9 @@ async function currentEmployeeId(): Promise<string | null> {
  */
 export async function advancePipelineOrder(orderId: string, fromStatus: OrderStatus, currentAssignee: string | null) {
   const def = STATUS_DEFS[fromStatus];
-  if (!def.next) return;
+  if (!def.next) {
+    throw new Error(`Aucun statut suivant pour "${fromStatus}"`);
+  }
 
   const supabase = createClient();
   let nextStatus: OrderStatus = def.next;
@@ -177,7 +232,16 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   // lieu de passer directement "prête" — voir la case à cocher du
   // configurateur (Étape 3, technique DTF).
   if (fromStatus === "impression_dtf") {
-    const { data: order } = await supabase.from("pipeline_orders").select("requires_flocage").eq("id", orderId).single();
+    const { data: order, error: orderError } = await supabase
+      .from("pipeline_orders")
+      .select("requires_flocage")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      throw new Error(`Erreur lors de la recherche de la commande: ${orderError.message}`);
+    }
+
     if (order?.requires_flocage) nextStatus = "attente_flocage";
   }
 
@@ -192,9 +256,11 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   }
 
   const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(`Erreur lors de la mise à jour du statut: ${error.message}`);
+  }
 
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -206,7 +272,7 @@ export async function setPipelineStatus(orderId: string, status: string, assigne
 
   const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -224,7 +290,7 @@ export async function deletePipelineOrder(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("pipeline_orders").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   redirect("/production");
 }
 

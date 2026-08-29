@@ -52,7 +52,7 @@ export async function updateTaskStatus(taskId: string, status: "todo" | "in_prog
   const { error } = await supabase.from("production_tasks").update({ status }).eq("id", taskId);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
 }
 
 export async function assignTask(taskId: string, employeeId: string | null) {
@@ -65,7 +65,7 @@ export async function assignTask(taskId: string, employeeId: string | null) {
   const { error } = await supabase.from("production_tasks").update({ assigned_to: employeeId }).eq("id", taskId);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
 }
 
 export async function deleteTask(taskId: string) {
@@ -78,5 +78,5 @@ export async function deleteTask(taskId: string) {
   const { error } = await supabase.from("production_tasks").delete().eq("id", taskId);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
 }

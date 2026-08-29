@@ -72,7 +72,7 @@ export async function createYalidineShipmentForOrder(orderId: string, formData: 
   if (insertError) throw new Error(insertError.message);
 
   revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   return result;
 }
 
@@ -124,7 +124,7 @@ export async function syncYalidineStatuses() {
     if (!updateError) updated++;
   }
 
-  revalidatePath("/production");
+  revalidatePath("/production", "layout");
   revalidatePath("/alerts");
   return { checked: shipments.length, updated };
 }
