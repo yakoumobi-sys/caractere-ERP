@@ -27,32 +27,28 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
   for (const item of items) {
     if (!item.product_name?.trim()) continue;
 
-    const productName = item.product_name.trim();
-    // Générer un SKU unique basé sur le nom du produit
-    const sku = `AUTO-${productName.toLowerCase().replace(/\s+/g, "-").slice(0, 20)}`;
+    try {
+      const productName = item.product_name.trim();
+      // Générer un SKU unique basé sur le nom du produit
+      const sku = `AUTO-${productName.toLowerCase().replace(/\s+/g, "-").slice(0, 20)}-${Date.now()}`;
 
-    // Vérifier si le produit existe déjà
-    const { data: existing } = await supabase.from("products").select("id").eq("name", productName).maybeSingle();
+      // Vérifier si le produit existe déjà
+      const { data: existing, error: checkError } = await supabase
+        .from("products")
+        .select("id")
+        .eq("name", productName)
+        .maybeSingle();
 
-    if (!existing) {
-      // Créer le produit si c'est nouveau
-      const { error } = await supabase.from("products").insert({
-        name: productName,
-        sku: sku,
-        unit: "unité",
-        sale_price: 0,
-        purchase_cost: 0,
-        tax_rate: 20,
-        track_inventory: true,
-        is_active: true,
-      });
+      if (checkError) {
+        console.error(`Erreur lors de la recherche du produit "${productName}":`, checkError);
+        continue;
+      }
 
-      if (error) {
-        // Si erreur sur SKU unique, essayer avec timestamp
-        const skuWithTimestamp = `${sku}-${Date.now()}`;
-        await supabase.from("products").insert({
+      if (!existing) {
+        // Créer le produit si c'est nouveau
+        const { error: insertError } = await supabase.from("products").insert({
           name: productName,
-          sku: skuWithTimestamp,
+          sku: sku,
           unit: "unité",
           sale_price: 0,
           purchase_cost: 0,
@@ -60,7 +56,14 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
           track_inventory: true,
           is_active: true,
         });
+
+        if (insertError) {
+          console.error(`Erreur lors de la création du produit "${productName}":`, insertError);
+        }
       }
+    } catch (err) {
+      console.error("Erreur inattendue lors de la synchronisation du produit:", err);
+      // Ne pas lever l'erreur pour ne pas bloquer la création de la commande
     }
   }
 }
@@ -218,7 +221,9 @@ async function currentEmployeeId(): Promise<string | null> {
  */
 export async function advancePipelineOrder(orderId: string, fromStatus: OrderStatus, currentAssignee: string | null) {
   const def = STATUS_DEFS[fromStatus];
-  if (!def.next) return;
+  if (!def.next) {
+    throw new Error(`Aucun statut suivant pour "${fromStatus}"`);
+  }
 
   const supabase = createClient();
   let nextStatus: OrderStatus = def.next;
@@ -227,7 +232,16 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   // lieu de passer directement "prête" — voir la case à cocher du
   // configurateur (Étape 3, technique DTF).
   if (fromStatus === "impression_dtf") {
-    const { data: order } = await supabase.from("pipeline_orders").select("requires_flocage").eq("id", orderId).single();
+    const { data: order, error: orderError } = await supabase
+      .from("pipeline_orders")
+      .select("requires_flocage")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      throw new Error(`Erreur lors de la recherche de la commande: ${orderError.message}`);
+    }
+
     if (order?.requires_flocage) nextStatus = "attente_flocage";
   }
 
@@ -242,7 +256,9 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   }
 
   const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(`Erreur lors de la mise à jour du statut: ${error.message}`);
+  }
 
   revalidatePath("/production", "layout");
   revalidatePath(`/production/${orderId}`);
