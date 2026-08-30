@@ -211,12 +211,12 @@ end $$;
 --    (aucune réclamation créée à ce jour) mais corrigé avant utilisation —
 --    aligné sur le schéma commun next_document_number (préfixe "REC").
 -- generate_claim_number est une FONCTION DE TRIGGER depuis la migration 0011
--- (trigger generate_claim_number_trigger sur claims). La passer en
--- "returns text" échouait ("cannot change return type of existing function")
--- et, si elle avait abouti, aurait cassé le trigger. On conserve donc la
--- signature trigger et on remplace seulement le calcul racy par le compteur
+-- (trigger generate_claim_number_trigger sur claims). Elle existe en production
+-- avec un type de retour qui peut différer de celui-ci. On la droppée d'abord
+-- pour pouvoir la recréer : on conserve seulement le calcul racy par le compteur
 -- atomique next_document_number.
-create or replace function public.generate_claim_number()
+drop function if exists public.generate_claim_number();
+create function public.generate_claim_number()
 returns trigger
 language plpgsql
 set search_path to 'public'
