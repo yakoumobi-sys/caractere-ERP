@@ -115,32 +115,40 @@ export async function createPipelineOrder(formData: FormData) {
   if (!contact_id) throw new Error("Le client est requis.");
   if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
 
-  // Build insert payload only with columns that definitely exist
+  // Build insert payload - ONLY core required columns that always exist
   const insertPayload: any = {
     contact_id,
-    description,
+    description: description || null,
     created_by: user?.id ?? null,
   };
 
-  // Add optional columns if they exist (try to insert, handle errors)
-  const optionalFields = [
-    { name: 'technique', value: technique },
-    { name: 'logo_placement', value: logo_placement },
-    { name: 'logo_placement_note', value: logo_placement_note },
-    { name: 'logo_source', value: logo_source },
-    { name: 'logo_source_value', value: logo_source_value },
-    { name: 'requires_flocage', value: requires_flocage },
-    { name: 'order_total', value: orderTotal > 0 ? orderTotal : null },
-    { name: 'initial_payment', value: initialPayment > 0 ? initialPayment : 0 },
-    { name: 'payment_status', value: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid" },
-  ];
-
-  // Only add non-null optional fields
-  for (const field of optionalFields) {
-    if (field.value !== null && field.value !== undefined) {
-      insertPayload[field.name] = field.value;
-    }
+  // Add technique if it exists (added in migration 0006)
+  if (technique) {
+    insertPayload.technique = technique;
   }
+
+  // Add logo fields if they exist (added in migration 0006)
+  if (logo_placement) insertPayload.logo_placement = logo_placement;
+  if (logo_placement_note) insertPayload.logo_placement_note = logo_placement_note;
+  if (logo_source) insertPayload.logo_source = logo_source;
+  if (logo_source_value) insertPayload.logo_source_value = logo_source_value;
+
+  // Add payment fields ONLY if they exist (added in migration 0030)
+  if (initialPayment > 0) insertPayload.initial_payment = initialPayment;
+  if (orderTotal > 0) insertPayload.order_total = orderTotal;
+  if (initialPayment > 0) {
+    insertPayload.payment_status = initialPayment >= orderTotal ? "paid" : "partial";
+  }
+
+  // Add flocage flag (added in migration 0029) - only if it should be true
+  if (requires_flocage) {
+    insertPayload.requires_flocage = true;
+  }
+
+  // NOTE: Do NOT insert 'status' - it's either:
+  // - a generated column (migration 0004), or
+  // - managed by triggers/procedures (migration 0006+)
+  // The database handles status assignment automatically.
 
   const { data: order, error } = await supabase
     .from("pipeline_orders")
