@@ -35,7 +35,7 @@ const NAV_PRIMARY = [
 ];
 
 const NAV_ACTIONS = [
-  { label: "📊 Ventes", href: "/sales/invoices", icon: "Ventes" },
+  { label: "📊 Ventes", href: "/sales", icon: "Ventes" },
   { label: "🛒 Achats", href: "/purchasing/orders", icon: "Achats" },
 ];
 
