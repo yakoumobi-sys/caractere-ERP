@@ -109,24 +109,27 @@ COLONNE|purchase_orders|tax_total|numeric|NO
 COLONNE|purchase_orders|total|numeric|NO
 COLONNE|purchase_orders|updated_at|timestamp with time zone|NO
 COLONNE|supply_alerts|alert_type|text|NO
-COLONNE|supply_alerts|created_at|timestamp with time zone|NO
+COLONNE|supply_alerts|assigned_to|uuid|YES
+COLONNE|supply_alerts|created_at|timestamp with time zone|YES
 COLONNE|supply_alerts|created_by|uuid|YES
 COLONNE|supply_alerts|delivery_cost|numeric|YES
-COLONNE|supply_alerts|department|text|YES
+COLONNE|supply_alerts|department|text|NO
 COLONNE|supply_alerts|description|text|YES
 COLONNE|supply_alerts|id|uuid|NO
-COLONNE|supply_alerts|number|text|YES
+COLONNE|supply_alerts|number|text|NO
 COLONNE|supply_alerts|pipeline_order_id|uuid|YES
-COLONNE|supply_alerts|priority|text|NO
+COLONNE|supply_alerts|priority|text|YES
 COLONNE|supply_alerts|purchase_order_id|uuid|YES
 COLONNE|supply_alerts|purchase_price|numeric|YES
 COLONNE|supply_alerts|resolved_at|timestamp with time zone|YES
-COLONNE|supply_alerts|status|text|NO
+COLONNE|supply_alerts|status|text|YES
 COLONNE|supply_alerts|supply_type_id|uuid|YES
 COLONNE|supply_alerts|title|text|NO
-COLONNE|supply_alerts|updated_at|timestamp with time zone|NO
-COLONNE|supply_types|created_at|timestamp with time zone|NO
-COLONNE|supply_types|department|text|YES
+COLONNE|supply_alerts|updated_at|timestamp with time zone|YES
+COLONNE|supply_types|code|text|NO
+COLONNE|supply_types|created_at|timestamp with time zone|YES
+COLONNE|supply_types|department|text|NO
+COLONNE|supply_types|description|text|YES
 COLONNE|supply_types|id|uuid|NO
 COLONNE|supply_types|name|text|NO
 CONTRAINTE|pipeline_orders|pipeline_orders_logo_source_check|CHECK ((logo_source = ANY (ARRAY['whatsapp'::text, 'viber'::text, 'email'::text])))
@@ -165,6 +168,7 @@ FONCTION|inventory_out_on_delivery||definer
 FONCTION|is_active_user||definer
 FONCTION|lock_invoice_lines_when_posted||invoker
 FONCTION|log_pipeline_stage||invoker
+FONCTION|mark_as_paid_on_confirmation||invoker
 FONCTION|next_document_number|p_prefix text, p_table text|definer
 FONCTION|pgp_armor_headers|text, OUT key text, OUT value text|invoker
 FONCTION|pgp_key_id|bytea|invoker
