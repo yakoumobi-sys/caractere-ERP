@@ -186,3 +186,19 @@ drop trigger if exists alert_on_yalidine_failure_trigger on public.yalidine_ship
 create trigger alert_on_yalidine_failure_trigger
   after insert or update on public.yalidine_shipments
   for each row execute function public.alert_on_yalidine_failure();
+
+-- ----------------------------------------------------------------------------
+-- Vue utilisée par le module Alertes (app/(app)/alerts, tableau de bord).
+-- Elle n'était créée par AUCUNE migration : elle n'existait que dans la base
+-- de production, ajoutée hors migration, si bien que la migration 0021 (qui
+-- la repasse en security_invoker) échouait sur une base reconstruite et que
+-- les pages Alertes seraient restées vides sur une nouvelle installation.
+-- ----------------------------------------------------------------------------
+create or replace view public.supply_alerts_view as
+select
+  sa.*,
+  po.number as pipeline_order_number,
+  st.name   as supply_type_name
+from public.supply_alerts sa
+  left join public.pipeline_orders po on po.id = sa.pipeline_order_id
+  left join public.supply_types st on st.id = sa.supply_type_id;

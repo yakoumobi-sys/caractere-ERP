@@ -14,6 +14,12 @@
 -- CREATE OR REPLACE VIEW ne peut qu'ajouter une colonne à la fin de la liste
 -- (pas la réordonner), d'où sa position en dernier.
 -- ============================================================================
+-- requires_flocage était supposée « exister déjà en base » (ajoutée hors
+-- migration) : sur une base reconstruite depuis le dépôt elle n'apparaît qu'en
+-- migration 0029, plus tard, et la vue ci-dessous ne pouvait pas être créée.
+-- On la garantit ici ; 0029 la redéclare avec "if not exists", sans effet.
+alter table public.pipeline_orders add column if not exists requires_flocage boolean default false;
+
 create or replace view public.pipeline_orders_view as
  select po.id,
     po.number,

@@ -161,23 +161,66 @@ alter function public.set_po_number() set search_path = public;
 alter function public.recompute_totals() set search_path = public;
 alter function public.recompute_po_totals() set search_path = public;
 alter function public.check_journal_balance() set search_path = public;
-alter function public.auto_number_order() set search_path = public;
+-- Plusieurs fonctions durcies ici n'ont jamais été créées par une
+-- migration (elles n'existaient que dans la base de production, ajoutées hors
+-- migration) : un ALTER FUNCTION direct fait échouer tout ce fichier sur une
+-- base reconstruite. On ne durcit que ce qui existe réellement.
+do $$
+begin
+  if to_regprocedure('public.auto_number_order()') is not null then
+    execute 'alter function public.auto_number_order() set search_path = public';
+  end if;
+  if to_regprocedure('public.auto_number_claim()') is not null then
+    execute 'alter function public.auto_number_claim() set search_path = public';
+  end if;
+end $$;
 alter function public.generate_claim_number() set search_path = public;
-alter function public.auto_number_claim() set search_path = public;
-alter function public.update_updated_at() set search_path = public;
-alter function public.mark_as_paid_on_confirmation() set search_path = public;
-alter function public.create_journal_entries_for_order() set search_path = public;
+do $$ begin
+  if to_regprocedure('public.update_updated_at()') is not null then
+    execute 'alter function public.update_updated_at() set search_path = public';
+  end if;
+end $$;
+do $$ begin
+  if to_regprocedure('public.mark_as_paid_on_confirmation()') is not null then
+    execute 'alter function public.mark_as_paid_on_confirmation() set search_path = public';
+  end if;
+end $$;
+do $$ begin
+  if to_regprocedure('public.create_journal_entries_for_order()') is not null then
+    execute 'alter function public.create_journal_entries_for_order() set search_path = public';
+  end if;
+end $$;
 alter function public.set_pipeline_number() set search_path = public;
-alter function public.auto_number_alert() set search_path = public;
+do $$ begin
+  if to_regprocedure('public.auto_number_alert()') is not null then
+    execute 'alter function public.auto_number_alert() set search_path = public';
+  end if;
+end $$;
 alter function public.log_pipeline_stage() set search_path = public;
-alter function public.log_yalidine_status_change() set search_path = public;
-alter function public.auto_confirm_on_yalidine_delivery() set search_path = public;
-alter function public.get_yalidine_status_label(status text) set search_path = public;
+do $$ begin
+  if to_regprocedure('public.log_yalidine_status_change()') is not null then
+    execute 'alter function public.log_yalidine_status_change() set search_path = public';
+  end if;
+end $$;
+do $$ begin
+  if to_regprocedure('public.auto_confirm_on_yalidine_delivery()') is not null then
+    execute 'alter function public.auto_confirm_on_yalidine_delivery() set search_path = public';
+  end if;
+end $$;
+do $$ begin
+  if to_regprocedure('public.get_yalidine_status_label(text)') is not null then
+    execute 'alter function public.get_yalidine_status_label(status text) set search_path = public';
+  end if;
+end $$;
 alter function public.set_updated_at() set search_path = public;
 alter function public.next_document_number(p_prefix text, p_table text) set search_path = public;
 alter function public.set_quote_number() set search_path = public;
 alter function public.set_order_number() set search_path = public;
-alter function public.generate_order_number() set search_path = public;
+do $$ begin
+  if to_regprocedure('public.generate_order_number()') is not null then
+    execute 'alter function public.generate_order_number() set search_path = public';
+  end if;
+end $$;
 alter function public.set_updated_at_tasks() set search_path = public;
 alter function public.prevent_invoice_status_regression() set search_path = public;
 alter function public.lock_invoice_lines_when_posted() set search_path = public;
@@ -196,9 +239,17 @@ alter table public.document_number_counters enable row level security;
 -- utilisateur actif à lire, donc aucun changement de comportement pour
 -- l'app — seule la fuite anon est fermée).
 alter view public.supply_alerts_view set (security_invoker = on);
-alter view public.employee_stats set (security_invoker = on);
+do $$ begin
+  if to_regclass('public.employee_stats') is not null then
+    execute 'alter view public.employee_stats set (security_invoker = on)';
+  end if;
+end $$;
 alter view public.product_stock_levels set (security_invoker = on);
-alter view public.yalidine_shipments_view set (security_invoker = on);
+do $$ begin
+  if to_regclass('public.yalidine_shipments_view') is not null then
+    execute 'alter view public.yalidine_shipments_view set (security_invoker = on)';
+  end if;
+end $$;
 alter view public.pipeline_orders_view set (security_invoker = on);
 
 -- Droits d'exécution resserrés sur les fonctions SECURITY DEFINER sensibles.
@@ -218,10 +269,17 @@ revoke execute on function public.sync_stale_order_alerts() from public, anon;
 
 -- yalidine_tracking_history : RLS activée sans policy = personne ne pouvait
 -- lire l'historique de tracking. Alignée sur yalidine_shipments.
-drop policy if exists "yalidine_tracking_history_select" on public.yalidine_tracking_history;
-create policy "yalidine_tracking_history_select" on public.yalidine_tracking_history for select
-  to authenticated using (public.is_active_user());
-
-drop policy if exists "yalidine_tracking_history_write" on public.yalidine_tracking_history;
-create policy "yalidine_tracking_history_write" on public.yalidine_tracking_history for all
-  to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'sales'));
+-- Cette table n'est créée par aucune migration (ajoutée hors migration en
+-- production) et n'est lue par aucune page de l'application. On ne réinvente
+-- pas son schéma ici : on ne la durcit que si elle existe, pour qu'une base
+-- reconstruite depuis le dépôt s'applique quand même intégralement.
+do $$ begin
+  if to_regclass('public.yalidine_tracking_history') is not null then
+    execute 'drop policy if exists "yalidine_tracking_history_select" on public.yalidine_tracking_history';
+    execute 'create policy "yalidine_tracking_history_select" on public.yalidine_tracking_history for select
+      to authenticated using (public.is_active_user())';
+    execute 'drop policy if exists "yalidine_tracking_history_write" on public.yalidine_tracking_history';
+    execute 'create policy "yalidine_tracking_history_write" on public.yalidine_tracking_history for all
+      to authenticated using (public.is_active_user() and public.current_role() in (''admin'', ''sales''))';
+  end if;
+end $$;

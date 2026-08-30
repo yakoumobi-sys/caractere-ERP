@@ -26,7 +26,9 @@ select
   count(distinct case when i.status = 'validee' and i.amount_paid < i.total then i.id end) as unpaid_invoice_count,
   count(distinct po.id) as order_count
 from public.invoices i
-left join public.sales_orders so on i.sales_order_id = so.id
+-- invoices porte la colonne order_id (migration 0001), pas sales_order_id :
+-- la vue ne pouvait pas être créée.
+left join public.sales_orders so on i.order_id = so.id
 left join public.pipeline_orders po on so.contact_id = po.contact_id
   and po.created_at::date = i.issue_date::date
 group by date_trunc('day', i.issue_date)
@@ -55,7 +57,8 @@ left join public.pipeline_stage_log psl on e.id = (
   select assigned_to from public.pipeline_orders
   where id = psl.pipeline_order_id
 )
-left join public.employee_faults ef on e.id = ef.assigned_to
+-- employee_faults porte employee_id (migration 0006), pas assigned_to.
+left join public.employee_faults ef on e.id = ef.employee_id
 where e.status = 'actif'
 group by e.id, e.first_name, e.last_name, e.department, e.color;
 
@@ -71,6 +74,7 @@ create table if not exists public.generated_reports (
 );
 
 alter table public.generated_reports enable row level security;
+drop policy if exists "Users can read reports they generated or admin can see all" on public.generated_reports;
 create policy "Users can read reports they generated or admin can see all"
   on public.generated_reports for select
   using (

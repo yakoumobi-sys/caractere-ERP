@@ -26,8 +26,8 @@ create table if not exists public.product_variants (
   sku text unique,
   created_at timestamptz not null default now()
 );
-create index product_variants_product_idx on public.product_variants(product_id);
-create index product_variants_sku_idx on public.product_variants(sku);
+create index if not exists product_variants_product_idx on public.product_variants(product_id);
+create index if not exists product_variants_sku_idx on public.product_variants(sku);
 
 -- 3. Table: Tarification des variantes
 create table if not exists public.variant_pricing (
@@ -39,7 +39,7 @@ create table if not exists public.variant_pricing (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index variant_pricing_variant_idx on public.variant_pricing(product_variant_id);
+create index if not exists variant_pricing_variant_idx on public.variant_pricing(product_variant_id);
 
 -- 4. Fonction: Créer automatiquement les variantes quand on crée un produit
 create or replace function public.create_product_variants()
@@ -142,29 +142,35 @@ begin
 end $$ language plpgsql;
 
 -- 8. Données initiales: Produits de base
-insert into public.products (name, product_base_name, product_variant, cost_price, sale_price, unit, tax_rate, track_inventory, is_active)
+-- products.sku est NOT NULL (migration 0001) : sans SKU, ce seed faisait
+-- echouer la migration et product_variants/variant_pricing n'existaient pas.
+insert into public.products (sku, name, product_base_name, product_variant, cost_price, sale_price, unit, tax_rate, track_inventory, is_active)
 values
-  ('T-shirt Djebs', 'tshirt', 'Djebs', 850, 1950, 'unité', 0, true, true),
-  ('T-shirt Palerme', 'tshirt', 'Palerme', 650, 1950, 'unité', 0, true, true),
-  ('Polo Personnalisé', 'polo', 'Standard', 1050, 2350, 'unité', 0, true, true),
-  ('Gilet Col Rond', 'gilet', 'Col Rond', 1500, 2750, 'unité', 0, true, true),
-  ('Tote Bag', 'totebag', 'Standard', 250, 950, 'unité', 0, true, true)
-on conflict do nothing;
+  ('TSH-DJEBS',   'T-shirt Djebs',      'tshirt',  'Djebs',    850, 1950, 'unité', 0, true, true),
+  ('TSH-PALERME', 'T-shirt Palerme',    'tshirt',  'Palerme',  650, 1950, 'unité', 0, true, true),
+  ('POLO-STD',    'Polo Personnalisé',  'polo',    'Standard', 1050, 2350, 'unité', 0, true, true),
+  ('GILET-ROND',  'Gilet Col Rond',     'gilet',   'Col Rond', 1500, 2750, 'unité', 0, true, true),
+  ('TOTEBAG-STD', 'Tote Bag',           'totebag', 'Standard', 250, 950, 'unité', 0, true, true)
+on conflict (sku) do nothing;
 
 -- 9. RLS pour product_variants et variant_pricing
 alter table public.product_variants enable row level security;
 alter table public.variant_pricing enable row level security;
 
+drop policy if exists "product_variants_select" on public.product_variants;
 create policy "product_variants_select" on public.product_variants for select
   to authenticated using (public.is_active_user());
 
+drop policy if exists "product_variants_write" on public.product_variants;
 create policy "product_variants_write" on public.product_variants for all
   to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'manager', 'purchasing'))
   with check (public.is_active_user() and public.current_role() in ('admin', 'manager', 'purchasing'));
 
+drop policy if exists "variant_pricing_select" on public.variant_pricing;
 create policy "variant_pricing_select" on public.variant_pricing for select
   to authenticated using (public.is_active_user());
 
+drop policy if exists "variant_pricing_write" on public.variant_pricing;
 create policy "variant_pricing_write" on public.variant_pricing for all
   to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'manager'))
   with check (public.is_active_user() and public.current_role() in ('admin', 'manager'));

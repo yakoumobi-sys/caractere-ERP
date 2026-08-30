@@ -93,6 +93,36 @@ create policy "claims_write" on public.claims
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');
 
+-- supply_types et supply_alerts étaient utilisées par ce fichier, par la
+-- migration 0019 et par le module Alertes de l'application, mais n'étaient
+-- créées par AUCUNE migration : elles n'existaient que dans la base de
+-- production, ajoutées hors migration. La base ne pouvait donc pas être
+-- reconstruite à partir du dépôt. Le schéma ci-dessous reprend les colonnes
+-- réellement utilisées par 0019 et par lib/actions/alert-actions.ts.
+-- "if not exists" : sans effet sur une base qui les possède déjà.
+create table if not exists public.supply_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  department text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.supply_alerts (
+  id uuid primary key default gen_random_uuid(),
+  number text unique,
+  alert_type text not null default 'approvisionnement',
+  department text,
+  title text not null,
+  description text,
+  priority text not null default 'normal',
+  status text not null default 'ouverte',
+  created_by uuid references public.employees(id) on delete set null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists supply_alerts_status_idx on public.supply_alerts(status);
+
 alter table public.supply_types enable row level security;
 drop policy if exists "supply_types_select" on public.supply_types;
 create policy "supply_types_select" on public.supply_types
