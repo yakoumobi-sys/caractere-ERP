@@ -70,22 +70,25 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
 }
 
 export async function createPipelineOrder(formData: FormData) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  let contact_id = String(formData.get("contact_id") ?? "");
-  const clientMode = String(formData.get("client_mode") ?? "existing");
-  const description = (formData.get("description") as string) || null;
-  const technique = String(formData.get("technique") ?? "") as Technique;
-  const logo_placement = (formData.get("logo_placement") as string) || null;
-  const logo_placement_note = (formData.get("logo_placement_note") as string) || null;
-  const logo_source = (formData.get("logo_source") as string) || null;
-  const logo_source_value = (formData.get("logo_source_value") as string) || null;
-  const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
-  const orderTotal = Number(formData.get("order_total") ?? 0);
-  const initialPayment = Number(formData.get("initial_payment") ?? 0);
+    let contact_id = String(formData.get("contact_id") ?? "");
+    const clientMode = String(formData.get("client_mode") ?? "existing");
+    const description = (formData.get("description") as string) || null;
+    const technique = String(formData.get("technique") ?? "") as Technique;
+    const logo_placement = (formData.get("logo_placement") as string) || null;
+    const logo_placement_note = (formData.get("logo_placement_note") as string) || null;
+    const logo_source = (formData.get("logo_source") as string) || null;
+    const logo_source_value = (formData.get("logo_source_value") as string) || null;
+    const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
+    const orderTotal = Number(formData.get("order_total") ?? 0);
+    const initialPayment = Number(formData.get("initial_payment") ?? 0);
+
+    console.log("📝 Creating order with:", { contact_id, technique, clientMode, orderTotal, initialPayment });
 
   const useYalidine = formData.get("use_yalidine") === "on";
   const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
@@ -215,9 +218,13 @@ export async function createPipelineOrder(formData: FormData) {
     }
   }
 
-  revalidatePath("/production", "layout");
-  revalidatePath("/dashboard", "layout");
-  redirect(`/production/${order.id}`);
+    revalidatePath("/production", "layout");
+    revalidatePath("/dashboard", "layout");
+    redirect(`/production/${order.id}`);
+  } catch (err) {
+    console.error("❌ Error creating order:", err);
+    throw err; // Re-throw to show error page
+  }
 }
 
 /** Renvoie l'employé (fiche RH) lié au compte actuellement connecté, s'il existe */
