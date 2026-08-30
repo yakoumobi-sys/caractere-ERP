@@ -25,47 +25,77 @@ export default async function Page({ params }: { params: { id: string } }) {
   try {
     const supabase = createClient();
 
-    // Try with full columns first, fall back to basic columns
-    let orderResult: any = null;
-    let orderError: any = null;
-
-    // Attempt 1: Try with optional columns
-    const fullSelectResult = await supabase
-      .from("pipeline_orders_view")
-      .select(
-        "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
-      )
+    // Query DIRECTLY from pipeline_orders table (not the view which may have issues)
+    // Then join contacts and employees manually for full data
+    const { data: orderData, error: orderError } = await supabase
+      .from("pipeline_orders")
+      .select("*")
       .eq("id", params.id)
       .single();
 
-    if (!fullSelectResult.error) {
-      orderResult = fullSelectResult.data;
-    } else {
-      // Attempt 2: Fall back to basic columns only
-      console.warn("⚠️  Full column select failed, trying basic columns:", fullSelectResult.error.message);
-      const basicSelectResult = await supabase
-        .from("pipeline_orders_view")
-        .select(
-          "id,number,description,status,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at"
-        )
-        .eq("id", params.id)
-        .single();
-
-      if (!basicSelectResult.error) {
-        orderResult = basicSelectResult.data;
-        // Add defaults for optional fields
-        orderResult.technique = orderResult.technique || "aucune";
-        orderResult.status_since = orderResult.status_since || orderResult.created_at;
-        orderResult.requires_flocage = false;
-      } else {
-        orderError = basicSelectResult.error;
-      }
-    }
-
-    if (orderError || !orderResult) {
+    if (orderError || !orderData) {
       console.error("❌ Error loading order:", orderError || "Order not found");
       notFound();
     }
+
+    // Get contact info
+    let contactName = "Inconnu";
+    let contactPhone: string | null = null;
+    if (orderData.contact_id) {
+      const { data: contactData } = await supabase
+        .from("contacts")
+        .select("name, phone")
+        .eq("id", orderData.contact_id)
+        .single();
+
+      if (contactData) {
+        contactName = contactData.name || "Inconnu";
+        contactPhone = contactData.phone;
+      }
+    }
+
+    // Get assignee info if assigned
+    let assigneeFirstName: string | null = null;
+    let assigneeLastName: string | null = null;
+    let assigneeColor: string | null = null;
+    if (orderData.assigned_to) {
+      const { data: employeeData } = await supabase
+        .from("employees")
+        .select("first_name, last_name, color")
+        .eq("id", orderData.assigned_to)
+        .single();
+
+      if (employeeData) {
+        assigneeFirstName = employeeData.first_name;
+        assigneeLastName = employeeData.last_name;
+        assigneeColor = employeeData.color;
+      }
+    }
+
+    // Construct the order object with all needed fields
+    const order = {
+      id: orderData.id,
+      number: orderData.number,
+      description: orderData.description,
+      technique: orderData.technique || "aucune",
+      status: orderData.status || "en_attente",
+      logo_placement: orderData.logo_placement,
+      logo_placement_note: orderData.logo_placement_note,
+      logo_source: orderData.logo_source,
+      logo_source_value: orderData.logo_source_value,
+      contact_id: orderData.contact_id,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      assigned_to: orderData.assigned_to,
+      assignee_first_name: assigneeFirstName,
+      assignee_last_name: assigneeLastName,
+      assignee_color: assigneeColor,
+      created_by: orderData.created_by,
+      created_at: orderData.created_at,
+      updated_at: orderData.updated_at,
+      status_since: orderData.created_at, // Fallback to created_at
+      requires_flocage: orderData.requires_flocage || false,
+    };
 
     const [{ data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
       await Promise.all([
@@ -87,9 +117,9 @@ export default async function Page({ params }: { params: { id: string } }) {
           .maybeSingle(),
       ]);
 
-    const order = orderResult;
+    // order is already defined above from orderData
 
-  async function submitNote(formData: FormData) {
+    async function submitNote(formData: FormData) {
     "use server";
     await addPipelineNote(params.id, order!.status, formData);
   }
@@ -126,7 +156,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             Commande {order.number ?? ""}
             {order.assigned_to && order.assignee_color && (
               <OrderColorBadge
-                assigneeName={order.assignee_first_name}
+                assigneeName={order.assignee_first_name || ""}
                 assigneeColor={order.assignee_color}
                 size="lg"
               />
@@ -214,7 +244,7 @@ export default async function Page({ params }: { params: { id: string } }) {
         <SMSSender
           orderId={order.id}
           orderNumber={order.number}
-          customerPhone={order.contact_phone}
+          customerPhone={order.contact_phone || ""}
         />
       </div>
 
