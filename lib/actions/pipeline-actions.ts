@@ -115,25 +115,39 @@ export async function createPipelineOrder(formData: FormData) {
   if (!contact_id) throw new Error("Le client est requis.");
   if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
 
+  // Build insert payload only with columns that definitely exist
+  const insertPayload: any = {
+    contact_id,
+    description,
+    created_by: user?.id ?? null,
+  };
+
+  // Add optional columns if they exist (try to insert, handle errors)
+  const optionalFields = [
+    { name: 'technique', value: technique },
+    { name: 'logo_placement', value: logo_placement },
+    { name: 'logo_placement_note', value: logo_placement_note },
+    { name: 'logo_source', value: logo_source },
+    { name: 'logo_source_value', value: logo_source_value },
+    { name: 'requires_flocage', value: requires_flocage },
+    { name: 'order_total', value: orderTotal > 0 ? orderTotal : null },
+    { name: 'initial_payment', value: initialPayment > 0 ? initialPayment : 0 },
+    { name: 'payment_status', value: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid" },
+  ];
+
+  // Only add non-null optional fields
+  for (const field of optionalFields) {
+    if (field.value !== null && field.value !== undefined) {
+      insertPayload[field.name] = field.value;
+    }
+  }
+
   const { data: order, error } = await supabase
     .from("pipeline_orders")
-    .insert({
-      contact_id,
-      description,
-      technique,
-      logo_placement,
-      logo_placement_note,
-      logo_source,
-      logo_source_value,
-      requires_flocage,
-      order_total: orderTotal > 0 ? orderTotal : null,
-      initial_payment: initialPayment > 0 ? initialPayment : 0,
-      payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
-      status: initialStatus(technique),
-      created_by: user?.id ?? null,
-    })
+    .insert(insertPayload)
     .select("id, number")
     .single();
+
   if (error) {
     const errorMsg = error.message || JSON.stringify(error);
     console.error("❌ Order insert error:", errorMsg, error.details, error.hint);

@@ -24,15 +24,51 @@ import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pi
 export default async function Page({ params }: { params: { id: string } }) {
   try {
     const supabase = createClient();
-    const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
+
+    // Try with full columns first, fall back to basic columns
+    let orderResult: any = null;
+    let orderError: any = null;
+
+    // Attempt 1: Try with optional columns
+    const fullSelectResult = await supabase
+      .from("pipeline_orders_view")
+      .select(
+        "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
+      )
+      .eq("id", params.id)
+      .single();
+
+    if (!fullSelectResult.error) {
+      orderResult = fullSelectResult.data;
+    } else {
+      // Attempt 2: Fall back to basic columns only
+      console.warn("⚠️  Full column select failed, trying basic columns:", fullSelectResult.error.message);
+      const basicSelectResult = await supabase
+        .from("pipeline_orders_view")
+        .select(
+          "id,number,description,status,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at"
+        )
+        .eq("id", params.id)
+        .single();
+
+      if (!basicSelectResult.error) {
+        orderResult = basicSelectResult.data;
+        // Add defaults for optional fields
+        orderResult.technique = orderResult.technique || "aucune";
+        orderResult.status_since = orderResult.status_since || orderResult.created_at;
+        orderResult.requires_flocage = false;
+      } else {
+        orderError = basicSelectResult.error;
+      }
+    }
+
+    if (orderError || !orderResult) {
+      console.error("❌ Error loading order:", orderError || "Order not found");
+      notFound();
+    }
+
+    const [{ data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
       await Promise.all([
-        supabase
-          .from("pipeline_orders_view")
-          .select(
-            "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
-          )
-          .eq("id", params.id)
-          .single(),
         supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
         supabase
           .from("pipeline_stage_log")
@@ -51,15 +87,7 @@ export default async function Page({ params }: { params: { id: string } }) {
           .maybeSingle(),
       ]);
 
-    if (error) {
-      console.error("❌ Error loading order from view:", error.message, error.details, error.hint);
-      notFound();
-    }
-
-    if (!order) {
-      console.error("❌ Order not found in database:", params.id);
-      notFound();
-    }
+    const order = orderResult;
 
   async function submitNote(formData: FormData) {
     "use server";
