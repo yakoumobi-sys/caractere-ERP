@@ -1,28 +1,73 @@
 -- ============================================================================
--- Système de paiements, stock et comptabilité pour les commandes
--- Connecte: Commandes → Paiements → Comptabilité → Stock
+-- Caractère ERP — Réparation de la création de commande.
+--
+-- Deux défauts en base empêchaient toute création de commande. Ce script les
+-- corrige, est idempotent, et peut être rejoué sans risque.
+--
+-- 1. calculate_flocage_cost() (migration 0029) — BLOQUANT
+--    Trigger BEFORE INSERT OR UPDATE sur pipeline_orders. Sa condition
+--    chaînait "and" sur flocage_machine_id (uuid), flocage_meters (numeric) et
+--    client_type (enum) :
+--
+--      if new.requires_flocage and new.flocage_machine_id
+--         and new.flocage_meters and new.client_type then
+--
+--    PL/pgSQL rejette cela à l'exécution avec "argument of AND must be type
+--    boolean, not type uuid". Le trigger étant déclenché à CHAQUE insertion,
+--    aucune commande ne pouvait être créée, quelles que soient les valeurs
+--    saisies. C'est la cause de l'erreur vue par l'utilisateur.
+--
+-- 2. Migration 0030 jamais appliquée — les montants manquent
+--    Sa policy "order_payments_insert" utilisait FOR INSERT ... USING (...),
+--    interdit par Postgres ("only WITH CHECK expression allowed for INSERT").
+--    La migration s'interrompait là, donc pipeline_orders.order_total n'a
+--    jamais existé — d'où "column pipeline_orders.order_total does not exist"
+--    sur la page Ventes, et l'échec de l'INSERT de commande qui l'envoyait.
+--    Son trigger inventory_out_on_delivery visait par ailleurs new.stage,
+--    colonne supprimée par la migration 0006 : toute mise à jour de commande
+--    aurait échoué à son tour.
+--
+-- Les deux diagnostics ont été reproduits et vérifiés sur une instance
+-- PostgreSQL 16 rejouant l'intégralité des migrations.
 -- ============================================================================
 
--- 1. Ajouter le solde/balance aux clients
-alter table public.contacts add column if not exists balance numeric(12,2) default 0;
-comment on column public.contacts.balance is 'Solde du client: positif = doit payer, négatif = crédit';
+-- ----------------------------------------------------------------------------
+-- 1. Trigger de coût de flocage : tester la présence des champs, pas les
+--    additionner logiquement. C'était l'intention d'origine.
+-- ----------------------------------------------------------------------------
+create or replace function public.calculate_flocage_cost()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(new.requires_flocage, false)
+     and new.flocage_machine_id is not null
+     and new.flocage_meters is not null
+     and new.client_type is not null then
+    select price_per_meter * new.flocage_meters
+    into new.flocage_cost
+    from public.flocage_pricing
+    where machine_id = new.flocage_machine_id
+      and client_type = new.client_type;
+  else
+    new.flocage_cost = null;
+  end if;
+  return new;
+end $$;
 
--- 2. Ajouter les champs de paiement aux commandes de production
+-- ----------------------------------------------------------------------------
+-- 2. Colonnes de paiement (contenu de la migration 0030, rendu idempotent)
+-- ----------------------------------------------------------------------------
+alter table public.contacts add column if not exists balance numeric(12,2) default 0;
+
 alter table public.pipeline_orders add column if not exists order_total numeric(12,2);
 alter table public.pipeline_orders add column if not exists initial_payment numeric(12,2) default 0;
-alter table public.pipeline_orders add column if not exists payment_status text default 'unpaid'; -- unpaid, partial, paid
+alter table public.pipeline_orders add column if not exists payment_status text default 'unpaid';
 alter table public.pipeline_orders add column if not exists notes text;
 
-comment on column public.pipeline_orders.order_total is 'Total TTC de la commande';
-comment on column public.pipeline_orders.initial_payment is 'Versement à la création de la commande';
-comment on column public.pipeline_orders.payment_status is 'État du paiement: unpaid, partial, paid';
-
--- 3. Table: Paiements des commandes (lié à la comptabilité)
 create table if not exists public.order_payments (
   id uuid primary key default gen_random_uuid(),
   pipeline_order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   amount numeric(12,2) not null,
-  payment_method text not null, -- 'cash', 'transfer', 'card', 'check', 'yalidine', 'other'
+  payment_method text not null,
   notes text,
   recorded_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -31,25 +76,23 @@ create table if not exists public.order_payments (
 create index if not exists order_payments_order_idx on public.order_payments(pipeline_order_id);
 create index if not exists order_payments_created_idx on public.order_payments(created_at);
 
--- 4. Table: Sorties de stock (quand on livre)
 create table if not exists public.inventory_movements (
   id uuid primary key default gen_random_uuid(),
   product_id uuid references public.products(id) on delete set null,
   pipeline_order_id uuid references public.pipeline_orders(id) on delete set null,
   quantity integer not null,
-  movement_type text not null, -- 'out' (vente/livraison), 'in' (retour/réception), 'adjustment'
-  reason text, -- 'delivery', 'return', 'damage', 'waste', 'adjustment'
+  movement_type text not null,
+  reason text,
   recorded_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
 create index if not exists inventory_movements_product_idx on public.inventory_movements(product_id);
 create index if not exists inventory_movements_order_idx on public.inventory_movements(pipeline_order_id);
 
--- 5. Fonction: Mettre à jour le solde client quand on enregistre un paiement
--- SECURITY DEFINER + search_path fixe, comme les autres triggers de
--- comptabilisation automatique (migration 0021) : un commercial qui saisit un
--- versement doit pouvoir déclencher la mise à jour du solde et l'écriture au
--- journal, tables dont l'écriture directe lui est refusée par RLS.
+-- SECURITY DEFINER + search_path fixe, comme les autres comptabilisations
+-- automatiques (migration 0021) : un commercial doit pouvoir déclencher la
+-- mise à jour du solde et l'écriture au journal, tables dont l'écriture
+-- directe lui est refusée par RLS.
 create or replace function public.update_client_balance_on_payment()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -57,7 +100,6 @@ declare
   v_total_paid numeric;
   v_order_total numeric;
 begin
-  -- Récupérer l'ID du client et le total de la commande
   select contact_id, order_total into v_contact_id, v_order_total
   from public.pipeline_orders
   where id = new.pipeline_order_id;
@@ -66,13 +108,10 @@ begin
     return new;
   end if;
 
-  -- Calculer le total payé (tous les paiements pour cette commande)
   select coalesce(sum(amount), 0) into v_total_paid
   from public.order_payments
   where pipeline_order_id = new.pipeline_order_id;
 
-  -- Mettre à jour le solde: balance = total_commande - total_payé
-  -- Si positive = client doit payer, si négative = crédit client
   update public.contacts
   set balance = coalesce(v_order_total, 0) - v_total_paid
   where id = v_contact_id;
@@ -80,13 +119,11 @@ begin
   return new;
 end $$;
 
--- 6. Trigger: Mettre à jour le solde après un paiement
 drop trigger if exists update_client_balance_on_payment_trigger on public.order_payments;
 create trigger update_client_balance_on_payment_trigger
 after insert or update on public.order_payments
 for each row execute function public.update_client_balance_on_payment();
 
--- 7. Fonction: Créer une écriture comptable quand on paie une commande
 create or replace function public.post_order_payment_journal()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -99,14 +136,8 @@ begin
   where po.id = new.pipeline_order_id;
 
   if v_order_number is not null then
-    insert into public.journal_entries (
-      entry_date,
-      reference,
-      description,
-      source_type,
-      source_id,
-      created_by
-    ) values (
+    insert into public.journal_entries (entry_date, reference, description, source_type, source_id, created_by)
+    values (
       new.created_at,
       'PAY-' || v_order_number,
       'Paiement: ' || v_contact_name || ' - ' || new.amount || ' DA',
@@ -119,49 +150,27 @@ begin
   return new;
 end $$;
 
--- 8. Trigger: Enregistrer la comptabilité
 drop trigger if exists post_order_payment_journal_trigger on public.order_payments;
 create trigger post_order_payment_journal_trigger
 after insert on public.order_payments
 for each row execute function public.post_order_payment_journal();
 
--- 9. Fonction: Sortir du stock quand on livre
---
--- ATTENTION : ce trigger porte sur pipeline_orders et s'exécute donc à CHAQUE
--- update de commande. Il visait new.stage / old.stage, or la colonne "stage"
--- a été supprimée par la migration 0006 (remplacée par "status" en texte) :
--- toute mise à jour de commande aurait échoué avec "record new has no field
--- stage". On teste désormais status = 'livree' (valeur de
--- pipeline_orders_status_check, migration 0008).
+-- new.stage n'existe plus depuis la migration 0006 : on teste status='livree'
+-- (valeur de pipeline_orders_status_check, migration 0008). AFTER plutôt que
+-- BEFORE : le mouvement de stock ne s'écrit que si l'update aboutit.
 create or replace function public.inventory_out_on_delivery()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_item record;
 begin
-  -- Si la commande passe à "livrée", sortir tous les articles du stock
   if new.status = 'livree' and old.status is distinct from 'livree' then
     for v_item in
       select product_name, quantity from public.pipeline_order_items
       where pipeline_order_id = new.id
     loop
-      -- Chercher le produit correspondant
-      insert into public.inventory_movements (
-        product_id,
-        pipeline_order_id,
-        quantity,
-        movement_type,
-        reason,
-        recorded_by,
-        created_at
-      )
-      select
-        p.id,
-        new.id,
-        v_item.quantity,
-        'out',
-        'delivery',
-        auth.uid(),
-        now()
+      insert into public.inventory_movements
+        (product_id, pipeline_order_id, quantity, movement_type, reason, recorded_by, created_at)
+      select p.id, new.id, v_item.quantity, 'out', 'delivery', auth.uid(), now()
       from public.products p
       where p.name = v_item.product_name
       limit 1;
@@ -171,20 +180,15 @@ begin
   return new;
 end $$;
 
--- 10. Trigger: Sortir du stock à la livraison
--- AFTER plutôt que BEFORE : le mouvement de stock ne doit être écrit que si la
--- mise à jour de la commande aboutit réellement.
 drop trigger if exists inventory_out_on_delivery_trigger on public.pipeline_orders;
 create trigger inventory_out_on_delivery_trigger
 after update on public.pipeline_orders
 for each row execute function public.inventory_out_on_delivery();
 
--- 11. RLS pour order_payments
---
--- Une policy FOR INSERT n'accepte que WITH CHECK : le USING présent ici
--- faisait échouer la migration entière ("only WITH CHECK expression allowed
--- for INSERT"), ce qui explique que les colonnes de paiement n'aient jamais
--- existé en base. Les DROP rendent la migration rejouable.
+-- ----------------------------------------------------------------------------
+-- 3. RLS. Une policy FOR INSERT n'accepte que WITH CHECK — le USING d'origine
+--    faisait échouer la migration 0030 entière.
+-- ----------------------------------------------------------------------------
 alter table public.order_payments enable row level security;
 
 drop policy if exists "order_payments_select" on public.order_payments;
@@ -196,7 +200,6 @@ create policy "order_payments_insert" on public.order_payments for insert
   to authenticated
   with check (public.is_active_user() and public.current_role() in ('admin', 'manager', 'sales'));
 
--- 12. RLS pour inventory_movements
 alter table public.inventory_movements enable row level security;
 
 drop policy if exists "inventory_movements_select" on public.inventory_movements;

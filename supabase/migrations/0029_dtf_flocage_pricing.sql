@@ -38,10 +38,20 @@ alter table public.pipeline_orders add column if not exists flocage_cost numeric
 alter table public.pipeline_order_prints add column if not exists flocage_meters numeric(10,2);
 
 -- Fonction pour calculer le coût de flocage
+-- Ce trigger porte sur pipeline_orders en BEFORE INSERT OR UPDATE : il
+-- s'exécute donc à chaque création et à chaque modification de commande.
+-- La condition chaînait "and" sur flocage_machine_id (uuid), flocage_meters
+-- (numeric) et client_type (enum), ce que PL/pgSQL refuse à l'exécution
+-- ("argument of AND must be type boolean") — toute création de commande
+-- échouait, quelles que soient les valeurs saisies. On teste désormais la
+-- présence de ces champs, ce qui était l'intention.
 create or replace function public.calculate_flocage_cost()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if new.requires_flocage and new.flocage_machine_id and new.flocage_meters and new.client_type then
+  if coalesce(new.requires_flocage, false)
+     and new.flocage_machine_id is not null
+     and new.flocage_meters is not null
+     and new.client_type is not null then
     select price_per_meter * new.flocage_meters
     into new.flocage_cost
     from public.flocage_pricing
