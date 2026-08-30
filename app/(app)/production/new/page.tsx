@@ -5,7 +5,12 @@ import { Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
 
 export default async function Page() {
   const supabase = createClient();
-  const { data: contacts } = await supabase.from("contacts").select("id, name").order("name");
+  const { data: contacts, error } = await supabase.from("contacts").select("id, name").order("name");
+
+  if (error) {
+    console.error("Erreur lors du chargement des contacts:", error);
+    throw new Error(`Impossible de charger les contacts: ${error.message}`);
+  }
 
   return (
     <div className="max-w-3xl">
