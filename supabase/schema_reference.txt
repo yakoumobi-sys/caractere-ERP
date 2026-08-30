@@ -1,0 +1,314 @@
+COLONNE|contacts|address|text|YES
+COLONNE|contacts|balance|numeric|YES
+COLONNE|contacts|city|text|YES
+COLONNE|contacts|company_name|text|YES
+COLONNE|contacts|country|text|YES
+COLONNE|contacts|created_at|timestamp with time zone|NO
+COLONNE|contacts|email|text|YES
+COLONNE|contacts|id|uuid|NO
+COLONNE|contacts|name|text|NO
+COLONNE|contacts|notes|text|YES
+COLONNE|contacts|owner_id|uuid|YES
+COLONNE|contacts|phone|text|YES
+COLONNE|contacts|postal_code|text|YES
+COLONNE|contacts|type|USER-DEFINED|NO
+COLONNE|contacts|updated_at|timestamp with time zone|NO
+COLONNE|employee_faults|created_at|timestamp with time zone|NO
+COLONNE|employee_faults|created_by|uuid|YES
+COLONNE|employee_faults|description|text|NO
+COLONNE|employee_faults|employee_id|uuid|NO
+COLONNE|employee_faults|id|uuid|NO
+COLONNE|employee_faults|pipeline_order_id|uuid|YES
+COLONNE|employee_faults|severity|text|NO
+COLONNE|inventory_movements|created_at|timestamp with time zone|NO
+COLONNE|inventory_movements|id|uuid|NO
+COLONNE|inventory_movements|movement_type|text|NO
+COLONNE|inventory_movements|pipeline_order_id|uuid|YES
+COLONNE|inventory_movements|product_id|uuid|YES
+COLONNE|inventory_movements|quantity|integer|NO
+COLONNE|inventory_movements|reason|text|YES
+COLONNE|inventory_movements|recorded_by|uuid|YES
+COLONNE|invoices|amount_paid|numeric|NO
+COLONNE|invoices|contact_id|uuid|YES
+COLONNE|invoices|created_at|timestamp with time zone|NO
+COLONNE|invoices|created_by|uuid|YES
+COLONNE|invoices|due_date|date|YES
+COLONNE|invoices|id|uuid|NO
+COLONNE|invoices|issue_date|date|NO
+COLONNE|invoices|notes|text|YES
+COLONNE|invoices|number|text|YES
+COLONNE|invoices|order_id|uuid|YES
+COLONNE|invoices|status|text|NO
+COLONNE|invoices|subtotal|numeric|NO
+COLONNE|invoices|tax_total|numeric|NO
+COLONNE|invoices|total|numeric|NO
+COLONNE|invoices|updated_at|timestamp with time zone|NO
+COLONNE|order_payments|amount|numeric|NO
+COLONNE|order_payments|created_at|timestamp with time zone|NO
+COLONNE|order_payments|id|uuid|NO
+COLONNE|order_payments|notes|text|YES
+COLONNE|order_payments|payment_method|text|NO
+COLONNE|order_payments|pipeline_order_id|uuid|NO
+COLONNE|order_payments|recorded_by|uuid|YES
+COLONNE|order_payments|updated_at|timestamp with time zone|NO
+COLONNE|pipeline_orders|assigned_to|uuid|YES
+COLONNE|pipeline_orders|client_type|USER-DEFINED|YES
+COLONNE|pipeline_orders|contact_id|uuid|NO
+COLONNE|pipeline_orders|created_at|timestamp with time zone|NO
+COLONNE|pipeline_orders|created_by|uuid|YES
+COLONNE|pipeline_orders|description|text|YES
+COLONNE|pipeline_orders|flocage_cost|numeric|YES
+COLONNE|pipeline_orders|flocage_machine_id|uuid|YES
+COLONNE|pipeline_orders|flocage_meters|numeric|YES
+COLONNE|pipeline_orders|id|uuid|NO
+COLONNE|pipeline_orders|initial_payment|numeric|YES
+COLONNE|pipeline_orders|logo_placement_note|text|YES
+COLONNE|pipeline_orders|logo_placement|text|YES
+COLONNE|pipeline_orders|logo_source_value|text|YES
+COLONNE|pipeline_orders|logo_source|text|YES
+COLONNE|pipeline_orders|notes|text|YES
+COLONNE|pipeline_orders|number|text|YES
+COLONNE|pipeline_orders|order_total|numeric|YES
+COLONNE|pipeline_orders|payment_status|text|YES
+COLONNE|pipeline_orders|requires_flocage_v2|boolean|YES
+COLONNE|pipeline_orders|requires_flocage|boolean|YES
+COLONNE|pipeline_orders|status|text|NO
+COLONNE|pipeline_orders|technique|text|YES
+COLONNE|pipeline_orders|updated_at|timestamp with time zone|NO
+COLONNE|products|category_id|uuid|YES
+COLONNE|products|cost_price|numeric|YES
+COLONNE|products|created_at|timestamp with time zone|NO
+COLONNE|products|description|text|YES
+COLONNE|products|dtf_cost_per_meter|numeric|YES
+COLONNE|products|id|uuid|NO
+COLONNE|products|is_active|boolean|NO
+COLONNE|products|name|text|NO
+COLONNE|products|product_base_name|text|YES
+COLONNE|products|product_variant|text|YES
+COLONNE|products|purchase_cost|numeric|NO
+COLONNE|products|reorder_point|numeric|NO
+COLONNE|products|requires_dtf|boolean|YES
+COLONNE|products|sale_price|numeric|NO
+COLONNE|products|sku|text|NO
+COLONNE|products|stock_quantity|integer|YES
+COLONNE|products|tax_rate|numeric|NO
+COLONNE|products|track_inventory|boolean|NO
+COLONNE|products|unit|text|NO
+COLONNE|products|updated_at|timestamp with time zone|NO
+COLONNE|purchase_orders|created_at|timestamp with time zone|NO
+COLONNE|purchase_orders|created_by|uuid|YES
+COLONNE|purchase_orders|expected_date|date|YES
+COLONNE|purchase_orders|id|uuid|NO
+COLONNE|purchase_orders|notes|text|YES
+COLONNE|purchase_orders|number|text|YES
+COLONNE|purchase_orders|order_date|date|NO
+COLONNE|purchase_orders|status|text|NO
+COLONNE|purchase_orders|subtotal|numeric|NO
+COLONNE|purchase_orders|supplier_id|uuid|YES
+COLONNE|purchase_orders|tax_total|numeric|NO
+COLONNE|purchase_orders|total|numeric|NO
+COLONNE|purchase_orders|updated_at|timestamp with time zone|NO
+COLONNE|supply_alerts|alert_type|text|NO
+COLONNE|supply_alerts|created_at|timestamp with time zone|NO
+COLONNE|supply_alerts|created_by|uuid|YES
+COLONNE|supply_alerts|delivery_cost|numeric|YES
+COLONNE|supply_alerts|department|text|YES
+COLONNE|supply_alerts|description|text|YES
+COLONNE|supply_alerts|id|uuid|NO
+COLONNE|supply_alerts|number|text|YES
+COLONNE|supply_alerts|pipeline_order_id|uuid|YES
+COLONNE|supply_alerts|priority|text|NO
+COLONNE|supply_alerts|purchase_order_id|uuid|YES
+COLONNE|supply_alerts|purchase_price|numeric|YES
+COLONNE|supply_alerts|resolved_at|timestamp with time zone|YES
+COLONNE|supply_alerts|status|text|NO
+COLONNE|supply_alerts|supply_type_id|uuid|YES
+COLONNE|supply_alerts|title|text|NO
+COLONNE|supply_alerts|updated_at|timestamp with time zone|NO
+COLONNE|supply_types|created_at|timestamp with time zone|NO
+COLONNE|supply_types|department|text|YES
+COLONNE|supply_types|id|uuid|NO
+COLONNE|supply_types|name|text|NO
+CONTRAINTE|pipeline_orders|pipeline_orders_logo_source_check|CHECK ((logo_source = ANY (ARRAY['whatsapp'::text, 'viber'::text, 'email'::text])))
+CONTRAINTE|pipeline_orders|pipeline_orders_status_check|CHECK ((status = ANY (ARRAY['attente_dtf'::text, 'impression_dtf'::text, 'attente_broderie'::text, 'en_broderie'::text, 'attente_gros'::text, 'en_preparation_gros'::text, 'prete'::text, 'livree'::text])))
+CONTRAINTE|pipeline_orders|pipeline_orders_technique_check|CHECK ((technique = ANY (ARRAY['dtf'::text, 'broderie'::text, 'aucune'::text])))
+CONTRAINTE|purchase_orders|purchase_orders_status_check|CHECK ((status = ANY (ARRAY['brouillon'::text, 'envoyee'::text, 'recue'::text, 'annulee'::text])))
+FONCTION|alert_on_yalidine_failure||definer
+FONCTION|armor|bytea, text[], text[]|invoker
+FONCTION|armor|bytea|invoker
+FONCTION|calculate_dtf_cost|p_product_id uuid, p_dtf_length_cm integer|invoker
+FONCTION|calculate_final_price|p_product_id uuid, p_dtf_length_cm integer|invoker
+FONCTION|calculate_flocage_cost||definer
+FONCTION|check_journal_balance||invoker
+FONCTION|create_product_variants||invoker
+FONCTION|crypt|text, text|invoker
+FONCTION|current_role||definer
+FONCTION|current_user_id||definer
+FONCTION|dearmor|text|invoker
+FONCTION|decrypt_iv|bytea, bytea, bytea, text|invoker
+FONCTION|decrypt|bytea, bytea, text|invoker
+FONCTION|digest|bytea, text|invoker
+FONCTION|digest|text, text|invoker
+FONCTION|encrypt_iv|bytea, bytea, bytea, text|invoker
+FONCTION|encrypt|bytea, bytea, text|invoker
+FONCTION|gen_random_bytes|integer|invoker
+FONCTION|gen_random_uuid||invoker
+FONCTION|gen_salt|text, integer|invoker
+FONCTION|gen_salt|text|invoker
+FONCTION|generate_alert_number||invoker
+FONCTION|generate_claim_number||invoker
+FONCTION|get_login_email|p_first_name text|definer
+FONCTION|handle_new_user||definer
+FONCTION|hmac|bytea, bytea, text|invoker
+FONCTION|hmac|text, text, text|invoker
+FONCTION|inventory_out_on_delivery||definer
+FONCTION|is_active_user||definer
+FONCTION|lock_invoice_lines_when_posted||invoker
+FONCTION|log_pipeline_stage||invoker
+FONCTION|next_document_number|p_prefix text, p_table text|definer
+FONCTION|pgp_armor_headers|text, OUT key text, OUT value text|invoker
+FONCTION|pgp_key_id|bytea|invoker
+FONCTION|pgp_pub_decrypt_bytea|bytea, bytea, text, text|invoker
+FONCTION|pgp_pub_decrypt_bytea|bytea, bytea, text|invoker
+FONCTION|pgp_pub_decrypt_bytea|bytea, bytea|invoker
+FONCTION|pgp_pub_decrypt|bytea, bytea, text, text|invoker
+FONCTION|pgp_pub_decrypt|bytea, bytea, text|invoker
+FONCTION|pgp_pub_decrypt|bytea, bytea|invoker
+FONCTION|pgp_pub_encrypt_bytea|bytea, bytea, text|invoker
+FONCTION|pgp_pub_encrypt_bytea|bytea, bytea|invoker
+FONCTION|pgp_pub_encrypt|text, bytea, text|invoker
+FONCTION|pgp_pub_encrypt|text, bytea|invoker
+FONCTION|pgp_sym_decrypt_bytea|bytea, text, text|invoker
+FONCTION|pgp_sym_decrypt_bytea|bytea, text|invoker
+FONCTION|pgp_sym_decrypt|bytea, text, text|invoker
+FONCTION|pgp_sym_decrypt|bytea, text|invoker
+FONCTION|pgp_sym_encrypt_bytea|bytea, text, text|invoker
+FONCTION|pgp_sym_encrypt_bytea|bytea, text|invoker
+FONCTION|pgp_sym_encrypt|text, text, text|invoker
+FONCTION|pgp_sym_encrypt|text, text|invoker
+FONCTION|post_invoice_journal||definer
+FONCTION|post_order_payment_journal||definer
+FONCTION|post_payment_journal||definer
+FONCTION|prevent_invoice_status_regression||invoker
+FONCTION|prevent_posted_invoice_delete||invoker
+FONCTION|prevent_self_privilege_escalation||definer
+FONCTION|receive_purchase_order||definer
+FONCTION|recompute_po_totals||invoker
+FONCTION|recompute_totals||invoker
+FONCTION|reverse_payment_journal||definer
+FONCTION|set_invoice_number||invoker
+FONCTION|set_order_confirmation_number||invoker
+FONCTION|set_order_number||invoker
+FONCTION|set_pipeline_number||invoker
+FONCTION|set_po_number||invoker
+FONCTION|set_quote_number||invoker
+FONCTION|set_updated_at_tasks||invoker
+FONCTION|set_updated_at||invoker
+FONCTION|supply_alert_buy|p_alert_id uuid, p_supplier_id uuid, p_purchase_price numeric, p_delivery_cost numeric|definer
+FONCTION|supply_alert_complete|p_alert_id uuid|definer
+FONCTION|sync_stale_order_alerts||definer
+FONCTION|update_client_balance_on_payment||definer
+RELATION|r|activities
+RELATION|r|chart_of_accounts
+RELATION|r|claims
+RELATION|r|companies
+RELATION|r|contacts
+RELATION|r|document_number_counters
+RELATION|r|employee_absences
+RELATION|r|employee_faults
+RELATION|r|employee_messages
+RELATION|r|employee_tasks
+RELATION|r|employees
+RELATION|r|flocage_machines
+RELATION|r|flocage_pricing
+RELATION|r|generated_reports
+RELATION|r|inventory_movements
+RELATION|r|invoice_lines
+RELATION|r|invoices
+RELATION|r|journal_entries
+RELATION|r|journal_lines
+RELATION|r|monthly_objectives
+RELATION|r|objective_updates
+RELATION|r|opportunities
+RELATION|r|order_confirmations
+RELATION|r|order_payments
+RELATION|r|payments
+RELATION|r|pipeline_comments
+RELATION|r|pipeline_order_files
+RELATION|r|pipeline_order_items
+RELATION|r|pipeline_order_prints
+RELATION|r|pipeline_orders
+RELATION|r|pipeline_stage_log
+RELATION|r|product_categories
+RELATION|r|product_colors
+RELATION|r|product_sizes
+RELATION|r|product_variants
+RELATION|r|production_tasks
+RELATION|r|products
+RELATION|r|profiles
+RELATION|r|projects
+RELATION|r|purchase_order_lines
+RELATION|r|purchase_orders
+RELATION|r|sales_order_lines
+RELATION|r|sales_orders
+RELATION|r|sales_quote_lines
+RELATION|r|sales_quotes
+RELATION|r|sms_delivery
+RELATION|r|sms_templates
+RELATION|r|stock_movements
+RELATION|r|stock_moves
+RELATION|r|suppliers
+RELATION|r|supply_alerts
+RELATION|r|supply_types
+RELATION|r|time_logs
+RELATION|r|variant_pricing
+RELATION|r|warehouses
+RELATION|r|yalidine_shipments
+RELATION|v|daily_kpi
+RELATION|v|employee_performance
+RELATION|v|pipeline_orders_view
+RELATION|v|product_stock_levels
+RELATION|v|production_stats
+RELATION|v|supply_alerts_view
+TRIGGER|claims|generate_claim_number_trigger|generate_claim_number
+TRIGGER|contacts|set_updated_at|set_updated_at
+TRIGGER|employee_absences|set_updated_at_absences|set_updated_at_tasks
+TRIGGER|employee_tasks|set_updated_at_tasks|set_updated_at_tasks
+TRIGGER|employees|set_updated_at|set_updated_at
+TRIGGER|invoice_lines|lock_invoice_lines_when_posted_trigger|lock_invoice_lines_when_posted
+TRIGGER|invoice_lines|recompute_invoice_totals|recompute_totals
+TRIGGER|invoices|post_invoice_journal|post_invoice_journal
+TRIGGER|invoices|prevent_invoice_status_regression_trigger|prevent_invoice_status_regression
+TRIGGER|invoices|prevent_posted_invoice_delete_trigger|prevent_posted_invoice_delete
+TRIGGER|invoices|set_invoice_number|set_invoice_number
+TRIGGER|invoices|set_updated_at|set_updated_at
+TRIGGER|journal_lines|check_journal_balance|check_journal_balance
+TRIGGER|opportunities|set_updated_at|set_updated_at
+TRIGGER|order_confirmations|set_order_confirmation_number_trigger|set_order_confirmation_number
+TRIGGER|order_confirmations|set_updated_at|set_updated_at
+TRIGGER|order_payments|post_order_payment_journal_trigger|post_order_payment_journal
+TRIGGER|order_payments|update_client_balance_on_payment_trigger|update_client_balance_on_payment
+TRIGGER|payments|post_payment_journal|post_payment_journal
+TRIGGER|payments|reverse_payment_journal_trigger|reverse_payment_journal
+TRIGGER|pipeline_orders|calculate_flocage_cost_trigger|calculate_flocage_cost
+TRIGGER|pipeline_orders|inventory_out_on_delivery_trigger|inventory_out_on_delivery
+TRIGGER|pipeline_orders|log_pipeline_stage|log_pipeline_stage
+TRIGGER|pipeline_orders|set_pipeline_number|set_pipeline_number
+TRIGGER|pipeline_orders|set_updated_at|set_updated_at
+TRIGGER|products|create_product_variants_trigger|create_product_variants
+TRIGGER|products|set_updated_at|set_updated_at
+TRIGGER|profiles|prevent_self_privilege_escalation_trigger|prevent_self_privilege_escalation
+TRIGGER|projects|set_updated_at|set_updated_at
+TRIGGER|purchase_order_lines|recompute_po_totals|recompute_po_totals
+TRIGGER|purchase_orders|receive_purchase_order|receive_purchase_order
+TRIGGER|purchase_orders|set_po_number|set_po_number
+TRIGGER|purchase_orders|set_updated_at|set_updated_at
+TRIGGER|sales_order_lines|recompute_order_totals|recompute_totals
+TRIGGER|sales_orders|set_order_number|set_order_number
+TRIGGER|sales_orders|set_updated_at|set_updated_at
+TRIGGER|sales_quote_lines|recompute_quote_totals|recompute_totals
+TRIGGER|sales_quotes|set_quote_number|set_quote_number
+TRIGGER|sales_quotes|set_updated_at|set_updated_at
+TRIGGER|suppliers|set_updated_at|set_updated_at
+TRIGGER|yalidine_shipments|alert_on_yalidine_failure_trigger|alert_on_yalidine_failure
+TRIGGER|yalidine_shipments|set_updated_at_yalidine|set_updated_at_tasks
