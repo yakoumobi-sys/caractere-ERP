@@ -25,7 +25,13 @@ export default async function Page({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
     await Promise.all([
-      supabase.from("pipeline_orders_view").select("*").eq("id", params.id).single(),
+      supabase
+        .from("pipeline_orders_view")
+        .select(
+          "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
+        )
+        .eq("id", params.id)
+        .single(),
       supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
       supabase
         .from("pipeline_stage_log")
@@ -44,7 +50,15 @@ export default async function Page({ params }: { params: { id: string } }) {
         .maybeSingle(),
     ]);
 
-  if (error || !order) notFound();
+  if (error) {
+    console.error("❌ Error loading order:", error);
+    notFound();
+  }
+
+  if (!order) {
+    console.error("❌ Order not found:", params.id);
+    notFound();
+  }
 
   async function submitNote(formData: FormData) {
     "use server";
