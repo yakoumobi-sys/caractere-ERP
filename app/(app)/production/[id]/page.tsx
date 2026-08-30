@@ -22,43 +22,44 @@ import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
 export default async function Page({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
-    await Promise.all([
-      supabase
-        .from("pipeline_orders_view")
-        .select(
-          "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
-        )
-        .eq("id", params.id)
-        .single(),
-      supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
-      supabase
-        .from("pipeline_stage_log")
-        .select("id, status, note, created_at, employees(first_name, last_name, color)")
-        .eq("pipeline_order_id", params.id)
-        .order("created_at", { ascending: false }),
-      supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
-      supabase.from("pipeline_order_prints").select("*").eq("pipeline_order_id", params.id).order("position"),
-      supabase.from("pipeline_order_files").select("*").eq("pipeline_order_id", params.id).order("created_at", { ascending: false }),
-      supabase
-        .from("yalidine_shipments")
-        .select("*")
-        .eq("order_id", params.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  try {
+    const supabase = createClient();
+    const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
+      await Promise.all([
+        supabase
+          .from("pipeline_orders_view")
+          .select(
+            "id,number,description,technique,status,logo_placement,logo_placement_note,logo_source,logo_source_value,contact_id,contact_name,contact_phone,assigned_to,assignee_first_name,assignee_last_name,assignee_color,created_by,created_at,updated_at,status_since,requires_flocage"
+          )
+          .eq("id", params.id)
+          .single(),
+        supabase.from("employees").select("id, first_name, last_name, department").eq("status", "actif").order("first_name"),
+        supabase
+          .from("pipeline_stage_log")
+          .select("id, status, note, created_at, employees(first_name, last_name, color)")
+          .eq("pipeline_order_id", params.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
+        supabase.from("pipeline_order_prints").select("*").eq("pipeline_order_id", params.id).order("position"),
+        supabase.from("pipeline_order_files").select("*").eq("pipeline_order_id", params.id).order("created_at", { ascending: false }),
+        supabase
+          .from("yalidine_shipments")
+          .select("*")
+          .eq("order_id", params.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-  if (error) {
-    console.error("❌ Error loading order:", error);
-    notFound();
-  }
+    if (error) {
+      console.error("❌ Error loading order from view:", error.message, error.details, error.hint);
+      notFound();
+    }
 
-  if (!order) {
-    console.error("❌ Order not found:", params.id);
-    notFound();
-  }
+    if (!order) {
+      console.error("❌ Order not found in database:", params.id);
+      notFound();
+    }
 
   async function submitNote(formData: FormData) {
     "use server";
@@ -72,20 +73,20 @@ export default async function Page({ params }: { params: { id: string } }) {
     "use server";
     await addPipelineItem(params.id, formData);
   }
-  async function submitPrint(formData: FormData) {
-    "use server";
-    await addPipelinePrint(params.id, formData);
-  }
-  async function submitFile(formData: FormData) {
-    "use server";
-    await uploadPipelineFile(params.id, formData.get("logo") as File | null);
-  }
-  async function submitFault(formData: FormData) {
-    "use server";
-    if (order!.assigned_to) await addPipelineFault(params.id, order!.assigned_to, formData);
-  }
+    async function submitPrint(formData: FormData) {
+      "use server";
+      await addPipelinePrint(params.id, formData);
+    }
+    async function submitFile(formData: FormData) {
+      "use server";
+      await uploadPipelineFile(params.id, formData.get("logo") as File | null);
+    }
+    async function submitFault(formData: FormData) {
+      "use server";
+      if (order!.assigned_to) await addPipelineFault(params.id, order!.assigned_to, formData);
+    }
 
-  const techniqueLabel = TECHNIQUES.find((t) => t.value === order.technique)?.label ?? order.technique ?? "—";
+    const techniqueLabel = TECHNIQUES.find((t) => t.value === order.technique)?.label ?? order.technique ?? "—";
   const placementLabel = LOGO_PLACEMENTS.find((p) => p.value === order.logo_placement)?.label ?? order.logo_placement ?? "—";
   const sourceLabel = LOGO_SOURCES.find((s) => s.value === order.logo_source)?.label ?? order.logo_source ?? "—";
 
@@ -331,5 +332,9 @@ export default async function Page({ params }: { params: { id: string } }) {
         </div>
       </Card>
     </div>
-  );
+    );
+  } catch (error) {
+    console.error("❌ Error rendering production order page:", error);
+    throw error; // Re-throw to show error page
+  }
 }

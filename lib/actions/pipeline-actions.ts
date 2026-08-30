@@ -134,7 +134,12 @@ export async function createPipelineOrder(formData: FormData) {
     })
     .select("id, number")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    const errorMsg = error.message || JSON.stringify(error);
+    console.error("❌ Order insert error:", errorMsg, error.details, error.hint);
+    throw new Error(`Erreur lors de la création de la commande: ${errorMsg}`);
+  }
+  if (!order) throw new Error("Commande créée mais donnée manquante (id ou number)");
 
   const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
   const validItems = items.filter((it) => it.product_name);
