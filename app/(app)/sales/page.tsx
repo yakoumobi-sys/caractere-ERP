@@ -1,18 +1,49 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
 
+interface SalesOrderRow {
+  id: string;
+  number: string | null;
+  created_at: string;
+  contact_id: string | null;
+  /** Migration 0030 : absentes tant qu'elle n'est pas appliquée. */
+  order_total?: number | null;
+  payment_status?: string | null;
+}
+
+/** Colonne absente parce qu'une migration n'est pas encore appliquée en base. */
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "42703" || error.code === "PGRST204") return true;
+  return /column .* does not exist|could not find the .* column/i.test(error.message ?? "");
+}
+
 export default async function SalesPage() {
   const supabase = createClient();
 
   try {
-    // Récupère toutes les commandes
-    // Note: order_total et payment_status sont optionnels (ajoutés dans une migration ultérieure)
-    let ordersQuery = supabase
+    // order_total / payment_status arrivent avec la migration 0030 : si elle
+    // n'est pas encore appliquée, PostgREST renvoie "column ... does not
+    // exist". On retombe alors sur les colonnes de base, colonnes de montant
+    // masquées, plutôt que d'afficher une page en erreur.
+    let hasPaymentColumns = true;
+    const withPayment = await supabase
       .from("pipeline_orders")
-      .select("id, number, created_at, contact_id")
+      .select("id, number, created_at, contact_id, order_total, payment_status")
       .order("created_at", { ascending: false });
 
-    const { data: orders, error: ordersError } = await ordersQuery;
+    let orders: SalesOrderRow[] | null = withPayment.data;
+    let ordersError: { code?: string; message?: string } | null = withPayment.error;
+
+    if (isMissingColumnError(ordersError)) {
+      hasPaymentColumns = false;
+      const withoutPayment = await supabase
+        .from("pipeline_orders")
+        .select("id, number, created_at, contact_id")
+        .order("created_at", { ascending: false });
+      orders = withoutPayment.data;
+      ordersError = withoutPayment.error;
+    }
 
     if (ordersError) throw ordersError;
 
@@ -85,6 +116,8 @@ export default async function SalesPage() {
                     {product.substring(0, 12)}
                   </th>
                 ))}
+                {hasPaymentColumns && <th className="px-4 py-3 text-right font-semibold">Total</th>}
+                {hasPaymentColumns && <th className="px-4 py-3 text-center font-semibold">Paiement</th>}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -113,6 +146,31 @@ export default async function SalesPage() {
                       </td>
                     );
                   })}
+
+                  {hasPaymentColumns && (
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
+                      {(order.order_total || 0).toLocaleString("fr-DZ")} DA
+                    </td>
+                  )}
+                  {hasPaymentColumns && (
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                          order.payment_status === "paid"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : order.payment_status === "partial"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        }`}
+                      >
+                        {order.payment_status === "paid"
+                          ? "Payée"
+                          : order.payment_status === "partial"
+                            ? "Partielle"
+                            : "Non payée"}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

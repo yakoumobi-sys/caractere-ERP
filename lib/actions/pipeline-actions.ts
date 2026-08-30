@@ -69,8 +69,28 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
   }
 }
 
-export async function createPipelineOrder(formData: FormData) {
-  try {
+export type OrderFormState = { error: string | null };
+
+/**
+ * Colonnes ajoutées par des migrations tardives (0029 / 0030). Si la base de
+ * production n'a pas encore reçu ces migrations, PostgREST rejette l'INSERT
+ * avec "column ... does not exist" — on réessaie alors sans elles plutôt que
+ * de faire échouer toute la création de commande.
+ */
+const LATE_MIGRATION_COLUMNS = ["order_total", "initial_payment", "payment_status", "requires_flocage"];
+
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === "42703" || error.code === "PGRST204") return true;
+  return /column .* does not exist|could not find the .* column/i.test(error.message ?? "");
+}
+
+/**
+ * Crée la commande et renvoie son id. Lève une Error au message lisible en cas
+ * d'échec : createPipelineOrder le transforme en message affiché sous le
+ * formulaire, au lieu de la page d'erreur opaque de Next.
+ */
+async function createPipelineOrderInner(formData: FormData): Promise<string> {
     const supabase = createClient();
     const {
       data: { user },
@@ -115,53 +135,49 @@ export async function createPipelineOrder(formData: FormData) {
   if (!contact_id) throw new Error("Le client est requis.");
   if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
 
-  // Build insert payload - ONLY core required columns that always exist
-  const insertPayload: any = {
+  // status est NOT NULL en base (migration 0006) et contraint à la liste de
+  // pipeline_orders_status_check (migration 0008) : il doit impérativement
+  // être fourni ici, la base ne le calcule pas.
+  const insertPayload: Record<string, unknown> = {
     contact_id,
-    description: description || null,
+    description,
+    technique,
+    logo_placement,
+    logo_placement_note,
+    logo_source,
+    logo_source_value,
+    status: initialStatus(technique),
     created_by: user?.id ?? null,
+    requires_flocage,
+    order_total: orderTotal > 0 ? orderTotal : null,
+    initial_payment: initialPayment > 0 ? initialPayment : 0,
+    payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
   };
 
-  // Add technique if it exists (added in migration 0006)
-  if (technique) {
-    insertPayload.technique = technique;
-  }
-
-  // Add logo fields if they exist (added in migration 0006)
-  if (logo_placement) insertPayload.logo_placement = logo_placement;
-  if (logo_placement_note) insertPayload.logo_placement_note = logo_placement_note;
-  if (logo_source) insertPayload.logo_source = logo_source;
-  if (logo_source_value) insertPayload.logo_source_value = logo_source_value;
-
-  // Add payment fields ONLY if they exist (added in migration 0030)
-  if (initialPayment > 0) insertPayload.initial_payment = initialPayment;
-  if (orderTotal > 0) insertPayload.order_total = orderTotal;
-  if (initialPayment > 0) {
-    insertPayload.payment_status = initialPayment >= orderTotal ? "paid" : "partial";
-  }
-
-  // Add flocage flag (added in migration 0029) - only if it should be true
-  if (requires_flocage) {
-    insertPayload.requires_flocage = true;
-  }
-
-  // NOTE: Do NOT insert 'status' - it's either:
-  // - a generated column (migration 0004), or
-  // - managed by triggers/procedures (migration 0006+)
-  // The database handles status assignment automatically.
-
-  const { data: order, error } = await supabase
+  let { data: order, error } = await supabase
     .from("pipeline_orders")
     .insert(insertPayload)
     .select("id, number")
     .single();
 
-  if (error) {
-    const errorMsg = error.message || JSON.stringify(error);
-    console.error("❌ Order insert error:", errorMsg, error.details, error.hint);
-    throw new Error(`Erreur lors de la création de la commande: ${errorMsg}`);
+  // Base pas encore migrée (0029/0030) : on retente sans ces colonnes plutôt
+  // que de bloquer la commande. Le montant/versement ne sera pas enregistré
+  // sur la commande tant que la migration n'est pas appliquée.
+  if (isMissingColumnError(error)) {
+    console.warn(
+      `⚠️ Colonnes manquantes en base (migrations 0029/0030 non appliquées) : ${error!.message}. ` +
+        `Nouvelle tentative sans ${LATE_MIGRATION_COLUMNS.join(", ")}.`
+    );
+    const fallbackPayload = { ...insertPayload };
+    for (const column of LATE_MIGRATION_COLUMNS) delete fallbackPayload[column];
+    ({ data: order, error } = await supabase.from("pipeline_orders").insert(fallbackPayload).select("id, number").single());
   }
-  if (!order) throw new Error("Commande créée mais donnée manquante (id ou number)");
+
+  if (error) {
+    console.error("❌ Order insert error:", error.message, error.details, error.hint, error.code);
+    throw new Error(`Création de la commande refusée par la base : ${error.message}`);
+  }
+  if (!order) throw new Error("La commande a été créée mais la base n'a renvoyé ni id ni numéro.");
 
   const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
   const validItems = items.filter((it) => it.product_name);
@@ -247,13 +263,27 @@ export async function createPipelineOrder(formData: FormData) {
     }
   }
 
-    revalidatePath("/production", "layout");
-    revalidatePath("/dashboard", "layout");
-    redirect(`/production/${order.id}`);
+  return order.id as string;
+}
+
+/**
+ * Action du formulaire "Nouvelle commande". Renvoie un message d'erreur lisible
+ * (affiché sous le bouton) au lieu de laisser remonter une exception vers la
+ * page d'erreur générique, dont le message est masqué en production.
+ */
+export async function createPipelineOrder(_prevState: OrderFormState, formData: FormData): Promise<OrderFormState> {
+  let orderId: string;
+  try {
+    orderId = await createPipelineOrderInner(formData);
   } catch (err) {
     console.error("❌ Error creating order:", err);
-    throw err; // Re-throw to show error page
+    return { error: err instanceof Error ? err.message : String(err) };
   }
+
+  // redirect() lève NEXT_REDIRECT : il doit rester hors du try/catch ci-dessus.
+  revalidatePath("/production", "layout");
+  revalidatePath("/dashboard", "layout");
+  redirect(`/production/${orderId}`);
 }
 
 /** Renvoie l'employé (fiche RH) lié au compte actuellement connecté, s'il existe */

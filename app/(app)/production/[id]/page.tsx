@@ -117,7 +117,11 @@ export default async function Page({ params }: { params: { id: string } }) {
           .maybeSingle(),
       ]);
 
-    // order is already defined above from orderData
+    // La vue calculait status_since via pipeline_stage_log ; on la requête
+    // directement ici, donc on le dérive de l'historique (trié du plus récent
+    // au plus ancien) au lieu de retomber bêtement sur created_at.
+    order.status_since =
+      (history as { status: string; created_at: string }[] | null)?.find((h) => h.status === order.status)?.created_at ?? order.created_at;
 
     async function submitNote(formData: FormData) {
     "use server";
