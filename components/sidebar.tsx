@@ -181,7 +181,7 @@ export function Sidebar({
         {NAV_SECONDARY.map((group) => {
           const Icon = NAV_ICONS[group.section];
           const isOpen = openSection === group.section;
-          const hasActive = group.items.some((it) => (it.exact ? pathname === it.href : pathname.startsWith(it.href)));
+          const hasActive = group.items.some((it) => pathname.startsWith(it.href));
           return (
             <div key={group.section}>
               <button
@@ -202,7 +202,7 @@ export function Sidebar({
               {(isOpen || group.items.length === 1) && (
                 <div className="mt-0.5 ml-4 pl-4 border-l border-slate-200/70 dark:border-slate-800 flex flex-col gap-0.5">
                   {group.items.map((item) => {
-                    const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+                    const active = pathname.startsWith(item.href);
                     return (
                       <Link
                         key={item.href}
