@@ -99,27 +99,35 @@ create policy "claims_write" on public.claims
 -- production, ajoutées hors migration. La base ne pouvait donc pas être
 -- reconstruite à partir du dépôt. Le schéma ci-dessous reprend les colonnes
 -- réellement utilisées par 0019 et par lib/actions/alert-actions.ts.
+-- Colonnes et nullabilité relevées sur la base de production elle-même
+-- (inventaire information_schema du 2026-08-30), pour qu'une base
+-- reconstruite depuis le dépôt soit identique à celle qui tourne.
+-- Les colonnes supply_type_id / purchase_price / delivery_cost /
+-- purchase_order_id / pipeline_order_id sont ajoutées par la migration 0019.
 -- "if not exists" : sans effet sur une base qui les possède déjà.
 create table if not exists public.supply_types (
   id uuid primary key default gen_random_uuid(),
+  code text not null,
   name text not null,
-  department text,
-  created_at timestamptz not null default now()
+  department text not null,
+  description text,
+  created_at timestamptz default now()
 );
 
 create table if not exists public.supply_alerts (
   id uuid primary key default gen_random_uuid(),
-  number text unique,
+  number text not null unique,
   alert_type text not null default 'approvisionnement',
-  department text,
+  department text not null,
   title text not null,
   description text,
-  priority text not null default 'normal',
-  status text not null default 'ouverte',
+  priority text default 'normal',
+  status text default 'ouverte',
   created_by uuid references public.employees(id) on delete set null,
+  assigned_to uuid references public.employees(id) on delete set null,
   resolved_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 create index if not exists supply_alerts_status_idx on public.supply_alerts(status);
 
