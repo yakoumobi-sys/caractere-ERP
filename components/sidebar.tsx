@@ -7,7 +7,7 @@ import { cx } from "@/lib/utils";
 import { NAV_ICONS, IconChevron } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const NAV = [
+const NAV_PRIMARY = [
   {
     section: "Général",
     items: [
@@ -32,55 +32,22 @@ const NAV = [
     section: "Confirmation",
     items: [{ href: "/confirmation", label: "Commandes COD / web" }],
   },
+];
+
+const NAV_ACTIONS = [
+  { label: "📊 Ventes", href: "/sales/invoices", icon: "Ventes" },
+  { label: "🛒 Achats", href: "/purchasing/orders", icon: "Achats" },
+];
+
+const NAV_SECONDARY = [
   {
     section: "CRM",
     items: [
-      { href: "/crm/contacts", label: "Contacts" },
-      { href: "/crm/opportunities", label: "Opportunités" },
-    ],
-  },
-  {
-    section: "Ventes",
-    items: [
-      { href: "/sales/quotes", label: "Devis" },
-      { href: "/sales/orders", label: "Commandes clients" },
-      { href: "/sales/invoices", label: "Factures" },
-    ],
-  },
-  {
-    section: "Service Client",
-    items: [
-      { href: "/claims", label: "Réclamations" },
-    ],
-  },
-  {
-    section: "Achats & Supply Chain",
-    items: [
-      { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
-      { href: "/purchasing/orders", label: "📦 Commandes fournisseurs" },
-    ],
-  },
-  {
-    section: "Stock",
-    items: [
+      { href: "/crm/contacts", label: "Clients" },
       { href: "/inventory/products", label: "Produits" },
-      { href: "/inventory/categories", label: "Catégories" },
-      { href: "/inventory/warehouses", label: "Entrepôts" },
-      { href: "/inventory/movements", label: "Mouvements de stock" },
-    ],
-  },
-  {
-    section: "Comptabilité",
-    items: [
-      { href: "/accounting/chart-of-accounts", label: "Plan comptable" },
-      { href: "/accounting/journal", label: "Journal" },
-      { href: "/accounting/reports", label: "Rapports" },
-    ],
-  },
-  {
-    section: "Analytics",
-    items: [
-      { href: "/reports", label: "Rapports & Prévisions" },
+      { href: "/inventory/warehouses", label: "Stock" },
+      { href: "/accounting/chart-of-accounts", label: "Comptabilité" },
+      { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
     ],
   },
   {
@@ -93,8 +60,11 @@ const NAV = [
     ],
   },
   {
-    section: "Projets",
-    items: [{ href: "/projects", label: "Projets" }],
+    section: "Analytique",
+    items: [
+      { href: "/reports", label: "Tableau de bord" },
+      { href: "/reports", label: "Chiffre d'affaires" },
+    ],
   },
   {
     section: "Paramètres",
@@ -115,7 +85,7 @@ export function Sidebar({
   companyName?: string;
 }) {
   const pathname = usePathname();
-  const activeSection = NAV.find((g) => g.items.some((it) => pathname.startsWith(it.href)))?.section;
+  const activeSection = NAV_PRIMARY.find((g) => g.items.some((it) => pathname.startsWith(it.href)))?.section;
   const [openSection, setOpenSection] = useState<string | null>(activeSection ?? "Général");
 
   return (
@@ -135,8 +105,80 @@ export function Sidebar({
         </div>
       </div>
 
-      <nav className="px-3 py-3 flex flex-col gap-1 flex-1">
-        {NAV.map((group) => {
+      <nav className="px-3 py-3 flex flex-col gap-1 flex-1 overflow-y-auto">
+        {/* Sections primaires (Général, Production, Confirmation) */}
+        {NAV_PRIMARY.map((group) => {
+          const Icon = NAV_ICONS[group.section];
+          const isOpen = openSection === group.section;
+          const hasActive = group.items.some((it) => (it.exact ? pathname === it.href : pathname.startsWith(it.href)));
+          return (
+            <div key={group.section}>
+              <button
+                type="button"
+                onClick={() => setOpenSection(isOpen ? null : group.section)}
+                className={cx(
+                  "w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  hasActive
+                    ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                )}
+              >
+                {Icon && <Icon className="shrink-0" />}
+                <span className="flex-1 text-left">{group.section}</span>
+                {group.items.length > 1 && <IconChevron open={isOpen} className="text-slate-400" />}
+              </button>
+
+              {(isOpen || group.items.length === 1) && (
+                <div className="mt-0.5 ml-4 pl-4 border-l border-slate-200/70 dark:border-slate-800 flex flex-col gap-0.5">
+                  {group.items.map((item) => {
+                    const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onNavigate}
+                        className={cx(
+                          "rounded-lg px-3 py-1.5 text-sm transition-colors",
+                          active
+                            ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-md shadow-indigo-500/30"
+                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white"
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Actions principales (Ventes, Achats) - Bold et agrandies */}
+        <div className="my-3 flex flex-col gap-2">
+          {NAV_ACTIONS.map((action) => {
+            const active = pathname.startsWith(action.href);
+            return (
+              <Link
+                key={action.href}
+                href={action.href}
+                onClick={onNavigate}
+                className={cx(
+                  "w-full px-4 py-3 rounded-lg font-bold text-base transition-all text-center",
+                  active
+                    ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-500/40"
+                    : "bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:shadow-lg hover:shadow-indigo-500/40"
+                )}
+              >
+                {action.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Sections secondaires */}
+        <div className="my-2 border-t border-slate-200/70 dark:border-slate-800 pt-3"></div>
+        {NAV_SECONDARY.map((group) => {
           const Icon = NAV_ICONS[group.section];
           const isOpen = openSection === group.section;
           const hasActive = group.items.some((it) => (it.exact ? pathname === it.href : pathname.startsWith(it.href)));
