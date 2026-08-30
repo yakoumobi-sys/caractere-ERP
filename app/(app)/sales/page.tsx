@@ -6,10 +6,13 @@ export default async function SalesPage() {
 
   try {
     // Récupère toutes les commandes
-    const { data: orders, error: ordersError } = await supabase
+    // Note: order_total et payment_status sont optionnels (ajoutés dans une migration ultérieure)
+    let ordersQuery = supabase
       .from("pipeline_orders")
-      .select("id, number, created_at, order_total, payment_status, contact_id")
+      .select("id, number, created_at, contact_id")
       .order("created_at", { ascending: false });
+
+    const { data: orders, error: ordersError } = await ordersQuery;
 
     if (ordersError) throw ordersError;
 
@@ -31,14 +34,18 @@ export default async function SalesPage() {
 
     if (itemsError) throw itemsError;
 
-    // Récupère les produits
-    const productIds = [...new Set(allItems?.map(i => i.product_id) || [])];
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id, name")
-      .in("id", productIds);
+    // Récupère les produits (seulement s'il y a des items)
+    let products: any[] = [];
+    const productIds = [...new Set(allItems?.map(i => i.product_id).filter(Boolean) || [])];
+    if (productIds.length > 0) {
+      const { data: productsData, error: productsError } = await supabase
+        .from("products")
+        .select("id, name")
+        .in("id", productIds);
 
-    if (productsError) throw productsError;
+      if (productsError) throw productsError;
+      products = productsData || [];
+    }
 
     // Récupère les contacts
     const contactIds = [...new Set(orders.map(o => o.contact_id).filter(Boolean))];
@@ -78,8 +85,6 @@ export default async function SalesPage() {
                     {product.substring(0, 12)}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right font-semibold">Total</th>
-                <th className="px-4 py-3 text-center font-semibold">Paiement</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -108,27 +113,6 @@ export default async function SalesPage() {
                       </td>
                     );
                   })}
-
-                  <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
-                    {(order.order_total || 0).toLocaleString("fr-DZ")} DA
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-                        order.payment_status === "paid"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : order.payment_status === "partial"
-                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      }`}
-                    >
-                      {order.payment_status === "paid"
-                        ? "Payée"
-                        : order.payment_status === "partial"
-                          ? "Partielle"
-                          : "Non payée"}
-                    </span>
-                  </td>
                 </tr>
               ))}
             </tbody>

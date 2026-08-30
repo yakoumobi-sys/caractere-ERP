@@ -85,9 +85,10 @@ export default async function DashboardPage() {
     supabase.from("product_stock_levels").select("*"),
     supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
     supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
+    // Note: order_total et payment_status sont optionnels (migration 0030)
     supabase
       .from("pipeline_orders")
-      .select("id,number,contact_id,order_total,payment_status,created_at,technique,status,contacts(name)")
+      .select("id,number,contact_id,created_at,technique,status,contacts(name)")
       .gte("created_at", new Date().toISOString().slice(0, 10))
       .order("created_at", { ascending: false }),
   ]);
@@ -98,8 +99,8 @@ export default async function DashboardPage() {
     number: sale.number,
     contact_name: sale.contacts?.name || "Inconnu",
     contact_id: sale.contact_id,
-    order_total: sale.order_total,
-    payment_status: sale.payment_status || "unpaid",
+    order_total: sale.order_total || 0, // Note: optionnel (migration 0030)
+    payment_status: sale.payment_status || "unpaid", // Note: optionnel (migration 0030)
     created_at: sale.created_at,
     technique: sale.technique,
     status: sale.status,
