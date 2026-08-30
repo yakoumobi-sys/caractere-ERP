@@ -143,7 +143,7 @@ export async function createPipelineOrder(formData: FormData) {
     await syncArticlesToProducts(supabase, validItems);
 
     // Créer les items de la commande
-    await supabase.from("pipeline_order_items").insert(
+    const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
       validItems.map((it, i) => ({
         pipeline_order_id: order.id,
         product_name: it.product_name,
@@ -153,12 +153,13 @@ export async function createPipelineOrder(formData: FormData) {
         position: i,
       }))
     );
+    if (itemsError) throw new Error(`Erreur lors de la création des articles: ${itemsError.message}`);
   }
 
   const prints = JSON.parse(String(formData.get("prints_json") ?? "[]")) as PrintInput[];
   const validPrints = prints.filter((p) => p.placement);
   if (validPrints.length > 0) {
-    await supabase.from("pipeline_order_prints").insert(
+    const { error: printsError } = await supabase.from("pipeline_order_prints").insert(
       validPrints.map((p, i) => ({
         pipeline_order_id: order.id,
         placement: p.placement,
@@ -167,6 +168,7 @@ export async function createPipelineOrder(formData: FormData) {
         position: i,
       }))
     );
+    if (printsError) throw new Error(`Erreur lors de la création des impressions: ${printsError.message}`);
   }
 
   await uploadPipelineFile(order.id, formData.get("logo") as File | null);
