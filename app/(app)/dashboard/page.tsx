@@ -16,6 +16,7 @@ import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { EmployeesSummary } from "@/components/dashboard/employees-summary";
 import { MyTasks } from "@/components/dashboard/my-tasks";
 import { AbsentColleaguesTasks } from "@/components/dashboard/absent-colleagues-tasks";
+import { DailySalesList } from "@/components/dashboard/daily-sales-list";
 import { formatMoney } from "@/lib/utils";
 import { QUEUE_TITLES, statusesForQueue, type QueueName } from "@/lib/pipeline";
 import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconBag, IconCalculator, IconUsers, IconContacts } from "@/components/icons";
@@ -78,13 +79,31 @@ export default async function DashboardPage() {
     return { count: 0, error: result.reason };
   });
 
-  const [{ data: orderRows }, , { data: stockLevels }, { data: allOrders }, { data: employees }] = await Promise.all([
+  const [{ data: orderRows }, , { data: stockLevels }, { data: allOrders }, { data: employees }, { data: dailySales }] = await Promise.all([
     supabase.from("pipeline_orders").select("created_at,technique").gte("created_at", since14),
     Promise.resolve(queueCounts),
     supabase.from("product_stock_levels").select("*"),
     supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
     supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
+    supabase
+      .from("pipeline_orders")
+      .select("id,number,contact_id,order_total,payment_status,created_at,technique,status,contacts(name)")
+      .gte("created_at", new Date().toISOString().slice(0, 10))
+      .order("created_at", { ascending: false }),
   ]);
+
+  // Format daily sales for DailySalesList component
+  const formattedDailySales = (dailySales || []).map((sale: any) => ({
+    id: sale.id,
+    number: sale.number,
+    contact_name: sale.contacts?.name || "Inconnu",
+    contact_id: sale.contact_id,
+    order_total: sale.order_total,
+    payment_status: sale.payment_status || "unpaid",
+    created_at: sale.created_at,
+    technique: sale.technique,
+    status: sale.status,
+  }));
 
   let revenueThisMonth = 0;
   let revenueTrend: number | undefined;
@@ -213,6 +232,11 @@ export default async function DashboardPage() {
       <Suspense fallback={<CardSkeleton height="h-24" className="mb-6" />}>
         <OrdersSummary />
       </Suspense>
+
+      {/* 2.5. VENTES DU JOUR */}
+      <div className="mb-6">
+        <DailySalesList sales={formattedDailySales} />
+      </div>
 
       {/* 3. RÉSUMÉ DES EMPLOYÉS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
