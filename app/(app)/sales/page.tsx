@@ -22,23 +22,16 @@ export default async function SalesPage() {
       );
     }
 
-    // Récupère les articles pour chaque commande
+    // Les lignes de commande portent le nom de l'article en clair
+    // (pipeline_order_items n'a pas de clé vers products) : on s'en sert
+    // directement, sans passer par le catalogue.
     const orderIds = orders.map(o => o.id);
     const { data: allItems, error: itemsError } = await supabase
       .from("pipeline_order_items")
-      .select("id, pipeline_order_id, quantity, product_id")
+      .select("id, pipeline_order_id, quantity, product_name")
       .in("pipeline_order_id", orderIds);
 
     if (itemsError) throw itemsError;
-
-    // Récupère les produits
-    const productIds = [...new Set(allItems?.map(i => i.product_id) || [])];
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id, name")
-      .in("id", productIds);
-
-    if (productsError) throw productsError;
 
     // Récupère les contacts
     const contactIds = [...new Set(orders.map(o => o.contact_id).filter(Boolean))];
@@ -51,7 +44,6 @@ export default async function SalesPage() {
 
     // Mappe les données
     const contactMap = Object.fromEntries(contacts?.map(c => [c.id, c.name]) || []);
-    const productMap = Object.fromEntries(products?.map(p => [p.id, p.name]) || []);
     const itemsByOrder = Object.fromEntries(
       orders.map(o => [
         o.id,
@@ -59,8 +51,10 @@ export default async function SalesPage() {
       ])
     );
 
-    // Récupère les noms de tous les produits uniques
-    const productList = Array.from(new Set(products?.map(p => p.name) || [])).sort();
+    // Une colonne par article réellement vendu.
+    const productList = Array.from(
+      new Set((allItems ?? []).map((i: any) => i.product_name?.trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, "fr"));
 
     return (
       <div className="max-w-7xl">
@@ -96,8 +90,8 @@ export default async function SalesPage() {
                   {productList.map((product) => {
                     const items = itemsByOrder[order.id] || [];
                     const qty = items.reduce((sum: number, item: any) => {
-                      if (productMap[item.product_id] === product) {
-                        return sum + (item.quantity || 0);
+                      if (item.product_name?.trim() === product) {
+                        return sum + (Number(item.quantity) || 0);
                       }
                       return sum;
                     }, 0);
