@@ -46,7 +46,7 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
       return;
     }
 
-    const existingNames = new Set(existingProducts?.map((p) => p.name) ?? []);
+    const existingNames = new Set(existingProducts?.map((p: { id: string; name: string }) => p.name) ?? []);
 
     // Déterminer les produits à créer
     const productsToCreate = validItems
