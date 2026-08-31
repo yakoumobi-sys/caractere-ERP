@@ -1,0 +1,14 @@
+# Playwright
+tests/results/
+tests/**/*.log
+.auth/
+auth.json
+
+# Test reports
+junit.xml
+html-report/
+
+# Screenshots & videos
+**/*.png
+**/*.mp4
+**/*.webm
