@@ -4,15 +4,8 @@ import { useEffect, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
-import { SmartArticleSelector } from "./smart-article-selector";
+import { ArticlePicker, type ArticleRow } from "./article-picker";
 import { SmartClientSelector } from "./smart-client-selector";
-
-interface ItemRow {
-  product_name: string;
-  color: string;
-  size: string;
-  quantity: number;
-}
 
 interface ContactOption {
   id: string;
@@ -35,10 +28,25 @@ function StepLabel({ n, title }: { n: number; title: string }) {
  * Pensé pour aller vite — un commercial doit pouvoir saisir une commande
  * WhatsApp en quelques secondes.
  */
-export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) {
+export function OrderDetailsFields({
+  contacts,
+  products: initialProducts,
+  colors: initialColors,
+  sizes: initialSizes,
+}: {
+  contacts: ContactOption[];
+  products: string[];
+  colors: string[];
+  sizes: string[];
+}) {
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedContactId, setSelectedContactId] = useState("");
-  const [items, setItems] = useState<ItemRow[]>([{ product_name: "", color: "", size: "", quantity: 1 }]);
+  const [items, setItems] = useState<ArticleRow[]>([{ product_name: "", color: "", size: "", quantity: 1 }]);
+  // Les listes vivent ici pour qu'un ajout au catalogue depuis une ligne
+  // profite immédiatement aux autres lignes de la même commande.
+  const [products, setProducts] = useState(initialProducts);
+  const [colors, setColors] = useState(initialColors);
+  const [sizes, setSizes] = useState(initialSizes);
   const [technique, setTechnique] = useState<Technique>("dtf");
   const [logoPlacement, setLogoPlacement] = useState("coeur");
   const [logoSource, setLogoSource] = useState("whatsapp");
@@ -53,12 +61,28 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
       .catch(() => setWilayas([]));
   }, [useYalidine, wilayas.length]);
 
-  function updateItem(i: number, patch: Partial<ItemRow>) {
+  function updateItem(i: number, patch: Partial<ArticleRow>) {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
+  function addOnce(list: string[], value: string) {
+    return list.some((v) => v.toLowerCase() === value.toLowerCase()) ? list : [...list, value];
+  }
+
+  const filledItems = items.filter((it) => it.product_name.trim());
+
   return (
-    <>
+    // Le clavier des téléphones envoie « entrée » comme validation : sans ce
+    // garde-fou, la moindre frappe dans un champ texte soumettait la commande
+    // avant que les articles ne soient saisis (commandes créées vides).
+    <div
+      className="contents"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+          e.preventDefault();
+        }
+      }}
+    >
       {/* 1. Client */}
       <Card className="p-6">
         <StepLabel n={1} title="Client" />
@@ -155,39 +179,43 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
       </Card>
 
       {/* 2. Article */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <StepLabel n={2} title="Article" />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setItems((prev) => [...prev, { product_name: "", color: "", size: "", quantity: 1 }])}
-          >
-            + Ajouter
-          </Button>
+      <Card className="p-4 sm:p-6">
+        <StepLabel n={2} title="Articles" />
+
+        <div className="flex flex-col gap-3">
+          {items.map((row, i) => (
+            <ArticlePicker
+              key={i}
+              index={i}
+              value={row}
+              products={products}
+              colors={colors}
+              sizes={sizes}
+              onChange={(patch) => updateItem(i, patch)}
+              onRemove={items.length > 1 ? () => setItems((prev) => prev.filter((_, idx) => idx !== i)) : undefined}
+              onProductCreated={(name) => setProducts((prev) => addOnce(prev, name))}
+              onColorCreated={(color) => setColors((prev) => addOnce(prev, color))}
+              onSizeCreated={(size) => setSizes((prev) => addOnce(prev, size))}
+            />
+          ))}
         </div>
-        <table className="w-full text-sm">
-          <thead className="text-left text-slate-500 border-b border-slate-200">
-            <tr>
-              <th className="py-2 pr-2 font-medium">Article</th>
-              <th className="py-2 pr-2 font-medium">Couleur</th>
-              <th className="py-2 pr-2 font-medium w-24">Taille</th>
-              <th className="py-2 pr-2 font-medium w-24">Qté</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((row, i) => (
-              <SmartArticleSelector
-                key={i}
-                value={row}
-                onChange={(patch) => updateItem(i, patch)}
-                onRemove={() => setItems((prev) => prev.filter((_, idx) => idx !== i))}
-              />
-            ))}
-          </tbody>
-        </table>
-        <input type="hidden" name="items_json" value={JSON.stringify(items)} />
+
+        <button
+          type="button"
+          onClick={() => setItems((prev) => [...prev, { product_name: "", color: "", size: "", quantity: 1 }])}
+          className="mt-3 w-full rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-600 dark:text-slate-300"
+        >
+          + Ajouter un article
+        </button>
+
+        {filledItems.length === 0 && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            Choisissez au moins un article pour pouvoir créer la commande.
+          </p>
+        )}
+
+        {/* Seules les lignes réellement remplies partent au serveur. */}
+        <input type="hidden" name="items_json" value={JSON.stringify(filledItems)} />
       </Card>
 
       {/* 3. Impression */}
@@ -288,6 +316,6 @@ export function OrderDetailsFields({ contacts }: { contacts: ContactOption[] }) 
           <p className="text-sm text-slate-400">Vêtements bruts, sans personnalisation — la commande part directement en préparation.</p>
         )}
       </Card>
-    </>
+    </div>
   );
 }
