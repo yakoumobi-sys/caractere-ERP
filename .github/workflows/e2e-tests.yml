@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Le job commente la pull request et publie un rapport de tests : sans ces
+# droits explicites, le GITHUB_TOKEN est en lecture seule sur les dépôts
+# configurés ainsi, et les deux dernières étapes échouent.
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 jobs:
   test:
     timeout-minutes: 30
@@ -22,7 +30,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:6432
+          # hôte:conteneur — Postgres écoute sur 5432 dans le conteneur.
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +39,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          # Les paquets @supabase/* du projet déclarent node >= 22 ; sur la 18
+          # chaque installation partait en avertissements EBADENGINE.
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -58,6 +69,7 @@ jobs:
           SITE_ORDERS_WEBHOOK_SECRET: ${{ secrets.SITE_ORDERS_WEBHOOK_SECRET }}
 
       - name: Run E2E tests
+        id: e2e
         run: npm run test:e2e
         env:
           BASE_URL: http://localhost:3000
@@ -85,20 +97,32 @@ jobs:
           fail-on-error: false
 
       - name: Comment PR with results
-        if: github.event_name == 'pull_request' && always()
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
         with:
           script: |
-            const fs = require('fs');
-            const junit = require('junit-report-builder');
+            // Le résultat réel de l'étape de test, et non un message figé :
+            // l'ancien script annonçait « All tests passed » même en échec.
+            const outcome = process.env.E2E_OUTCOME;
+            const passed = outcome === 'success';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            let comment = '## ✅ E2E Tests Report\n\n';
-            comment += '- All tests passed ✅\n';
-            comment += '- [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n';
+            const status = passed
+              ? '✅ Tous les tests sont passés.'
+              : outcome === 'skipped'
+                ? '⚠️ Les tests n\'ont pas été exécutés (une étape précédente a échoué).'
+                : '❌ Des tests ont échoué.';
 
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              body: [
+                '## Tests E2E',
+                '',
+                `- ${status}`,
+                `- [Voir le rapport détaillé](${run})`,
+              ].join('\n'),
             });
