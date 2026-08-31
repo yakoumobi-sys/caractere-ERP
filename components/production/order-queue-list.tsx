@@ -7,11 +7,23 @@ import { formatSince } from "@/lib/utils";
 
 export async function OrderQueueList({ statuses }: { statuses: OrderStatus[] }) {
   const supabase = createClient();
-  const { data: orders } = await supabase
+  const { data: orders, error } = await supabase
     .from("pipeline_orders_view")
     .select("*, pipeline_order_items(product_name,color,size,quantity), pipeline_order_prints(placement,size_cm,text_content)")
     .in("status", statuses)
     .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Erreur lors du chargement de la file:", error);
+    return (
+      <Card className="p-4">
+        <div className="text-center text-red-600">
+          <p className="font-semibold">Impossible de charger la liste</p>
+          <p className="text-sm text-slate-500 mt-1">{error.message}</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!orders || orders.length === 0) {
     return (
