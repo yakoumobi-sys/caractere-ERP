@@ -273,41 +273,30 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   const supabase = createClient();
   let nextStatus: OrderStatus = def.next;
 
-  console.log(`🔄 Advancing order ${orderId} from ${fromStatus} (default next: ${def.next})`);
-
   // Une impression DTF marquée "requires_flocage" part en file Flocage au
   // lieu de passer directement "prête" — voir la case à cocher du
   // configurateur (Étape 3, technique DTF).
   if (fromStatus === "impression_dtf") {
-    console.log(`🔍 Checking requires_flocage for ${orderId}`);
     const { data: order, error: orderError } = await supabase
       .from("pipeline_orders")
       .select("requires_flocage")
       .eq("id", orderId)
       .maybeSingle();
 
-    console.log(`📦 Query result:`, { order, orderError });
-
     if (orderError) {
       throw new Error(`Erreur lors de la recherche de la commande: ${orderError.message}`);
     }
 
-    if (order && order.requires_flocage) {
-      console.log(`✅ requires_flocage is TRUE, changing to attente_flocage`);
+    if (order?.requires_flocage) {
       nextStatus = "attente_flocage";
-    } else {
-      console.log(`❌ requires_flocage is FALSE or order is null:`, { order });
     }
   }
-
-  console.log(`✍️ Updating order with status: ${nextStatus}`);
 
   const payload: Record<string, unknown> = { status: nextStatus };
   // On repart d'un atelier "vierge" en changeant de file (DTF -> Flocage) :
   // libérer l'assignation précédente pour que l'équipe Flocage la reprenne.
   if (nextStatus === "attente_flocage") {
     payload.assigned_to = null;
-    console.log(`🔓 Clearing assigned_to for flocage queue`);
   } else if (!currentAssignee) {
     const employeeId = await currentEmployeeId();
     if (employeeId) payload.assigned_to = employeeId;
@@ -317,8 +306,6 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
   if (error) {
     throw new Error(`Erreur lors de la mise à jour du statut: ${error.message}`);
   }
-
-  console.log(`✅ Order ${orderId} successfully updated to ${nextStatus}`);
 
   revalidatePath("/production", "layout");
   revalidatePath("/dashboard", "layout");
