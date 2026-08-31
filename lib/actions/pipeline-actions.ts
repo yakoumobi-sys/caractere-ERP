@@ -23,49 +23,68 @@ interface PrintInput {
 /**
  * Synchronise les articles d'une commande vers la base de produits.
  * Ajoute automatiquement les nouveaux produits s'ils n'existent pas.
+ *
+ * PERF OPTIMISÉE: Utilise batch queries au lieu de boucles N+1.
+ * Avant: 10 articles = 10+ requêtes
+ * Après: 10 articles = 1-2 requêtes
  */
 async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
-  for (const item of items) {
-    if (!item.product_name?.trim()) continue;
+  const validItems = items.filter((it) => it.product_name?.trim());
+  if (validItems.length === 0) return;
 
-    try {
-      const productName = item.product_name.trim();
-      // Générer un SKU unique basé sur le nom du produit
-      const sku = `AUTO-${productName.toLowerCase().replace(/\s+/g, "-").slice(0, 20)}-${Date.now()}`;
+  try {
+    const productNames = validItems.map((it) => it.product_name.trim());
 
-      // Vérifier si le produit existe déjà
-      const { data: existing, error: checkError } = await supabase
-        .from("products")
-        .select("id")
-        .eq("name", productName)
-        .maybeSingle();
+    // ✅ BATCH QUERY #1: Récupérer tous les produits existants en une seule requête
+    const { data: existingProducts, error: selectError } = await supabase
+      .from("products")
+      .select("id, name")
+      .in("name", productNames);
 
-      if (checkError) {
-        console.error(`Erreur lors de la recherche du produit "${productName}":`, checkError);
-        continue;
-      }
+    if (selectError) {
+      console.error("Erreur lors de la recherche des produits:", selectError);
+      return;
+    }
 
-      if (!existing) {
-        // Créer le produit si c'est nouveau
-        const { error: insertError } = await supabase.from("products").insert({
+    const existingNames = new Set(existingProducts?.map((p) => p.name) ?? []);
+
+    // Déterminer les produits à créer
+    const productsToCreate = validItems
+      .filter((it) => !existingNames.has(it.product_name.trim()))
+      .map((it, idx) => {
+        const productName = it.product_name.trim();
+        const sku = `AUTO-${productName
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .slice(0, 20)}-${Date.now()}-${idx}`;
+
+        return {
           name: productName,
-          sku: sku,
+          sku,
           unit: "unité",
           sale_price: 0,
           purchase_cost: 0,
           tax_rate: 20,
           track_inventory: true,
           is_active: true,
-        });
+        };
+      });
 
-        if (insertError) {
-          console.error(`Erreur lors de la création du produit "${productName}":`, insertError);
-        }
+    // ✅ BATCH QUERY #2: Insérer tous les nouveaux produits en une seule requête
+    if (productsToCreate.length > 0) {
+      const { error: insertError } = await supabase
+        .from("products")
+        .insert(productsToCreate);
+
+      if (insertError) {
+        console.error("Erreur lors de la création des produits:", insertError);
+      } else {
+        console.log(`✅ ${productsToCreate.length} produits créés automatiquement`);
       }
-    } catch (err) {
-      console.error("Erreur inattendue lors de la synchronisation du produit:", err);
-      // Ne pas lever l'erreur pour ne pas bloquer la création de la commande
     }
+  } catch (err) {
+    console.error("Erreur inattendue lors de la synchronisation des produits:", err);
+    // Ne pas lever l'erreur pour ne pas bloquer la création de la commande
   }
 }
 

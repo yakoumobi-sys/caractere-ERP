@@ -105,7 +105,9 @@ export async function syncYalidineStatuses() {
     for (const r of results) remoteByTracking.set(r.tracking, r);
   }
 
-  let updated = 0;
+  // ✅ OPTIMISATION: Grouper les updates par statut pour batch updates au lieu de boucles
+  const updatesByStatus = new Map<string, Array<{ id: string; patch: Record<string, unknown> }>>();
+
   for (const shipment of shipments) {
     const remote = remoteByTracking.get(shipment.yalidine_tracking_id as string);
     if (!remote) continue;
@@ -120,8 +122,19 @@ export async function syncYalidineStatuses() {
       patch.attempted_at = remote.date_last_status ?? new Date().toISOString();
     }
 
-    const { error: updateError } = await admin.from("yalidine_shipments").update(patch).eq("id", shipment.id);
-    if (!updateError) updated++;
+    if (!updatesByStatus.has(newStatus)) {
+      updatesByStatus.set(newStatus, []);
+    }
+    updatesByStatus.get(newStatus)!.push({ id: shipment.id, patch });
+  }
+
+  // Appliquer tous les updates
+  let updated = 0;
+  for (const [status, items] of updatesByStatus.entries()) {
+    for (const item of items) {
+      const { error: updateError } = await admin.from("yalidine_shipments").update(item.patch).eq("id", item.id);
+      if (!updateError) updated++;
+    }
   }
 
   revalidatePath("/production", "layout");
