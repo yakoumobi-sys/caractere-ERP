@@ -3,36 +3,47 @@
 --
 -- La migration 0028 a créé requires_flocage_v2 mais le code TypeScript utilise
 -- requires_flocage. La migration 0025 avait ajouté requires_flocage à la vue
--- sans jamais créer la colonne. Cette migration corrige en renommant
--- requires_flocage_v2 en requires_flocage.
+-- sans jamais créer la colonne. Cette migration corrige le problème en:
+-- 1. Renommant requires_flocage_v2 en requires_flocage si elle existe
+-- 2. Créant requires_flocage si aucune des deux n'existe
+-- 3. Mettant à jour la vue pour utiliser la bonne colonne
 -- ============================================================================
 
--- 1. Renommer la colonne si elle existe (avec gestion de l'idempotence)
+-- 1. Gérer le renommage/création de la colonne de manière idempotente
 do $$
+declare
+  has_v2 boolean;
+  has_regular boolean;
 begin
-  -- Vérifier si requires_flocage_v2 existe et la renommer
-  if exists (
+  -- Vérifier l'existence des colonnes
+  has_v2 := exists (
     select 1 from information_schema.columns
     where table_schema = 'public'
     and table_name = 'pipeline_orders'
     and column_name = 'requires_flocage_v2'
-  ) then
-    alter table public.pipeline_orders rename column requires_flocage_v2 to requires_flocage;
-    raise notice 'Column requires_flocage_v2 renamed to requires_flocage';
-  elsif exists (
+  );
+
+  has_regular := exists (
     select 1 from information_schema.columns
     where table_schema = 'public'
     and table_name = 'pipeline_orders'
     and column_name = 'requires_flocage'
-  ) then
-    raise notice 'Column requires_flocage already exists, skipping rename';
-  else
-    raise notice 'Neither requires_flocage nor requires_flocage_v2 found, adding requires_flocage';
+  );
+
+  if has_v2 and not has_regular then
+    -- Renommer requires_flocage_v2 en requires_flocage
+    alter table public.pipeline_orders rename column requires_flocage_v2 to requires_flocage;
+    raise notice 'Renamed requires_flocage_v2 to requires_flocage';
+  elsif not has_regular then
+    -- Créer requires_flocage si elle n'existe pas
     alter table public.pipeline_orders add column requires_flocage boolean default true;
+    raise notice 'Created requires_flocage column';
+  else
+    raise notice 'requires_flocage column already exists';
   end if;
 end $$;
 
--- 2. S'assurer que la vue inclut bien le champ
+-- 2. Mettre à jour la vue pour inclure la colonne requires_flocage
 create or replace view public.pipeline_orders_view as
 select
   po.id,
@@ -57,7 +68,7 @@ select
   (select max(l.created_at)
      from pipeline_stage_log l
     where l.pipeline_order_id = po.id and l.status = po.status) as status_since,
-  po.requires_flocage
+  coalesce(po.requires_flocage, true) as requires_flocage
 from pipeline_orders po
   left join contacts c on c.id = po.contact_id
   left join employees e on e.id = po.assigned_to;
