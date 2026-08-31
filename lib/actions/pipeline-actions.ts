@@ -46,11 +46,21 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
       return;
     }
 
-    const existingNames = new Set(existingProducts?.map((p: { id: string; name: string }) => p.name) ?? []);
+    const existingNames = new Set(
+      existingProducts?.map((p: { id: string; name: string }) => p.name.trim().toLowerCase()) ?? []
+    );
 
-    // Déterminer les produits à créer
+    // Un seul produit par nom, même si la commande contient plusieurs lignes du
+    // même article : l'ancienne version créait un doublon par ligne (cinq
+    // « TSHIRT » identiques pour une commande de cinq t-shirts).
+    const seen = new Set<string>();
     const productsToCreate = validItems
-      .filter((it) => !existingNames.has(it.product_name.trim()))
+      .filter((it) => {
+        const key = it.product_name.trim().toLowerCase();
+        if (existingNames.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .map((it, idx) => {
         const productName = it.product_name.trim();
         const sku = `AUTO-${productName
@@ -134,6 +144,14 @@ export async function createPipelineOrder(formData: FormData) {
   if (!contact_id) throw new Error("Le client est requis.");
   if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
 
+  // Les articles sont validés AVANT d'écrire quoi que ce soit : la commande
+  // était auparavant insérée en premier, si bien qu'un formulaire soumis sans
+  // article (le clavier mobile envoie « entrée » = submit) créait une commande
+  // vide, impossible à traiter en atelier.
+  const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
+  const validItems = items.filter((it) => it.product_name?.trim());
+  if (validItems.length === 0) throw new Error("Ajoutez au moins un article à la commande.");
+
   const { data: order, error } = await supabase
     .from("pipeline_orders")
     .insert({
@@ -155,24 +173,23 @@ export async function createPipelineOrder(formData: FormData) {
     .single();
   if (error) throw new Error(error.message);
 
-  const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
-  const validItems = items.filter((it) => it.product_name);
-  if (validItems.length > 0) {
-    // Synchroniser les articles vers la base de produits
-    await syncArticlesToProducts(supabase, validItems);
+  await syncArticlesToProducts(supabase, validItems);
 
-    // Créer les items de la commande
-    const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
-      validItems.map((it, i) => ({
-        pipeline_order_id: order.id,
-        product_name: it.product_name,
-        color: it.color || null,
-        size: it.size || null,
-        quantity: Number(it.quantity) || 1,
-        position: i,
-      }))
-    );
-    if (itemsError) throw new Error(`Erreur lors de la création des articles: ${itemsError.message}`);
+  const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
+    validItems.map((it, i) => ({
+      pipeline_order_id: order.id,
+      product_name: it.product_name.trim(),
+      color: it.color?.trim() || null,
+      size: it.size?.trim() || null,
+      quantity: Number(it.quantity) || 1,
+      position: i,
+    }))
+  );
+  if (itemsError) {
+    // Pas de commande orpheline : on annule plutôt que de laisser une ligne
+    // vide en production.
+    await supabase.from("pipeline_orders").delete().eq("id", order.id);
+    throw new Error(`Erreur lors de la création des articles: ${itemsError.message}`);
   }
 
   const prints = JSON.parse(String(formData.get("prints_json") ?? "[]")) as PrintInput[];
