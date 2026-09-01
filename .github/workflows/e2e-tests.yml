@@ -50,6 +50,25 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # Sans ces valeurs, le middleware lève « Your project's URL and Key are
+      # required to create a Supabase client » sur chaque requête : l'app ne
+      # répond jamais et « Start app » se contente d'expirer au bout de 60 s,
+      # sans indiquer la cause. On échoue ici, avec le nom de ce qui manque.
+      # Seule la présence est testée, jamais la valeur : rien n'est exposé.
+      - name: Vérifier les secrets requis
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          manquants=""
+          [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || manquants="$manquants NEXT_PUBLIC_SUPABASE_URL"
+          [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || manquants="$manquants NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          if [ -n "$manquants" ]; then
+            echo "::error title=Secrets manquants::$manquants — à renseigner dans Settings > Secrets and variables > Actions. Sans eux l'application ne démarre pas et les tests ne peuvent pas s'exécuter."
+            exit 1
+          fi
+          echo "Secrets Supabase présents."
+
       - name: Build Next.js
         run: npm run build
         env:
