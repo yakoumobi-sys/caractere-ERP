@@ -8,6 +8,10 @@ import { createYalidineParcel } from "@/lib/yalidine";
 import { recordInitialPayment } from "@/lib/actions/payment-actions";
 
 interface ItemInput {
+  /** Fiche catalogue choisie dans le configurateur. Le nom reste enregistré à
+   *  côté : la commande garde trace de ce qui a été vendu même si la fiche est
+   *  renommée ou retirée par la suite. */
+  product_id?: string;
   product_name: string;
   color: string;
   size: string;
@@ -178,6 +182,7 @@ export async function createPipelineOrder(formData: FormData) {
   const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
     validItems.map((it, i) => ({
       pipeline_order_id: order.id,
+      product_id: it.product_id || null,
       product_name: it.product_name.trim(),
       color: it.color?.trim() || null,
       size: it.size?.trim() || null,

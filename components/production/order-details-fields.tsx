@@ -5,6 +5,7 @@ import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
 import { ArticlePicker, type ArticleRow } from "./article-picker";
+import type { CatalogProduct } from "@/lib/actions/catalog-actions";
 import { SmartClientSelector } from "./smart-client-selector";
 
 interface ContactOption {
@@ -35,13 +36,15 @@ export function OrderDetailsFields({
   sizes: initialSizes,
 }: {
   contacts: ContactOption[];
-  products: string[];
+  products: CatalogProduct[];
   colors: string[];
   sizes: string[];
 }) {
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedContactId, setSelectedContactId] = useState("");
-  const [items, setItems] = useState<ArticleRow[]>([{ product_name: "", color: "", size: "", quantity: 1 }]);
+  const [items, setItems] = useState<ArticleRow[]>([
+    { product_id: "", product_name: "", color: "", size: "", quantity: 1 },
+  ]);
   // Les listes vivent ici pour qu'un ajout au catalogue depuis une ligne
   // profite immédiatement aux autres lignes de la même commande.
   const [products, setProducts] = useState(initialProducts);
@@ -67,6 +70,10 @@ export function OrderDetailsFields({
 
   function addOnce(list: string[], value: string) {
     return list.some((v) => v.toLowerCase() === value.toLowerCase()) ? list : [...list, value];
+  }
+
+  function addProductOnce(list: CatalogProduct[], product: CatalogProduct) {
+    return list.some((p) => p.id === product.id) ? list : [...list, product];
   }
 
   const filledItems = items.filter((it) => it.product_name.trim());
@@ -193,7 +200,7 @@ export function OrderDetailsFields({
               sizes={sizes}
               onChange={(patch) => updateItem(i, patch)}
               onRemove={items.length > 1 ? () => setItems((prev) => prev.filter((_, idx) => idx !== i)) : undefined}
-              onProductCreated={(name) => setProducts((prev) => addOnce(prev, name))}
+              onProductCreated={(product) => setProducts((prev) => addProductOnce(prev, product))}
               onColorCreated={(color) => setColors((prev) => addOnce(prev, color))}
               onSizeCreated={(size) => setSizes((prev) => addOnce(prev, size))}
             />
@@ -202,7 +209,9 @@ export function OrderDetailsFields({
 
         <button
           type="button"
-          onClick={() => setItems((prev) => [...prev, { product_name: "", color: "", size: "", quantity: 1 }])}
+          onClick={() =>
+            setItems((prev) => [...prev, { product_id: "", product_name: "", color: "", size: "", quantity: 1 }])
+          }
           className="mt-3 w-full rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-600 dark:text-slate-300"
         >
           + Ajouter un article
