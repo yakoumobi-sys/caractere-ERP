@@ -1,0 +1,51 @@
+name: Migrations base de données
+
+# Le code partait en production à chaque merge, le schéma non : c'est ce
+# décalage qui a laissé la file DTF interroger une colonne inexistante et la
+# page Présences une table jamais créée. Les migrations suivent désormais le
+# même chemin que le code.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Deux merges rapprochés ne doivent pas migrer en même temps.
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Sans cette vérification, l'absence du secret se traduirait par une
+      # erreur de connexion obscure plutôt que par la cause réelle.
+      - name: Vérifier le secret de connexion
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error title=DATABASE_URL manquant::À renseigner dans Settings > Secrets and variables > Actions, depuis Supabase : Settings > Database > Connection string (URI). Sans lui, le schéma ne suit pas le code."
+            exit 1
+          fi
+          echo "Secret présent."
+
+      - name: Appliquer les migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate

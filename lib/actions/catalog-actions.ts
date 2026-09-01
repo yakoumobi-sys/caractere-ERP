@@ -7,6 +7,16 @@ export interface CatalogResult {
   error?: string;
 }
 
+export interface CatalogProduct {
+  id: string;
+  name: string;
+}
+
+export interface ProductResult {
+  product?: CatalogProduct;
+  error?: string;
+}
+
 /** Slug ASCII simple pour construire un SKU lisible à partir du nom saisi. */
 function skuFrom(name: string) {
   return (
@@ -26,15 +36,15 @@ function skuFrom(name: string) {
  * différence de l'ancien comportement qui en fabriquait un par ligne saisie et
  * remplissait le stock de doublons (« TSHIRT » ×5, « Tshirr »...).
  */
-export async function createCatalogProduct(rawName: string): Promise<CatalogResult> {
+export async function createCatalogProduct(rawName: string): Promise<ProductResult> {
   const name = rawName.trim();
   if (!name) return { error: "Le nom de l'article est requis." };
 
   const supabase = createClient();
 
   // Déjà au catalogue (à la casse près) : on réutilise au lieu de dupliquer.
-  const { data: existing } = await supabase.from("products").select("name").ilike("name", name).limit(1);
-  if (existing && existing.length > 0) return { value: existing[0].name };
+  const { data: existing } = await supabase.from("products").select("id, name").ilike("name", name).limit(1);
+  if (existing && existing.length > 0) return { product: existing[0] as CatalogProduct };
 
   const base = skuFrom(name);
   const { data: taken } = await supabase.from("products").select("sku").like("sku", `${base}%`);
@@ -42,19 +52,23 @@ export async function createCatalogProduct(rawName: string): Promise<CatalogResu
   let sku = base;
   for (let i = 2; used.has(sku); i++) sku = `${base}-${i}`;
 
-  const { error } = await supabase.from("products").insert({
-    name,
-    sku,
-    unit: "unité",
-    sale_price: 0,
-    purchase_cost: 0,
-    tax_rate: 20,
-    track_inventory: true,
-    is_active: true,
-  });
-  if (error) return { error: `Impossible de créer l'article : ${error.message}` };
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert({
+      name,
+      sku,
+      unit: "unité",
+      sale_price: 0,
+      purchase_cost: 0,
+      tax_rate: 20,
+      track_inventory: true,
+      is_active: true,
+    })
+    .select("id, name")
+    .single();
+  if (error || !created) return { error: `Impossible de créer l'article : ${error?.message ?? "erreur inconnue"}` };
 
-  return { value: name };
+  return { product: created as CatalogProduct };
 }
 
 export async function createCatalogColor(rawColor: string): Promise<CatalogResult> {

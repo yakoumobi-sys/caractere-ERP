@@ -1,11 +1,19 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { createCatalogColor, createCatalogProduct, createCatalogSize } from "@/lib/actions/catalog-actions";
+import {
+  createCatalogColor,
+  createCatalogProduct,
+  createCatalogSize,
+  type CatalogProduct,
+} from "@/lib/actions/catalog-actions";
 import { inputClass } from "@/components/ui";
 import { cx } from "@/lib/utils";
 
 export interface ArticleRow {
+  /** Lien vers la fiche catalogue ; le nom reste stocké à part pour garder
+   *  trace de ce qui a été vendu si la fiche change plus tard. */
+  product_id: string;
   product_name: string;
   color: string;
   size: string;
@@ -154,10 +162,10 @@ function ProductField({
   onSelect,
   onCreated,
 }: {
-  products: string[];
+  products: CatalogProduct[];
   value: string;
-  onSelect: (name: string) => void;
-  onCreated: (name: string) => void;
+  onSelect: (product: CatalogProduct) => void;
+  onCreated: (product: CatalogProduct) => void;
 }) {
   const [open, setOpen] = useState(!value);
   const [query, setQuery] = useState("");
@@ -167,10 +175,10 @@ function ProductField({
   const needle = query.trim().toLowerCase();
   const results = useMemo(() => {
     if (!needle) return products.slice(0, 6);
-    return products.filter((p) => p.toLowerCase().includes(needle)).slice(0, 6);
+    return products.filter((p) => p.name.toLowerCase().includes(needle)).slice(0, 6);
   }, [products, needle]);
 
-  const alreadyExists = products.some((p) => p.toLowerCase() === needle);
+  const alreadyExists = products.some((p) => p.name.toLowerCase() === needle);
 
   function create() {
     const name = query.trim();
@@ -178,12 +186,12 @@ function ProductField({
     setError(null);
     startTransition(async () => {
       const result = await createCatalogProduct(name);
-      if (result.error || !result.value) {
+      if (result.error || !result.product) {
         setError(result.error ?? "Création impossible.");
         return;
       }
-      onCreated(result.value);
-      onSelect(result.value);
+      onCreated(result.product);
+      onSelect(result.product);
       setQuery("");
       setOpen(false);
     });
@@ -231,17 +239,17 @@ function ProductField({
       />
 
       <div className="mt-2 flex flex-col gap-1">
-        {results.map((name) => (
+        {results.map((product) => (
           <button
-            key={name}
+            key={product.id}
             type="button"
             onClick={() => {
-              onSelect(name);
+              onSelect(product);
               setOpen(false);
             }}
             className="rounded-lg px-3 py-2.5 text-left text-sm text-slate-800 hover:bg-indigo-50 dark:text-slate-100 dark:hover:bg-slate-700"
           >
-            {name}
+            {product.name}
           </button>
         ))}
 
@@ -280,12 +288,12 @@ export function ArticlePicker({
 }: {
   index: number;
   value: ArticleRow;
-  products: string[];
+  products: CatalogProduct[];
   colors: string[];
   sizes: string[];
   onChange: (patch: Partial<ArticleRow>) => void;
   onRemove?: () => void;
-  onProductCreated: (name: string) => void;
+  onProductCreated: (product: CatalogProduct) => void;
   onColorCreated: (color: string) => void;
   onSizeCreated: (size: string) => void;
 }) {
@@ -306,7 +314,7 @@ export function ArticlePicker({
         <ProductField
           products={products}
           value={value.product_name}
-          onSelect={(name) => onChange({ product_name: name })}
+          onSelect={(product) => onChange({ product_id: product.id, product_name: product.name })}
           onCreated={onProductCreated}
         />
 
