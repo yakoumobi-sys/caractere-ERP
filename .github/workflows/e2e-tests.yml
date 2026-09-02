@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 # Le job commente la pull request et publie un rapport de tests : sans ces
 # droits explicites, le GITHUB_TOKEN est en lecture seule sur les dépôts
