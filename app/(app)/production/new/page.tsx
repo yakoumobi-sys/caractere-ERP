@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { createPipelineOrder } from "@/lib/actions/pipeline-actions";
-import { OrderDetailsFields } from "@/components/production/order-details-fields";
-import { Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
+import { NewOrderForm } from "@/components/production/new-order-form";
+import { PageHeader } from "@/components/ui";
 
 /** Un seul article par nom : si des doublons de casse réapparaissent au
  *  catalogue, la liste du comptoir reste lisible. */
@@ -31,26 +30,12 @@ export default async function Page() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Nouvelle commande" description="Configurateur — Client, Article, Impression" />
-      <form action={createPipelineOrder} className="flex flex-col gap-6">
-        <OrderDetailsFields
-          contacts={(contacts as any) ?? []}
-          products={uniqueProducts(products)}
-          colors={(colors ?? []).map((c: { color: string }) => c.color)}
-          sizes={(sizes ?? []).map((s: { size: string }) => s.size)}
-        />
-
-        <Card className="p-6">
-          <Field label="Note (optionnel)" htmlFor="description">
-            <textarea id="description" name="description" rows={2} className={inputClass} />
-          </Field>
-        </Card>
-
-        <div>
-          <Button type="submit" className="w-full sm:w-auto text-base px-6 py-3">
-            Créer la commande
-          </Button>
-        </div>
-      </form>
+      <NewOrderForm
+        contacts={(contacts as { id: string; name: string }[]) ?? []}
+        products={uniqueProducts(products)}
+        colors={(colors ?? []).map((c: { color: string }) => c.color)}
+        sizes={(sizes ?? []).map((s: { size: string }) => s.size)}
+      />
     </div>
   );
 }

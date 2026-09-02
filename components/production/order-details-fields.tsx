@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
@@ -34,14 +34,20 @@ export function OrderDetailsFields({
   products: initialProducts,
   colors: initialColors,
   sizes: initialSizes,
+  onMissingChange,
 }: {
   contacts: ContactOption[];
   products: CatalogProduct[];
   colors: string[];
   sizes: string[];
+  /** Ce qu'il manque encore pour que la commande puisse partir (client,
+   *  article…). Le bouton d'envoi s'appuie dessus : mieux vaut l'empêcher
+   *  d'être cliqué que de faire perdre la saisie côté serveur. */
+  onMissingChange?: (missing: string[]) => void;
 }) {
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [newClientName, setNewClientName] = useState("");
   const [items, setItems] = useState<ArticleRow[]>([
     { product_id: "", product_name: "", color: "", size: "", quantity: 1 },
   ]);
@@ -77,6 +83,16 @@ export function OrderDetailsFields({
   }
 
   const filledItems = items.filter((it) => it.product_name.trim());
+
+  const missing = useMemo(() => {
+    const m: string[] = [];
+    if (clientMode === "existing" ? !selectedContactId : !newClientName.trim()) m.push("un client");
+    if (filledItems.length === 0) m.push("au moins un article");
+    return m;
+  }, [clientMode, selectedContactId, newClientName, filledItems.length]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => onMissingChange?.(missing), [missing.join("|")]);
 
   return (
     // Le clavier des téléphones envoie « entrée » comme validation : sans ce
@@ -123,7 +139,14 @@ export function OrderDetailsFields({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Nom" htmlFor="client_new_name" required>
-              <input id="client_new_name" name="client_new_name" required={clientMode === "new"} className={inputClass} />
+              <input
+                id="client_new_name"
+                name="client_new_name"
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                required={clientMode === "new"}
+                className={inputClass}
+              />
             </Field>
             <Field label="Téléphone" htmlFor="client_new_phone">
               <input id="client_new_phone" name="client_new_phone" type="tel" className={inputClass} />
@@ -163,7 +186,7 @@ export function OrderDetailsFields({
                 <select id="yalidine_wilaya" name="yalidine_wilaya" required={useYalidine} className={inputClass}>
                   <option value="">{wilayas.length === 0 ? "Chargement…" : "— Sélectionner —"}</option>
                   {wilayas.map((w) => (
-                    <option key={w.id} value={w.name}>
+                    <option key={w.id} value={w.id}>
                       {w.name}
                     </option>
                   ))}

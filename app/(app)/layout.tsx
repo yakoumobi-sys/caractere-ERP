@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { Topbar } from "@/components/topbar";
 import { getCompanyInfo } from "@/lib/company";
+import { AccountStatusBanner } from "@/components/account-status-banner";
 
 // getCompanyInfo() n'utilise plus cookies() (client service role + cache) —
 // sans ce garde-fou explicite, Next.js pourrait essayer de générer cette
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell topbar={<Topbar />} logoUrl={company.logoUrl} companyName={company.name}>
+      <AccountStatusBanner />
       {children}
     </AppShell>
   );
