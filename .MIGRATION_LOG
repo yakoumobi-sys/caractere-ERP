@@ -1,0 +1,16 @@
+# Database Migration Log
+
+## Latest Run
+- Triggered: 2026-09-02 17:06 UTC
+- DATABASE_URL: Corrected to Session mode (port 5432)
+- Migrations: 35 total in supabase/migrations/
+- Expected: All migrations should apply successfully
+
+## Previous Issues
+1. Run #5 failed with incorrect DATABASE_URL (Transaction mode, port 6543)
+2. Now using correct Session mode connection string
+
+## Next Steps
+1. Push this file to trigger workflow
+2. Monitor GitHub Actions for db-migrate run #6
+3. Verify E2E tests pass once migrations complete
