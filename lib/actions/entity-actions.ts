@@ -81,6 +81,16 @@ export async function deleteEntity(table: string, basePath: string, id: string) 
 
   const supabase = createClient();
   const { error } = await supabase.from(table).delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Lever l'erreur remplaçait la liste par l'écran d'erreur générique de
+    // Next.js (en production le message est même masqué). Cas le plus
+    // fréquent en prod : supprimer un client qui a des commandes (8 fois en
+    // une semaine). On revient sur la liste avec l'explication.
+    const message =
+      error.code === "23503"
+        ? "Suppression impossible : cet élément est encore utilisé (commandes, factures ou lignes liées). Supprimez ou réaffectez d'abord ce qui en dépend."
+        : error.message;
+    redirect(`${basePath}?error=${encodeURIComponent(message)}`);
+  }
   revalidatePath(basePath);
 }

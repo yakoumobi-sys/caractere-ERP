@@ -7,6 +7,13 @@ export function canWrite(role: UserRole | undefined) {
   return !!role && role !== "readonly";
 }
 
+/** Rôles autorisés à encaisser — miroir de la policy RLS order_payments_insert (migration 0030). */
+export const PAYMENT_ROLES: UserRole[] = ["admin", "manager", "sales"];
+
+export function canRecordPayments(role: UserRole | undefined | null) {
+  return !!role && (PAYMENT_ROLES as string[]).includes(role);
+}
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrateur",
   manager: "Manager",

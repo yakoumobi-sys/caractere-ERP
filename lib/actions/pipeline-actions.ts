@@ -33,7 +33,11 @@ interface PrintInput {
  * Après: 10 articles = 1-2 requêtes
  */
 async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
-  const validItems = items.filter((it) => it.product_name?.trim());
+  // Les lignes choisies au catalogue portent déjà leur product_id : seules
+  // les lignes saisies "hors catalogue" (ex. webhook du site, ancien
+  // formulaire) ont encore besoin d'une fiche produit — sinon on recréait
+  // un doublon "AUTO-…" d'un article qui existe déjà sous une autre casse.
+  const validItems = items.filter((it) => it.product_name?.trim() && !it.product_id);
   if (validItems.length === 0) return;
 
   try {

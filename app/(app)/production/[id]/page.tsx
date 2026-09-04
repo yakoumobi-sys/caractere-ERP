@@ -17,14 +17,28 @@ import { OrderTasks } from "@/components/production/order-tasks";
 import { YalidineShipmentPanel } from "@/components/production/yalidine-shipment-panel";
 import { OrderColorBadge, OrderColorCard } from "@/components/production/order-color-badge";
 import { SMSSender } from "@/components/production/sms-sender";
+import { OrderPaymentPanel } from "@/components/production/order-payment-panel";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { getCurrentProfile } from "@/lib/auth";
+import { canRecordPayments } from "@/lib/roles";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const [{ data: order, error }, { data: employees }, { data: history }, { data: items }, { data: prints }, { data: files }, { data: shipment }] =
-    await Promise.all([
+  const [
+    { data: order, error },
+    { data: employees },
+    { data: history },
+    { data: items },
+    { data: prints },
+    { data: files },
+    { data: shipment },
+    { data: money },
+    { data: payments },
+    profile,
+  ] = await Promise.all([
       supabase
         .from("pipeline_orders_view")
         .select(
@@ -48,6 +62,13 @@ export default async function Page({ params }: { params: { id: string } }) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase.from("pipeline_orders").select("order_total, payment_status").eq("id", params.id).maybeSingle(),
+      supabase
+        .from("order_payments")
+        .select("id, amount, payment_method, notes, created_at")
+        .eq("pipeline_order_id", params.id)
+        .order("created_at", { ascending: false }),
+      getCurrentProfile(),
     ]);
 
   if (error) {
@@ -108,9 +129,11 @@ export default async function Page({ params }: { params: { id: string } }) {
           </p>
         </div>
         <form action={remove}>
-          <Button type="submit" variant="danger">
+          <ConfirmSubmitButton
+            message={`Supprimer définitivement la commande ${order.number ?? ""} ? Ses articles, fichiers et paiements seront perdus.`}
+          >
             Supprimer
-          </Button>
+          </ConfirmSubmitButton>
         </form>
       </div>
 
@@ -168,6 +191,13 @@ export default async function Page({ params }: { params: { id: string } }) {
       <div className="mb-6">
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
+
+      <OrderPaymentPanel
+        orderId={order.id}
+        orderTotal={money?.order_total === null || money?.order_total === undefined ? null : Number(money.order_total)}
+        payments={(payments as any) ?? []}
+        canRecord={canRecordPayments(profile?.role)}
+      />
 
       {/* Le colis Yalidine est en général créé dès la commande (choix fait au
           configurateur) — ce panneau affiche alors juste son statut, quel

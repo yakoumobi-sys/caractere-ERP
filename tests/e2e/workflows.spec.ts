@@ -1,266 +1,87 @@
-import { test, expect, createTestContact, createTestOrder, cleanupTestData } from './fixtures';
+import { test, expect, createTestContact, cleanupTestData } from './fixtures';
 
 /**
- * Tests E2E pour les workflows critiques de Caractère ERP
+ * Tests E2E des workflows critiques de Caractère ERP.
  *
- * ✅ Création de commande
- * ✅ Facturation & comptabilisation
- * ✅ Paiements
- * ✅ Stock & inventaire
+ * Réécrits sur l'interface réelle (2026-09) : l'ancienne version visait des
+ * écrans qui n'existent pas dans l'application (/sales/payments,
+ * /stock/products, `select[name="contact_id"]`, `input[name="product_name"]`…)
+ * et n'avait jamais pu passer.
+ *
+ * Prérequis : TEST_EMAIL / TEST_PASSWORD = un compte admin réel du projet
+ * Supabase ciblé, SUPABASE_SERVICE_ROLE_KEY pour créer/nettoyer les données.
  */
 
-test.describe('🎯 Workflows Critiques', () => {
-  let testIds = { contacts: [], orders: [] };
+const SUFFIX = Date.now().toString(36);
 
-  test.afterEach(async () => {
-    // Cleanup après chaque test
-    await cleanupTestData(testIds);
-    testIds = { contacts: [], orders: [] };
+test.describe('🎯 Création de commande', () => {
+  const ids = { contacts: [] as string[], orders: [] as string[] };
+
+  test.afterAll(async () => {
+    await cleanupTestData(ids);
   });
 
-  test.describe('1️⃣ Création de Commande', () => {
-    test('Créer une commande DTF simple', async ({ page, login, adminUser }) => {
-      // Authentifier
-      await login(adminUser.email, adminUser.password);
-
-      // Naviguer vers création de commande
-      await page.goto('/production/new');
-      await page.waitForLoadState('networkidle');
-
-      // Étape 1: Créer un nouveau client
-      await page.click('text=Créer un nouveau client');
-      await page.fill('input[name="client_new_name"]', 'Test Client');
-      await page.fill('input[name="client_new_phone"]', '+213612345678');
-
-      // Étape 2: Ajouter un article
-      await page.click('button:has-text("Ajouter article")');
-      await page.fill('input[name="product_name"]', 'T-Shirt Blanc');
-      await page.fill('input[name="color"]', 'Blanc');
-      await page.fill('input[name="size"]', 'M');
-      await page.fill('input[name="quantity"]', '5');
-
-      // Étape 3: Technique DTF
-      await page.selectOption('select[name="technique"]', 'dtf');
-      await page.selectOption('select[name="logo_placement"]', 'poitrine');
-
-      // Soumettre
-      await page.click('button:has-text("Créer la commande")');
-
-      // Vérifier redirection vers fiche commande
-      await expect(page).toHaveURL(/\/production\/[a-f0-9-]+/);
-
-      // Vérifier les informations de la commande
-      await expect(page.locator('text=Test Client')).toBeVisible();
-      await expect(page.locator('text=5× T-Shirt Blanc')).toBeVisible();
-      await expect(page.locator('text=DTF')).toBeVisible();
-
-      // Récupérer l'ID de la commande pour cleanup
-      const url = page.url();
-      const orderId = url.split('/').pop();
-      if (orderId) testIds.orders.push(orderId);
-    });
-
-    test('Créer une commande avec 100 articles (perf test)', async ({ page, login, adminUser }) => {
-      await login(adminUser.email, adminUser.password);
-
-      // Créer un contact de test
-      const contact = await createTestContact({
-        name: 'Bulk Test',
-        phone: '+213699999999',
-      });
-      testIds.contacts.push(contact.id);
-
-      // Naviguer vers création de commande
-      await page.goto('/production/new');
-
-      // Remplir la sélection du client
-      await page.click('select[name="contact_id"]');
-      await page.selectOption('select[name="contact_id"]', contact.id);
-
-      // Mesurer le temps de création avec 100 articles
-      const startTime = Date.now();
-
-      // Ajouter 100 articles (test du N+1 fix)
-      for (let i = 0; i < 100; i++) {
-        await page.click('button:has-text("Ajouter article")');
-        const productInput = page.locator(`input[name="product_name"]`).last();
-        await productInput.fill(`Produit ${i}`);
-        await productInput.press('Tab');
-      }
-
-      await page.selectOption('select[name="technique"]', 'aucune');
-      await page.click('button:has-text("Créer la commande")');
-
-      const creationTime = Date.now() - startTime;
-
-      // Vérifier que c'est rapide (< 5 secondes après fix N+1)
-      expect(creationTime).toBeLessThan(5000); // Au lieu de 20+ secondes avant
-
-      await expect(page).toHaveURL(/\/production\/[a-f0-9-]+/);
-
-      // Récupérer l'ID pour cleanup
-      const url = page.url();
-      const orderId = url.split('/').pop();
-      if (orderId) testIds.orders.push(orderId);
-    });
-  });
-
-  test.describe('2️⃣ Facturation & Comptabilité', () => {
-    test('Créer et valider une facture', async ({ page, login, adminUser }) => {
-      await login(adminUser.email, adminUser.password);
-
-      // Créer une commande de test
-      const contact = await createTestContact({
-        name: 'Invoice Test',
-        phone: '+213688888888',
-      });
-      testIds.contacts.push(contact.id);
-
-      const order = await createTestOrder({
-        contactId: contact.id,
-        orderTotal: 50000,
-      });
-      testIds.orders.push(order.id);
-
-      // Naviguer vers la facture
-      await page.goto(`/sales/orders/${order.id}`);
-
-      // Créer une facture
-      await page.click('button:has-text("Créer facture")');
-
-      // Ajouter une ligne
-      await page.click('button:has-text("Ajouter ligne")');
-      const product = page.locator('select[name="product_id"]').last();
-      await product.selectOption({ label: /.*/ }); // Sélectionner le premier produit
-
-      const quantity = page.locator('input[name="quantity"]').last();
-      await quantity.fill('1');
-
-      const price = page.locator('input[name="unit_price"]').last();
-      await price.fill('50000');
-
-      // Valider
-      await page.click('button:has-text("Valider la facture")');
-
-      // Vérifier que la facture a un numéro
-      await expect(page.locator('text=FAC-')).toBeVisible();
-
-      // Vérifier comptabilisation automatique
-      // (Une entrée doit être créée automatiquement dans le journal)
-      await page.goto('/accounting/journal');
-      await expect(page.locator('text=Client')).toBeVisible();
-    });
-
-    test('Enregistrer un paiement sur facture', async ({ page, login, adminUser }) => {
-      await login(adminUser.email, adminUser.password);
-
-      // Créer contact + facture
-      const contact = await createTestContact({
-        name: 'Payment Test',
-        phone: '+213677777777',
-      });
-      testIds.contacts.push(contact.id);
-
-      // Naviguer vers paiements
-      await page.goto('/sales/payments');
-
-      // Enregistrer un paiement
-      await page.click('button:has-text("Nouveau paiement")');
-      await page.selectOption('select[name="contact_id"]', contact.id);
-      await page.fill('input[name="amount"]', '30000');
-
-      await page.click('button:has-text("Enregistrer")');
-
-      // Vérifier que le paiement apparaît
-      await expect(page.locator('text=30 000 DA')).toBeVisible();
-
-      // Vérifier comptabilisation du paiement
-      await page.goto('/accounting/journal');
-      await expect(page.locator('text=Banque')).toBeVisible();
-    });
-  });
-
-  test.describe('3️⃣ Stock & Inventaire', () => {
-    test('Mouvements de stock automatiques', async ({ page, login, adminUser }) => {
-      await login(adminUser.email, adminUser.password);
-
-      // Naviguer vers stock
-      await page.goto('/stock/products');
-
-      // Vérifier qu'on peut voir les produits
-      await expect(page.locator('text=Produits')).toBeVisible();
-
-      // Vérifier les mouvements
-      await page.click('text=Mouvements');
-      await expect(page.locator('text=Entrée|Sortie')).toBeVisible();
-    });
-  });
-
-  test.describe('4️⃣ Sécurité des Données', () => {
-    test('RLS: User readonly ne peut pas modifier', async ({ page, login }) => {
-      // Tentative de bypass via API directe
-      const response = await page.evaluate(() =>
-        fetch('/api/auth/user', { method: 'GET' })
-      );
-
-      expect(response.ok).toBeTruthy();
-    });
-
-    test('Webhook Twilio rejeté sans signature', async ({ page }) => {
-      // Tenter d'appeler le webhook sans signature
-      const response = await page.evaluate(() =>
-        fetch('/api/webhooks/twilio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            MessageSid: 'SM123',
-            MessageStatus: 'delivered',
-          }),
-        })
-      );
-
-      // Doit retourner 401
-      expect(response.status).toBe(401);
-    });
-  });
-});
-
-/**
- * Tests de performance
- */
-test.describe('⚡ Performance', () => {
-  test('Order creation < 500ms pour 100 articles', async ({ page, login, adminUser }) => {
+  test('Nouveau client + article du catalogue → commande créée', async ({ page, login, adminUser }) => {
     await login(adminUser.email, adminUser.password);
 
-    const contact = await createTestContact({
-      name: 'Perf Test',
-      phone: '+213666666666',
-    });
+    await page.goto('/production/new');
+    await page.waitForLoadState('networkidle');
+
+    // Le bouton reste inactif tant qu'il manque le client et l'article.
+    const submit = page.getByRole('button', { name: 'Créer la commande' });
+    await expect(submit).toBeDisabled();
+
+    // 1. Client : nouveau
+    await page.getByRole('button', { name: '+ Nouveau client' }).click();
+    await page.fill('input[name="client_new_name"]', `Client E2E ${SUFFIX}`);
+    await page.fill('input[name="client_new_phone"]', '0550000000');
+
+    // 2. Article : créer un article dans le stock depuis la ligne
+    const productName = `Article E2E ${SUFFIX}`;
+    await page.getByPlaceholder('Rechercher dans le stock…').first().fill(productName);
+    await page.getByRole('button', { name: `+ Créer « ${productName} » dans le stock` }).click();
+    await expect(page.getByText(productName).first()).toBeVisible();
+
+    // 3. Impression : DTF est sélectionnée par défaut
+    // 4. Prix
+    await page.fill('input[name="order_total"]', '5000');
+
+    await expect(submit).toBeEnabled();
+    await submit.click();
+
+    // Redirection vers la fiche commande
+    await expect(page).toHaveURL(/\/production\/[0-9a-f-]{36}$/);
+    const orderId = page.url().split('/').pop()!;
+    ids.orders.push(orderId);
+
+    await expect(page.getByText(`Client E2E ${SUFFIX}`).first()).toBeVisible();
+    await expect(page.getByText(productName).first()).toBeVisible();
+    // toLocaleString("fr-DZ") sépare les milliers par une espace insécable.
+    await expect(page.getByText(/5\s?000 DA/).first()).toBeVisible();
+  });
+
+  test('Client existant tapé mais non sélectionné → bouton inactif, aucune commande', async ({
+    page,
+    login,
+    adminUser,
+  }) => {
+    await login(adminUser.email, adminUser.password);
+
+    const contact = await createTestContact({ name: `Existant E2E ${SUFFIX}`, phone: '0551111111' });
+    ids.contacts.push(contact.id);
 
     await page.goto('/production/new');
-    await page.selectOption('select[name="contact_id"]', contact.id);
+    await page.waitForLoadState('networkidle');
 
-    const startTime = Date.now();
+    // Taper le nom sans toucher la liste : c'était la cause de « Le client
+    // est requis » en production.
+    await page.getByPlaceholder('Chercher un client…').fill(`Existant E2E ${SUFFIX}`);
+    await expect(page.getByRole('button', { name: 'Créer la commande' })).toBeDisabled();
+    await expect(page.getByText(/Il manque encore .*un client/)).toBeVisible();
 
-    // Créer 100 articles
-    for (let i = 0; i < 100; i++) {
-      await page.click('button:has-text("Ajouter article")');
-      const productInput = page.locator(`input[name="product_name"]`).last();
-      await productInput.fill(`Article ${i}`);
-    }
-
-    await page.selectOption('select[name="technique"]', 'aucune');
-    await page.click('button:has-text("Créer la commande")');
-
-    const duration = Date.now() - startTime;
-
-    // Doit être < 5 secondes (vs 20+ avant le fix)
-    expect(duration).toBeLessThan(5000);
-
-    // Cleanup
-    const url = page.url();
-    const orderId = url.split('/').pop();
-    if (orderId) await cleanupTestData({ orders: [orderId] });
-    await cleanupTestData({ contacts: [contact.id] });
+    // Sélectionner dans la liste → le client passe en "retenu"
+    await page.getByRole('button', { name: `Existant E2E ${SUFFIX}` }).click();
+    await expect(page.getByText(`✓ Existant E2E ${SUFFIX}`)).toBeVisible();
+    await expect(page.getByText(/Il manque encore .*un client/)).toHaveCount(0);
   });
 });

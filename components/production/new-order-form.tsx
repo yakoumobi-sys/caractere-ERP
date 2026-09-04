@@ -25,11 +25,13 @@ export function NewOrderForm({
   products,
   colors,
   sizes,
+  canRecordPayments,
 }: {
   contacts: { id: string; name: string }[];
   products: CatalogProduct[];
   colors: string[];
   sizes: string[];
+  canRecordPayments: boolean;
 }) {
   const [state, formAction] = useFormState(createPipelineOrder, initialState);
   const [missing, setMissing] = useState<string[]>([]);
@@ -51,6 +53,7 @@ export function NewOrderForm({
         colors={colors}
         sizes={sizes}
         onMissingChange={setMissing}
+        canRecordPayments={canRecordPayments}
       />
 
       <Card className="p-6">

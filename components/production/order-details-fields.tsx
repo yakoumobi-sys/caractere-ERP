@@ -35,11 +35,16 @@ export function OrderDetailsFields({
   colors: initialColors,
   sizes: initialSizes,
   onMissingChange,
+  canRecordPayments = false,
 }: {
   contacts: ContactOption[];
   products: CatalogProduct[];
   colors: string[];
   sizes: string[];
+  /** Le versement à la création n'est proposé qu'aux rôles autorisés à
+   *  encaisser (policy order_payments_insert) — sinon il était refusé en
+   *  silence après coup et l'argent encaissé n'apparaissait nulle part. */
+  canRecordPayments?: boolean;
   /** Ce qu'il manque encore pour que la commande puisse partir (client,
    *  article…). Le bouton d'envoi s'appuie dessus : mieux vaut l'empêcher
    *  d'être cliqué que de faire perdre la saisie côté serveur. */
@@ -62,6 +67,8 @@ export function OrderDetailsFields({
   const [useYalidine, setUseYalidine] = useState(false);
   const [wilayas, setWilayas] = useState<{ id: number; name: string }[]>([]);
   const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
+  const [orderTotal, setOrderTotal] = useState("");
+  const [initialPayment, setInitialPayment] = useState("");
 
   useEffect(() => {
     if (!useYalidine || wilayas.length > 0) return;
@@ -84,12 +91,17 @@ export function OrderDetailsFields({
 
   const filledItems = items.filter((it) => it.product_name.trim());
 
+  const totalValue = Number(orderTotal) || 0;
+  const paymentValue = Number(initialPayment) || 0;
+  const paymentExceedsTotal = paymentValue > 0 && totalValue > 0 && paymentValue > totalValue;
+
   const missing = useMemo(() => {
     const m: string[] = [];
     if (clientMode === "existing" ? !selectedContactId : !newClientName.trim()) m.push("un client");
     if (filledItems.length === 0) m.push("au moins un article");
+    if (paymentExceedsTotal) m.push("un versement inférieur ou égal au total");
     return m;
-  }, [clientMode, selectedContactId, newClientName, filledItems.length]);
+  }, [clientMode, selectedContactId, newClientName, filledItems.length, paymentExceedsTotal]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => onMissingChange?.(missing), [missing.join("|")]);
@@ -346,6 +358,57 @@ export function OrderDetailsFields({
           </div>
         ) : (
           <p className="text-sm text-slate-400">Vêtements bruts, sans personnalisation — la commande part directement en préparation.</p>
+        )}
+      </Card>
+
+      {/* 4. Prix & paiement — jusqu'ici aucun écran ne permettait de saisir
+          le montant : page Ventes et tableau de bord restaient à 0 DA. */}
+      <Card className="p-6">
+        <StepLabel n={4} title="Prix & paiement" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Montant total de la commande (DA)" htmlFor="order_total">
+            <input
+              id="order_total"
+              name="order_total"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={orderTotal}
+              onChange={(e) => setOrderTotal(e.target.value)}
+              placeholder="0"
+              className={inputClass}
+            />
+          </Field>
+          {canRecordPayments && (
+            <Field label="Versement encaissé maintenant (DA)" htmlFor="initial_payment">
+              <input
+                id="initial_payment"
+                name="initial_payment"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={initialPayment}
+                onChange={(e) => setInitialPayment(e.target.value)}
+                placeholder="0"
+                className={inputClass}
+              />
+            </Field>
+          )}
+        </div>
+        {paymentExceedsTotal && (
+          <p className="mt-2 text-xs text-red-600 dark:text-red-400">Le versement dépasse le montant total.</p>
+        )}
+        {!canRecordPayments && (
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Le versement se saisit ensuite sur la fiche commande par l&apos;administration ou le commercial.
+          </p>
+        )}
+        {totalValue > 0 && (
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            Reste à payer à la livraison : {Math.max(0, totalValue - paymentValue).toLocaleString("fr-DZ")} DA
+          </p>
         )}
       </Card>
     </div>

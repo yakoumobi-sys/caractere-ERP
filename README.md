@@ -50,9 +50,12 @@ configuration d'écran plutôt qu'à reconstruire l'infrastructure.
 ### 1. Créer le projet Supabase
 
 1. Créer un projet sur [supabase.com](https://supabase.com).
-2. Dans **SQL Editor**, exécuter dans l'ordre les fichiers de `supabase/migrations/` (0001 → 0006),
-   puis `supabase/seed.sql`. Chaque fichier se colle et s'exécute indépendamment (`Run`), dans
-   l'ordre numérique — ne pas sauter de fichier, chacun peut dépendre du précédent.
+2. Appliquer les migrations : `DATABASE_URL=<chaîne Session pooler> npm run db:migrate` (le script
+   `scripts/db-migrate.mjs` tient son registre dans `public.schema_migrations_repo` et n'applique que
+   ce qui manque ; `npm run db:check` liste ce qui n'est pas encore passé). En production, le workflow
+   `db-migrate` le fait à chaque merge sur `main` — il a besoin du secret Actions `DATABASE_URL`, au
+   format Session pooler (`postgresql://postgres.<ref>:<mdp>@aws-0-<région>.pooler.supabase.com:5432/postgres`).
+   Puis exécuter `supabase/seed.sql` dans le SQL Editor.
 3. Dans **Project Settings → API**, récupérer l'URL du projet et la clé `anon public`.
 
 ### 2. Configurer l'application

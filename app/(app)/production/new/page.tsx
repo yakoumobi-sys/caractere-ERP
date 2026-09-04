@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NewOrderForm } from "@/components/production/new-order-form";
+import { getCurrentProfile } from "@/lib/auth";
+import { canRecordPayments } from "@/lib/roles";
 import { PageHeader } from "@/components/ui";
 
 /** Un seul article par nom : si des doublons de casse réapparaissent au
@@ -15,11 +17,12 @@ function uniqueProducts(rows: { id: string; name: string }[] | null) {
 
 export default async function Page() {
   const supabase = createClient();
-  const [{ data: contacts, error }, { data: products }, { data: colors }, { data: sizes }] = await Promise.all([
+  const [{ data: contacts, error }, { data: products }, { data: colors }, { data: sizes }, profile] = await Promise.all([
     supabase.from("contacts").select("id, name").order("name"),
     supabase.from("products").select("id, name").eq("is_active", true),
     supabase.from("product_colors").select("color").order("color"),
     supabase.from("product_sizes").select("size").order("size"),
+    getCurrentProfile(),
   ]);
 
   if (error) {
@@ -35,6 +38,7 @@ export default async function Page() {
         products={uniqueProducts(products)}
         colors={(colors ?? []).map((c: { color: string }) => c.color)}
         sizes={(sizes ?? []).map((s: { size: string }) => s.size)}
+        canRecordPayments={canRecordPayments(profile?.role)}
       />
     </div>
   );
