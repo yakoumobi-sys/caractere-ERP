@@ -19,8 +19,11 @@ interface AuthFixture {
  * Fixture: Authentification admin
  */
 export const test = base.extend<AuthFixture>({
+  // Compte utilisé par les tests. « admin@caractere.com » n'existe sur aucun
+  // projet : renseigner TEST_EMAIL / TEST_PASSWORD (secrets Actions) avec un
+  // compte admin réel du projet Supabase ciblé.
   adminUser: {
-    email: 'admin@caractere.com',
+    email: process.env.TEST_EMAIL || 'admin@caractere.com',
     password: process.env.TEST_PASSWORD || '123456',
   },
 
@@ -72,7 +75,9 @@ export async function createTestContact(data: {
       type: data.type || 'client',
       country: 'Algérie',
     })
-    .select('id, number')
+    // contacts n'a pas de colonne "number" : l'ancien select faisait échouer
+    // la création avant le premier test.
+    .select('id')
     .single();
 
   if (error) throw new Error(`Failed to create contact: ${error.message}`);

@@ -29,12 +29,34 @@ export function UserRow({ user }: { user: { id: string; full_name: string | null
         </select>
       </td>
       <td className="px-4 py-2.5">
+        {/* Désactiver un compte le coupe de TOUT l'ERP : les policies RLS
+            commencent toutes par is_active_user(). Deux employés se sont
+            retrouvés bloqués ainsi, sans que personne ne comprenne pourquoi
+            leurs commandes ne partaient plus — d'où la confirmation. */}
         <button
+          type="button"
           disabled={isPending}
-          onClick={() => startTransition(() => toggleUserActive(user.id, !user.is_active))}
-          className={user.is_active ? "text-emerald-600 text-sm" : "text-slate-400 text-sm"}
+          onClick={() => {
+            if (
+              user.is_active &&
+              !window.confirm(
+                `Désactiver ${user.full_name ?? "ce compte"} ?\n\n` +
+                  "La personne pourra encore se connecter, mais ne verra plus rien et ne pourra " +
+                  "plus créer de commande ni rien enregistrer."
+              )
+            ) {
+              return;
+            }
+            startTransition(() => toggleUserActive(user.id, !user.is_active));
+          }}
+          className={
+            user.is_active
+              ? "rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+              : "rounded-full border border-red-300 bg-red-50 px-3 py-1 text-sm font-medium text-red-700"
+          }
+          title={user.is_active ? "Cliquer pour désactiver l'accès" : "Cliquer pour réactiver l'accès"}
         >
-          {user.is_active ? "Actif" : "Désactivé"}
+          {user.is_active ? "Actif" : "Désactivé — aucun accès"}
         </button>
       </td>
     </tr>

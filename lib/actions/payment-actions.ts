@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { canRecordPayments } from "@/lib/roles";
 
 /**
  * Enregistre un paiement pour une commande
@@ -17,6 +18,9 @@ export async function recordOrderPayment(
   const profile = await getCurrentProfile();
 
   if (!profile?.id) throw new Error("Non authentifié");
+  if (!canRecordPayments(profile.role)) {
+    throw new Error("Seuls les rôles Administrateur, Manager et Ventes peuvent enregistrer un paiement.");
+  }
   if (amount <= 0) throw new Error("Le montant doit être positif");
 
   const { error } = await supabase.from("order_payments").insert({
@@ -93,6 +97,30 @@ export async function getOrderPaymentInfo(orderId: string) {
       isFullyPaid: remaining <= 0,
     },
   };
+}
+
+/**
+ * Fixe (ou corrige) le montant total d'une commande. Le statut de paiement
+ * et le solde client sont recalculés par trigger (migration 0037).
+ */
+export async function setOrderTotal(orderId: string, total: number | null) {
+  const supabase = createClient();
+  const profile = await getCurrentProfile();
+  if (!profile?.id) throw new Error("Non authentifié");
+  if (total !== null && (!Number.isFinite(total) || total < 0)) {
+    throw new Error("Le montant doit être un nombre positif.");
+  }
+
+  const { error } = await supabase
+    .from("pipeline_orders")
+    .update({ order_total: total })
+    .eq("id", orderId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/production/${orderId}`);
+  revalidatePath("/production", "layout");
+  revalidatePath("/sales");
+  revalidatePath("/dashboard", "layout");
 }
 
 /**

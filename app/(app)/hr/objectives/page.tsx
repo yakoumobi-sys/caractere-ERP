@@ -16,7 +16,7 @@ export default async function ObjectivesPage() {
   const { data: currentEmployee } = await supabase
     .from("employees")
     .select("id, first_name, last_name")
-    .eq("auth_user_id", session.user.id)
+    .eq("profile_id", session.user.id)
     .single();
 
   if (!currentEmployee) notFound();

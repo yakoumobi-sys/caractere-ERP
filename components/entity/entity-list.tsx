@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import type { EntityConfig } from "@/lib/entities";
 import { deleteEntity } from "@/lib/actions/entity-actions";
 import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { formatDate } from "@/lib/utils";
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -36,7 +37,14 @@ function renderCell(value: unknown) {
   return String(value);
 }
 
-export async function EntityListPage({ config }: { config: EntityConfig }) {
+export async function EntityListPage({
+  config,
+  errorMessage,
+}: {
+  config: EntityConfig;
+  /** Message renvoyé par une suppression refusée (paramètre ?error= de l'URL). */
+  errorMessage?: string;
+}) {
   const supabase = createClient();
   const profile = await getCurrentProfile();
   const canEdit = canEditTable(config.table, profile?.role);
@@ -53,6 +61,14 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
           <LinkButton href={`${config.basePath}/new`}>+ Nouveau {config.titleSingular.toLowerCase()}</LinkButton>
         }
       />
+      {errorMessage && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200"
+        >
+          {errorMessage}
+        </div>
+      )}
       <Card className="overflow-x-auto">
         {error && <div className="p-4 text-sm text-red-600">{error.message}</div>}
         {!error && (!data || data.length === 0) && (
@@ -88,7 +104,13 @@ export async function EntityListPage({ config }: { config: EntityConfig }) {
                           await deleteEntity(config.table, config.basePath, row.id);
                         }}
                       >
-                        <button className="text-xs text-red-500 dark:text-red-400 hover:underline">Supprimer</button>
+                        <ConfirmSubmitButton
+                          message={`Supprimer définitivement « ${row.name ?? row.title ?? row.number ?? row.code ?? "cet élément"} » ?`}
+                          variant="ghost"
+                          className="text-xs text-red-500 dark:text-red-400 hover:underline px-2 py-1"
+                        >
+                          Supprimer
+                        </ConfirmSubmitButton>
                       </form>
                     )}
                   </td>

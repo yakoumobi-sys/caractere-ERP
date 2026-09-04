@@ -33,7 +33,11 @@ interface PrintInput {
  * Après: 10 articles = 1-2 requêtes
  */
 async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
-  const validItems = items.filter((it) => it.product_name?.trim());
+  // Les lignes choisies au catalogue portent déjà leur product_id : seules
+  // les lignes saisies "hors catalogue" (ex. webhook du site, ancien
+  // formulaire) ont encore besoin d'une fiche produit — sinon on recréait
+  // un doublon "AUTO-…" d'un article qui existe déjà sous une autre casse.
+  const validItems = items.filter((it) => it.product_name?.trim() && !it.product_id);
   if (validItems.length === 0) return;
 
   try {
@@ -102,14 +106,33 @@ async function syncArticlesToProducts(supabase: any, items: ItemInput[]) {
   }
 }
 
-export async function createPipelineOrder(formData: FormData) {
+/** Résultat renvoyé au formulaire : un message d'erreur affichable, ou rien. */
+export interface OrderFormState {
+  error: string | null;
+}
+
+/**
+ * Crée la commande depuis le configurateur.
+ *
+ * Les erreurs sont RENVOYÉES, pas levées : une exception dans une action
+ * serveur remplace la page par l'écran d'erreur de Next.js et fait perdre
+ * toute la saisie — le commercial devait tout retaper, et concluait que
+ * « la commande ne se crée pas ». Ici le formulaire reste à l'écran avec la
+ * raison exacte.
+ */
+export async function createPipelineOrder(
+  _prevState: OrderFormState,
+  formData: FormData
+): Promise<OrderFormState> {
+  let orderId: string;
+
   try {
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    let contact_id = String(formData.get("contact_id") ?? "");
+    let contact_id = String(formData.get("contact_id") ?? "").trim();
     const clientMode = String(formData.get("client_mode") ?? "existing");
     const description = (formData.get("description") as string) || null;
     const technique = String(formData.get("technique") ?? "") as Technique;
@@ -121,153 +144,213 @@ export async function createPipelineOrder(formData: FormData) {
     const orderTotal = Number(formData.get("order_total") ?? 0);
     const initialPayment = Number(formData.get("initial_payment") ?? 0);
 
-    console.log("📝 Creating order with:", { contact_id, technique, clientMode, orderTotal, initialPayment });
+    const useYalidine = formData.get("use_yalidine") === "on";
+    const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
+    const yalidineCommune = String(formData.get("yalidine_commune") ?? "").trim();
+    const yalidineAddress = String(formData.get("yalidine_address") ?? "").trim();
+    const yalidinePrice = Number(formData.get("yalidine_price") ?? 0);
 
-  const useYalidine = formData.get("use_yalidine") === "on";
-  const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
-  const yalidineCommune = String(formData.get("yalidine_commune") ?? "").trim();
-  const yalidineAddress = String(formData.get("yalidine_address") ?? "").trim();
-  const yalidinePrice = Number(formData.get("yalidine_price") ?? 0);
+    // Compte désactivé : toutes les policies RLS commencent par
+    // is_active_user(), l'insertion échouerait plus bas sur un message
+    // technique ("new row violates row-level security policy"). On le dit
+    // franchement, c'est la seule chose que l'employé peut faire remonter.
+    if (!user) return { error: "Session expirée — reconnectez-vous puis réessayez." };
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_active, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile && !profile.is_active) {
+      return {
+        error:
+          "Votre compte est désactivé : vous ne pouvez pas créer de commande. " +
+          "Demandez à l'administrateur de le réactiver (Paramètres > Utilisateurs).",
+      };
+    }
+    if (profile?.role === "readonly") {
+      return {
+        error:
+          "Votre compte est en lecture seule : vous ne pouvez pas créer de commande. " +
+          "Demandez à l'administrateur de vous attribuer un rôle (Paramètres > Utilisateurs).",
+      };
+    }
 
-  if (clientMode === "new") {
-    const name = String(formData.get("client_new_name") ?? "").trim();
-    if (!name) throw new Error("Le nom du nouveau client est requis.");
-    const { data: contact, error: contactError } = await supabase
-      .from("contacts")
+    if (clientMode === "new") {
+      const name = String(formData.get("client_new_name") ?? "").trim();
+      if (!name) return { error: "Le nom du nouveau client est requis." };
+      const { data: contact, error: contactError } = await supabase
+        .from("contacts")
+        .insert({
+          name,
+          phone: (formData.get("client_new_phone") as string) || null,
+          type: (formData.get("client_new_type") as string) || "client",
+        })
+        .select("id")
+        .single();
+      if (contactError) return { error: `Impossible de créer le client : ${contactError.message}` };
+      contact_id = contact.id;
+    }
+
+    if (!contact_id) {
+      return {
+        error:
+          "Aucun client sélectionné. Tapez le nom puis touchez le client dans la liste " +
+          "(le nom saisi ne suffit pas), ou utilisez « + Nouveau client ».",
+      };
+    }
+    if (!["dtf", "broderie", "aucune"].includes(technique)) {
+      return { error: "Le choix d'impression est requis." };
+    }
+
+    // Les articles sont validés AVANT d'écrire quoi que ce soit : la commande
+    // était auparavant insérée en premier, si bien qu'un formulaire soumis sans
+    // article (le clavier mobile envoie « entrée » = submit) créait une commande
+    // vide, impossible à traiter en atelier.
+    let items: ItemInput[];
+    try {
+      items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
+    } catch {
+      items = [];
+    }
+    const validItems = items.filter((it) => it.product_name?.trim());
+    if (validItems.length === 0) {
+      return {
+        error:
+          "Aucun article retenu. Dans l'étape « Articles », touchez l'article dans la liste " +
+          "ou « + Créer … dans le stock » : le texte tapé dans la recherche n'est pas enregistré.",
+      };
+    }
+
+    const { data: order, error } = await supabase
+      .from("pipeline_orders")
       .insert({
-        name,
-        phone: (formData.get("client_new_phone") as string) || null,
-        type: (formData.get("client_new_type") as string) || "client",
+        contact_id,
+        description,
+        technique,
+        logo_placement,
+        logo_placement_note,
+        logo_source,
+        logo_source_value,
+        requires_flocage,
+        order_total: orderTotal > 0 ? orderTotal : null,
+        initial_payment: initialPayment > 0 ? initialPayment : 0,
+        payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
+        status: initialStatus(technique),
+        created_by: user.id,
       })
-      .select("id")
+      .select("id, number")
       .single();
-    if (contactError) throw new Error(contactError.message);
-    contact_id = contact.id;
-  }
+    if (error) return { error: `Impossible de créer la commande : ${error.message}` };
 
-  if (!contact_id) throw new Error("Le client est requis.");
-  if (!["dtf", "broderie", "aucune"].includes(technique)) throw new Error("Le choix d'impression est requis.");
+    await syncArticlesToProducts(supabase, validItems);
 
-  // Les articles sont validés AVANT d'écrire quoi que ce soit : la commande
-  // était auparavant insérée en premier, si bien qu'un formulaire soumis sans
-  // article (le clavier mobile envoie « entrée » = submit) créait une commande
-  // vide, impossible à traiter en atelier.
-  const items = JSON.parse(String(formData.get("items_json") ?? "[]")) as ItemInput[];
-  const validItems = items.filter((it) => it.product_name?.trim());
-  if (validItems.length === 0) throw new Error("Ajoutez au moins un article à la commande.");
-
-  const { data: order, error } = await supabase
-    .from("pipeline_orders")
-    .insert({
-      contact_id,
-      description,
-      technique,
-      logo_placement,
-      logo_placement_note,
-      logo_source,
-      logo_source_value,
-      requires_flocage,
-      order_total: orderTotal > 0 ? orderTotal : null,
-      initial_payment: initialPayment > 0 ? initialPayment : 0,
-      payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
-      status: initialStatus(technique),
-      created_by: user?.id ?? null,
-    })
-    .select("id, number")
-    .single();
-  if (error) throw new Error(error.message);
-
-  await syncArticlesToProducts(supabase, validItems);
-
-  const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
-    validItems.map((it, i) => ({
-      pipeline_order_id: order.id,
-      product_id: it.product_id || null,
-      product_name: it.product_name.trim(),
-      color: it.color?.trim() || null,
-      size: it.size?.trim() || null,
-      quantity: Number(it.quantity) || 1,
-      position: i,
-    }))
-  );
-  if (itemsError) {
-    // Pas de commande orpheline : on annule plutôt que de laisser une ligne
-    // vide en production.
-    await supabase.from("pipeline_orders").delete().eq("id", order.id);
-    throw new Error(`Erreur lors de la création des articles: ${itemsError.message}`);
-  }
-
-  const prints = JSON.parse(String(formData.get("prints_json") ?? "[]")) as PrintInput[];
-  const validPrints = prints.filter((p) => p.placement);
-  if (validPrints.length > 0) {
-    const { error: printsError } = await supabase.from("pipeline_order_prints").insert(
-      validPrints.map((p, i) => ({
+    const { error: itemsError } = await supabase.from("pipeline_order_items").insert(
+      validItems.map((it, i) => ({
         pipeline_order_id: order.id,
-        placement: p.placement,
-        size_cm: p.size_cm || null,
-        text_content: p.text_content || null,
+        product_id: it.product_id || null,
+        product_name: it.product_name.trim(),
+        color: it.color?.trim() || null,
+        size: it.size?.trim() || null,
+        quantity: Number(it.quantity) || 1,
         position: i,
       }))
     );
-    if (printsError) throw new Error(`Erreur lors de la création des impressions: ${printsError.message}`);
-  }
-
-  await uploadPipelineFile(order.id, formData.get("logo") as File | null);
-
-  // Enregistrer le versement initial s'il y en a un
-  if (initialPayment > 0) {
-    try {
-      await recordInitialPayment(order.id, initialPayment, contact_id);
-    } catch (e) {
-      console.error("Erreur lors de l'enregistrement du versement initial:", (e as Error).message);
-      // Ne pas lever l'erreur — la commande est créée de toute façon
+    if (itemsError) {
+      // Pas de commande orpheline : on annule plutôt que de laisser une ligne
+      // vide en production.
+      await supabase.from("pipeline_orders").delete().eq("id", order.id);
+      return { error: `Erreur lors de la création des articles : ${itemsError.message}` };
     }
-  }
 
-  // Expédition Yalidine choisie dès la création de la commande (demande
-  // explicite du propriétaire : plus besoin de repasser par la fiche
-  // commande plus tard). Le vrai colis est créé immédiatement — un échec
-  // ici (ex: commune mal orthographiée) ne doit pas empêcher la
-  // commande d'être créée : l'employé peut toujours créer l'expédition
-  // manuellement depuis la fiche commande (panneau Yalidine, sert de repli).
-  if (useYalidine && yalidineWilayaId && yalidineCommune && yalidineAddress && yalidinePrice > 0) {
+    let prints: PrintInput[];
     try {
-      const { data: contact } = await supabase.from("contacts").select("name, phone").eq("id", contact_id).single();
-      const [firstname, ...rest] = (contact?.name || "Client").trim().split(/\s+/);
-      const productList =
-        validItems.length > 0 ? validItems.map((it) => `${it.quantity}× ${it.product_name}`).join(", ") : description || order.number || "Commande Caractère";
-
-      const result = await createYalidineParcel({
-        orderId: order.number || order.id,
-        firstname,
-        familyname: rest.join(" "),
-        contactPhone: contact?.phone || "",
-        address: yalidineAddress,
-        toWilayaId: yalidineWilayaId,
-        toCommuneName: yalidineCommune,
-        productList,
-        price: yalidinePrice,
-      });
-
-      if (result.tracking) {
-        await supabase.from("yalidine_shipments").insert({
-          order_id: order.id,
-          yalidine_tracking_id: result.tracking,
-          status: "pending",
-        });
+      prints = JSON.parse(String(formData.get("prints_json") ?? "[]")) as PrintInput[];
+    } catch {
+      prints = [];
+    }
+    const validPrints = prints.filter((p) => p.placement);
+    if (validPrints.length > 0) {
+      const { error: printsError } = await supabase.from("pipeline_order_prints").insert(
+        validPrints.map((p, i) => ({
+          pipeline_order_id: order.id,
+          placement: p.placement,
+          size_cm: p.size_cm || null,
+          text_content: p.text_content || null,
+          position: i,
+        }))
+      );
+      // La commande existe déjà : un détail d'impression manquant se rattrape
+      // depuis la fiche, il ne doit pas faire perdre la commande.
+      if (printsError) {
+        console.error("Impressions non enregistrées :", printsError.message);
       }
-    } catch (e) {
-      console.error("Yalidine à la création de la commande — échec :", (e as Error).message);
     }
+
+    // Idem : le logo se renvoie depuis la fiche commande, la commande reste.
+    try {
+      await uploadPipelineFile(order.id, formData.get("logo") as File | null);
+    } catch (e) {
+      console.error("Logo non enregistré :", (e as Error).message);
+    }
+
+    // Enregistrer le versement initial s'il y en a un
+    if (initialPayment > 0) {
+      try {
+        await recordInitialPayment(order.id, initialPayment, contact_id);
+      } catch (e) {
+        console.error("Erreur lors de l'enregistrement du versement initial:", (e as Error).message);
+        // Ne pas lever l'erreur — la commande est créée de toute façon
+      }
+    }
+
+    // Expédition Yalidine choisie dès la création de la commande (demande
+    // explicite du propriétaire : plus besoin de repasser par la fiche
+    // commande plus tard). Le vrai colis est créé immédiatement — un échec
+    // ici (ex: commune mal orthographiée) ne doit pas empêcher la
+    // commande d'être créée : l'employé peut toujours créer l'expédition
+    // manuellement depuis la fiche commande (panneau Yalidine, sert de repli).
+    if (useYalidine && yalidineWilayaId && yalidineCommune && yalidineAddress && yalidinePrice > 0) {
+      try {
+        const { data: contact } = await supabase.from("contacts").select("name, phone").eq("id", contact_id).single();
+        const [firstname, ...rest] = (contact?.name || "Client").trim().split(/\s+/);
+        const productList =
+          validItems.length > 0 ? validItems.map((it) => `${it.quantity}× ${it.product_name}`).join(", ") : description || order.number || "Commande Caractère";
+
+        const result = await createYalidineParcel({
+          orderId: order.number || order.id,
+          firstname,
+          familyname: rest.join(" "),
+          contactPhone: contact?.phone || "",
+          address: yalidineAddress,
+          toWilayaId: yalidineWilayaId,
+          toCommuneName: yalidineCommune,
+          productList,
+          price: yalidinePrice,
+        });
+
+        if (result.tracking) {
+          await supabase.from("yalidine_shipments").insert({
+            order_id: order.id,
+            yalidine_tracking_id: result.tracking,
+            status: "pending",
+          });
+        }
+      } catch (e) {
+        console.error("Yalidine à la création de la commande — échec :", (e as Error).message);
+      }
+    }
+
+    orderId = order.id;
+  } catch (err) {
+    console.error("Création de commande — échec inattendu :", err);
+    return { error: `Erreur inattendue : ${(err as Error).message}` };
   }
 
-    revalidatePath("/production", "layout");
-    revalidatePath("/dashboard", "layout");
-    redirect(`/production/${order.id}`);
-  } catch (err) {
-    console.error("❌ Error creating order:", err);
-    throw err; // Re-throw to show error page
-  }
+  // Hors du try : redirect() lève volontairement une exception interne
+  // (NEXT_REDIRECT) que le catch prendrait pour un échec de création.
+  revalidatePath("/production", "layout");
+  revalidatePath("/dashboard", "layout");
+  redirect(`/production/${orderId}`);
 }
 
 /** Renvoie l'employé (fiche RH) lié au compte actuellement connecté, s'il existe */

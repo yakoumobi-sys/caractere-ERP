@@ -37,11 +37,15 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  // Serveur de développement (optionnel)
+  // Serveur : réutilisé s'il tourne déjà. En CI le workflow lance lui-même
+  // `npm run start` (build de production) avant les tests — avec
+  // reuseExistingServer à false, Playwright essayait d'en démarrer un second
+  // et échouait « port 3000 already used » avant d'exécuter le moindre test
+  // (30 exécutions rouges sur 30).
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 

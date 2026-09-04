@@ -128,7 +128,31 @@ async function main() {
   }
 }
 
+// Les deux échecs de connexion rencontrés en CI, traduits en action concrète :
+// l'erreur brute de pg ("tenant/user not found", ENETUNREACH) ne dit pas quoi
+// corriger dans le secret DATABASE_URL.
+function expliquerErreurConnexion(err) {
+  const msg = String(err?.message ?? "");
+  if (/tenant|user .* not found/i.test(msg)) {
+    return (
+      `${msg}\n` +
+      "→ Le pooler Supabase ne reconnaît pas l'utilisateur ou la région. DATABASE_URL doit être la chaîne « Session pooler » du projet\n" +
+      "  (Supabase > Connect > Session pooler), de la forme :\n" +
+      "  postgresql://postgres.<ref-projet>:<mot-de-passe>@aws-0-<région>.pooler.supabase.com:5432/postgres\n" +
+      "  L'utilisateur est bien « postgres.<ref-projet> » et la région celle du projet (ex. eu-west-1)."
+    );
+  }
+  if (/ENETUNREACH|EHOSTUNREACH/i.test(msg)) {
+    return (
+      `${msg}\n` +
+      "→ L'hôte direct db.<ref>.supabase.co n'est joignable qu'en IPv6, ce que les runners GitHub n'ont pas.\n" +
+      "  Utiliser la chaîne « Session pooler » (aws-0-<région>.pooler.supabase.com:5432), joignable en IPv4."
+    );
+  }
+  return msg;
+}
+
 main().catch((err) => {
-  console.error(err.message);
+  console.error(expliquerErreurConnexion(err));
   process.exit(1);
 });
