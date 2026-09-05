@@ -6,11 +6,12 @@ import { PageHeader } from "@/components/ui";
 
 /** Un seul article par nom : si des doublons de casse réapparaissent au
  *  catalogue, la liste du comptoir reste lisible. */
-function uniqueProducts(rows: { id: string; name: string }[] | null) {
-  const seen = new Map<string, { id: string; name: string }>();
+function uniqueProducts(rows: { id: string; name: string; sale_price: number | null }[] | null) {
+  const seen = new Map<string, { id: string; name: string; sale_price: number | null }>();
   for (const row of rows ?? []) {
     const name = row.name?.trim();
-    if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), { id: row.id, name });
+    if (name && !seen.has(name.toLowerCase()))
+      seen.set(name.toLowerCase(), { id: row.id, name, sale_price: row.sale_price });
   }
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
 }
@@ -19,7 +20,7 @@ export default async function Page() {
   const supabase = createClient();
   const [{ data: contacts, error }, { data: products }, { data: colors }, { data: sizes }, profile] = await Promise.all([
     supabase.from("contacts").select("id, name").order("name"),
-    supabase.from("products").select("id, name").eq("is_active", true),
+    supabase.from("products").select("id, name, sale_price").eq("is_active", true),
     supabase.from("product_colors").select("color").order("color"),
     supabase.from("product_sizes").select("size").order("size"),
     getCurrentProfile(),

@@ -10,6 +10,7 @@ export interface CatalogResult {
 export interface CatalogProduct {
   id: string;
   name: string;
+  sale_price?: number | null;
 }
 
 export interface ProductResult {

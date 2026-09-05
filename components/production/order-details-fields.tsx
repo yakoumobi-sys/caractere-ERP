@@ -70,6 +70,19 @@ export function OrderDetailsFields({
   const [orderTotal, setOrderTotal] = useState("");
   const [initialPayment, setInitialPayment] = useState("");
 
+  // Recalcule automatiquement le prix total quand les articles ou leur quantité changent
+  useEffect(() => {
+    const total = items.reduce((sum, item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const unitPrice = product?.sale_price ?? 0;
+      return sum + unitPrice * item.quantity;
+    }, 0);
+
+    if (total > 0) {
+      setOrderTotal(String(total));
+    }
+  }, [items.map((i) => `${i.product_id}:${i.quantity}`).join("|"), products]);
+
   useEffect(() => {
     if (!useYalidine || wilayas.length > 0) return;
     fetchYalidineWilayas()
@@ -361,8 +374,8 @@ export function OrderDetailsFields({
         )}
       </Card>
 
-      {/* 4. Prix & paiement — jusqu'ici aucun écran ne permettait de saisir
-          le montant : page Ventes et tableau de bord restaient à 0 DA. */}
+      {/* 4. Prix & paiement — le montant se calcule automatiquement à partir
+          des articles et quantités, mais peut être modifié manuellement. */}
       <Card className="p-6">
         <StepLabel n={4} title="Prix & paiement" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -379,6 +392,9 @@ export function OrderDetailsFields({
               placeholder="0"
               className={inputClass}
             />
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {filledItems.length > 0 ? "Calculé automatiquement, modifiable si besoin" : "Sera calculé une fois les articles sélectionnés"}
+            </p>
           </Field>
           {canRecordPayments && (
             <Field label="Versement encaissé maintenant (DA)" htmlFor="initial_payment">
