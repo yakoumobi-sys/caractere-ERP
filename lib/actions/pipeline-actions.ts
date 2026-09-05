@@ -412,27 +412,15 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
     throw new Error(`Erreur lors de la mise à jour du statut: ${error.message}`);
   }
 
-  revalidatePath("/production", "layout");
+  // Invalider les caches de toutes les files pour que la commande disparaisse
+  // de la file actuelle et réapparaisse dans la prochaine, sans redirection.
+  revalidatePath("/production/dtf");
+  revalidatePath("/production/flocage");
+  revalidatePath("/production/broderie");
+  revalidatePath("/production/gros");
+  revalidatePath("/production/ready");
   revalidatePath("/dashboard", "layout");
   revalidatePath(`/production/${orderId}`);
-
-  // Redirection pour forcer le navigateur à recharger la page et afficher
-  // les changements de statut. Sans cela, le client voit juste les boutons
-  // "switcher" localement sans que le statut change vraiment en base.
-  const { queue: nextQueue } = STATUS_DEFS[nextStatus];
-  if (nextQueue === "flocage") {
-    redirect("/production/flocage");
-  } else if (nextQueue === "dtf") {
-    redirect("/production/dtf");
-  } else if (nextQueue === "broderie") {
-    redirect("/production/broderie");
-  } else if (nextQueue === "gros") {
-    redirect("/production/gros");
-  } else if (nextQueue === "ready") {
-    redirect("/production/ready");
-  } else if (nextStatus === "livree") {
-    redirect("/production");
-  }
 }
 
 /** Changement manuel de statut / assignation depuis la fiche détail (admin/commercial) */
