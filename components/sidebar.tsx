@@ -48,13 +48,29 @@ const NAV_ACCORDIONS = [
     items: [{ href: "/confirmation", label: "Commandes COD / web" }],
   },
   {
-    section: "CRM",
+    section: "Commercial",
     items: [
-      { href: "/crm/contacts", label: "Clients" },
+      { href: "/crm/opportunities", label: "Opportunités & relances" },
+      { href: "/crm/contacts", label: "Clients & prospects" },
+      { href: "/sales/quotes", label: "Devis" },
+      { href: "/sales/invoices", label: "Factures & impayés" },
+      { href: "/cash", label: "Caisse & encaissements" },
+    ],
+  },
+  {
+    section: "Catalogue & achats",
+    items: [
       { href: "/inventory/products", label: "Produits" },
       { href: "/inventory/warehouses", label: "Entrepôts" },
-      { href: "/accounting/chart-of-accounts", label: "Comptabilité" },
-      { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
+      { href: "/purchasing/suppliers", label: "Fournisseurs" },
+    ],
+  },
+  {
+    section: "Comptabilité",
+    items: [
+      { href: "/accounting/journal", label: "Journal" },
+      { href: "/accounting/reports", label: "Rapports" },
+      { href: "/accounting/chart-of-accounts", label: "Plan comptable" },
     ],
   },
   {
@@ -68,10 +84,7 @@ const NAV_ACCORDIONS = [
   },
   {
     section: "Analytique",
-    items: [
-      { href: "/reports", label: "Tableau de bord" },
-      { href: "/reports", label: "Chiffre d'affaires" },
-    ],
+    items: [{ href: "/reports", label: "Tableau de bord" }],
   },
   {
     section: "Paramètres",

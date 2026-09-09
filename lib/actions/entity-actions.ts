@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { crmStages } from "@/lib/crm";
+import { contactsConfig, opportunitiesConfig } from "@/lib/entities";
 import type { FieldConfig } from "@/lib/entities";
 
 function parseFormData(fields: FieldConfig[], formData: FormData) {
@@ -35,11 +37,13 @@ const TABLE_PERMISSIONS: Record<string, string[]> = {
 
 async function checkPermission(table: string) {
   const profile = await getCurrentProfile();
-  if (!profile?.id) throw new Error("Non authentifié");
+  if (!profile?.id || !profile.is_active) throw new Error("Non authentifié");
 
   const allowedRoles = TABLE_PERMISSIONS[table] || ["admin", "manager"];
   if (!allowedRoles.includes(profile.role || "")) {
-    throw new Error(`Permission refusée : vous n'avez pas accès à cette ressource.`);
+    throw new Error(
+      `Permission refusée : vous n'avez pas accès à cette ressource.`,
+    );
   }
 }
 
@@ -48,12 +52,31 @@ export async function upsertEntity(
   basePath: string,
   fields: FieldConfig[],
   id: string | null,
-  formData: FormData
+  formData: FormData,
 ) {
   await checkPermission(table);
 
   const supabase = createClient();
-  const data = parseFormData(fields, formData);
+  const canonical =
+    table === "contacts"
+      ? contactsConfig
+      : table === "opportunities"
+        ? opportunitiesConfig
+        : null;
+  const data = parseFormData(canonical?.fields ?? fields, formData);
+  if (canonical) basePath = canonical.basePath;
+  if (table === "contacts" && !String(data.name ?? "").trim())
+    throw new Error("Le nom est obligatoire.");
+  if (table === "opportunities") {
+    if (
+      !String(data.title ?? "").trim() ||
+      !crmStages.some((s) => s.value === data.stage)
+    )
+      throw new Error("Titre et étape obligatoires.");
+    if (data.amount === null) data.amount = 0;
+    if (!Number.isFinite(data.amount) || Number(data.amount) < 0)
+      throw new Error("Montant invalide.");
+  }
 
   const { error } = id
     ? await supabase.from(table).update(data).eq("id", id)
@@ -69,14 +92,23 @@ export async function upsertEntity(
 
 export async function updateOpportunityStage(id: string, stage: string) {
   await checkPermission("opportunities");
+  if (!crmStages.some((s) => s.value === stage))
+    throw new Error("Étape invalide.");
 
   const supabase = createClient();
-  const { error } = await supabase.from("opportunities").update({ stage }).eq("id", id);
+  const { error } = await supabase
+    .from("opportunities")
+    .update({ stage })
+    .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/crm/opportunities");
 }
 
-export async function deleteEntity(table: string, basePath: string, id: string) {
+export async function deleteEntity(
+  table: string,
+  basePath: string,
+  id: string,
+) {
   await checkPermission(table);
 
   const supabase = createClient();

@@ -125,6 +125,7 @@ export async function createPipelineOrder(
   formData: FormData
 ): Promise<OrderFormState> {
   let orderId: string;
+  let paymentWarning = false;
 
   try {
     const supabase = createClient();
@@ -143,6 +144,9 @@ export async function createPipelineOrder(
     const requires_flocage = technique === "dtf" && formData.get("requires_flocage") === "on";
     const orderTotal = Number(formData.get("order_total") ?? 0);
     const initialPayment = Number(formData.get("initial_payment") ?? 0);
+    if (!Number.isFinite(orderTotal) || orderTotal < 0 || !Number.isFinite(initialPayment) || initialPayment < 0 || initialPayment > orderTotal) {
+      return { error: "Montant ou versement invalide : le versement ne peut pas dépasser le total." };
+    }
 
     const useYalidine = formData.get("use_yalidine") === "on";
     const yalidineWilayaId = Number(formData.get("yalidine_wilaya") ?? 0);
@@ -234,7 +238,7 @@ export async function createPipelineOrder(
         requires_flocage,
         order_total: orderTotal > 0 ? orderTotal : null,
         initial_payment: initialPayment > 0 ? initialPayment : 0,
-        payment_status: initialPayment > 0 ? (initialPayment >= orderTotal ? "paid" : "partial") : "unpaid",
+        payment_status: "unpaid",
         status: initialStatus(technique),
         created_by: user.id,
       })
@@ -299,7 +303,7 @@ export async function createPipelineOrder(
         await recordInitialPayment(order.id, initialPayment, contact_id);
       } catch (e) {
         console.error("Erreur lors de l'enregistrement du versement initial:", (e as Error).message);
-        // Ne pas lever l'erreur — la commande est créée de toute façon
+        paymentWarning = true; // La commande existe : afficher une alerte, ne pas la recréer.
       }
     }
 
@@ -350,7 +354,7 @@ export async function createPipelineOrder(
   // (NEXT_REDIRECT) que le catch prendrait pour un échec de création.
   revalidatePath("/production", "layout");
   revalidatePath("/dashboard", "layout");
-  redirect(`/production/${orderId}`);
+  redirect(`/production/${orderId}${paymentWarning ? "?payment_warning=1" : ""}`);
 }
 
 /** Renvoie l'employé (fiche RH) lié au compte actuellement connecté, s'il existe */

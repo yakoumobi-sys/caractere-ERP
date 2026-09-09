@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { DocumentConfig } from "@/lib/documents";
 import { saveDocument } from "@/lib/actions/document-actions";
 import { Button, Card, Field, inputClass } from "@/components/ui";
+import { businessDate } from "@/lib/finance";
 import { formatMoney } from "@/lib/utils";
 
 interface ProductOption {
@@ -21,15 +22,6 @@ interface LineRow {
   quantity: number;
   price: number;
   tax_rate: number;
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Enregistrement..." : "Enregistrer"}
-    </Button>
-  );
 }
 
 export function DocumentForm({
@@ -59,18 +51,34 @@ export function DocumentForm({
           price: Number(l[config.priceField]),
           tax_rate: Number(l.tax_rate),
         }))
-      : [{ product_id: "", description: "", quantity: 1, price: 0, tax_rate: 20 }]
+      : [
+          {
+            product_id: "",
+            description: "",
+            quantity: 1,
+            price: 0,
+            tax_rate: 0,
+          },
+        ],
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   const totals = useMemo(() => {
     const subtotal = rows.reduce((s, r) => s + r.quantity * r.price, 0);
-    const tax = rows.reduce((s, r) => s + (r.quantity * r.price * r.tax_rate) / 100, 0);
+    const tax = rows.reduce(
+      (s, r) => s + (r.quantity * r.price * r.tax_rate) / 100,
+      0,
+    );
     return { subtotal, tax, total: subtotal + tax };
   }, [rows]);
 
   function updateRow(index: number, patch: Partial<LineRow>) {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+    );
   }
 
   function onProductChange(index: number, productId: string) {
@@ -79,29 +87,66 @@ export function DocumentForm({
       product_id: productId,
       description: product ? product.name : "",
       price: product ? product.price : 0,
-      tax_rate: product ? product.tax_rate : 20,
+      tax_rate: product ? product.tax_rate : 0,
     });
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { product_id: "", description: "", quantity: 1, price: 0, tax_rate: 20 }]);
+    setRows((prev) => [
+      ...prev,
+      { product_id: "", description: "", quantity: 1, price: 0, tax_rate: 0 },
+    ]);
   }
 
   function removeRow(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const action = saveDocument.bind(null, config, (record?.id as string) ?? null);
+  const action = saveDocument.bind(
+    null,
+    config,
+    (record?.id as string) ?? null,
+  );
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-6">
+    <form
+      ref={formRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (pending) return;
+        const data = new FormData(e.currentTarget);
+        setError("");
+        startTransition(async () => {
+          try {
+            const result = await action(data);
+            router.push(`${config.basePath}/${result.id}`);
+            router.refresh();
+          } catch {
+            setError(
+              "Enregistrement refusé. Vérifiez le client, les lignes, les dates et le statut du document. Aucune modification partielle n’a été conservée.",
+            );
+          }
+        });
+      }}
+      className="flex flex-col gap-6"
+    >
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
       {locked && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {lockedMessage ?? "Ce document est validé et n'est plus modifiable — la base de données refuserait de toute façon l'enregistrement."}
+          {lockedMessage ??
+            "Ce document est validé et n'est plus modifiable — la base de données refuserait de toute façon l'enregistrement."}
         </div>
       )}
       <Card className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label={config.contactLabel} htmlFor={config.contactField} required>
+        <Field
+          label={config.contactLabel}
+          htmlFor={config.contactField}
+          required
+        >
           <select
             id={config.contactField}
             name={config.contactField}
@@ -119,12 +164,24 @@ export function DocumentForm({
           </select>
         </Field>
         <Field label="Statut" htmlFor="status">
-          <select id="status" name="status" defaultValue={record?.status ?? "brouillon"} disabled={locked} className={inputClass}>
-            {config.statusOptions.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
+          <select
+            id="status"
+            name="status"
+            defaultValue={record?.status ?? "brouillon"}
+            disabled={locked}
+            className={inputClass}
+          >
+            {config.statusOptions
+              .filter(
+                (s) =>
+                  config.headerTable !== "invoices" ||
+                  s.value === (record?.status ?? "brouillon"),
+              )
+              .map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
           </select>
         </Field>
         {config.extraHeaderFields.map((f) => (
@@ -133,7 +190,10 @@ export function DocumentForm({
               id={f.name}
               name={f.name}
               type="date"
-              defaultValue={record?.[f.name] ?? ""}
+              defaultValue={
+                record?.[f.name] ??
+                (f.name === config.dateField ? businessDate() : "")
+              }
               disabled={locked}
               className={inputClass}
             />
@@ -141,7 +201,14 @@ export function DocumentForm({
         ))}
         <div className="sm:col-span-2">
           <Field label="Notes" htmlFor="notes">
-            <textarea id="notes" name="notes" rows={2} defaultValue={record?.notes ?? ""} disabled={locked} className={inputClass} />
+            <textarea
+              id="notes"
+              name="notes"
+              rows={2}
+              defaultValue={record?.notes ?? ""}
+              disabled={locked}
+              className={inputClass}
+            />
           </Field>
         </div>
       </Card>
@@ -164,7 +231,9 @@ export function DocumentForm({
                 <th className="py-2 pr-2 font-medium w-24">Qté</th>
                 <th className="py-2 pr-2 font-medium w-28">Prix unit.</th>
                 <th className="py-2 pr-2 font-medium w-20">TVA %</th>
-                <th className="py-2 pr-2 font-medium text-right w-28">Total HT</th>
+                <th className="py-2 pr-2 font-medium text-right w-28">
+                  Total HT
+                </th>
                 <th />
               </tr>
             </thead>
@@ -189,7 +258,9 @@ export function DocumentForm({
                   <td className="py-2 pr-2">
                     <input
                       value={row.description}
-                      onChange={(e) => updateRow(i, { description: e.target.value })}
+                      onChange={(e) =>
+                        updateRow(i, { description: e.target.value })
+                      }
                       disabled={locked}
                       className={inputClass}
                     />
@@ -198,8 +269,13 @@ export function DocumentForm({
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
+                      required
+                      aria-label={`Quantité ligne ${i + 1}`}
                       value={row.quantity}
-                      onChange={(e) => updateRow(i, { quantity: Number(e.target.value) })}
+                      onChange={(e) =>
+                        updateRow(i, { quantity: Number(e.target.value) })
+                      }
                       disabled={locked}
                       className={inputClass}
                     />
@@ -208,8 +284,13 @@ export function DocumentForm({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
+                      required
+                      aria-label={`Prix ligne ${i + 1}`}
                       value={row.price}
-                      onChange={(e) => updateRow(i, { price: Number(e.target.value) })}
+                      onChange={(e) =>
+                        updateRow(i, { price: Number(e.target.value) })
+                      }
                       disabled={locked}
                       className={inputClass}
                     />
@@ -218,16 +299,28 @@ export function DocumentForm({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
+                      max="100"
+                      required
+                      aria-label={`TVA ligne ${i + 1}`}
                       value={row.tax_rate}
-                      onChange={(e) => updateRow(i, { tax_rate: Number(e.target.value) })}
+                      onChange={(e) =>
+                        updateRow(i, { tax_rate: Number(e.target.value) })
+                      }
                       disabled={locked}
                       className={inputClass}
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right font-medium">{formatMoney(row.quantity * row.price)}</td>
+                  <td className="py-2 pr-2 text-right font-medium">
+                    {formatMoney(row.quantity * row.price)}
+                  </td>
                   <td className="py-2 text-right">
                     {!locked && (
-                      <button type="button" onClick={() => removeRow(i)} className="text-xs text-red-500 hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(i)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
                         Retirer
                       </button>
                     )}
@@ -260,7 +353,9 @@ export function DocumentForm({
         <>
           <input type="hidden" name="lines_json" value={JSON.stringify(rows)} />
           <div>
-            <SubmitButton />
+            <Button type="submit" disabled={pending}>
+              {pending ? "Enregistrement…" : "Enregistrer"}
+            </Button>
           </div>
         </>
       )}

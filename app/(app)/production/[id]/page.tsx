@@ -25,7 +25,7 @@ import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/compo
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({ params, searchParams }: { params: { id: string }; searchParams: { payment_warning?: string } }) {
   const supabase = createClient();
   const [
     { data: order, error },
@@ -192,6 +192,12 @@ export default async function Page({ params }: { params: { id: string } }) {
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
 
+      {searchParams.payment_warning === "1" && (
+        <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
+          Commande créée, mais le versement initial n’a pas pu être confirmé.
+          Vérifiez l’historique des paiements ci-dessous avant de saisir le règlement.
+        </p>
+      )}
       <OrderPaymentPanel
         orderId={order.id}
         orderTotal={money?.order_total === null || money?.order_total === undefined ? null : Number(money.order_total)}

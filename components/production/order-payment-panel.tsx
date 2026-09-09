@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { recordOrderPayment, setOrderTotal } from "@/lib/actions/payment-actions";
 import { Card, Button, Field, inputClass, Badge } from "@/components/ui";
@@ -51,6 +51,7 @@ export function OrderPaymentPanel({
   canRecord: boolean;
 }) {
   const router = useRouter();
+  const paymentToken = useRef<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editingTotal, setEditingTotal] = useState(orderTotal === null);
   const [totalDraft, setTotalDraft] = useState(orderTotal?.toString() ?? "");
@@ -89,7 +90,15 @@ export function OrderPaymentPanel({
     setError(null);
     startTransition(async () => {
       try {
-        await recordOrderPayment(orderId, value, method);
+        paymentToken.current ??= crypto.randomUUID();
+        await recordOrderPayment(
+          orderId,
+          value,
+          method,
+          undefined,
+          paymentToken.current,
+        );
+        paymentToken.current = null;
         setAmount("");
         router.refresh();
       } catch (e) {

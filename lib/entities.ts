@@ -2,6 +2,7 @@
 // est décrit ici par une configuration plutôt que par du code dupliqué —
 // approche inspirée des ORM/vues déclaratives des grands ERP (Odoo, etc.).
 
+import { crmStages } from "@/lib/crm";
 import { EMPLOYEE_COLORS } from "@/lib/colors";
 
 export type FieldType =
@@ -108,17 +109,44 @@ export const opportunitiesConfig: EntityConfig = {
       label: "Étape",
       type: "select",
       required: true,
-      options: [
-        { value: "nouveau", label: "Nouveau" },
-        { value: "qualification", label: "Qualification" },
-        { value: "proposition", label: "Proposition" },
-        { value: "negociation", label: "Négociation" },
-        { value: "gagne", label: "Gagné" },
-        { value: "perdu", label: "Perdu" },
-      ],
+      options: crmStages,
     },
     { name: "amount", label: "Montant (DA)", type: "number", step: "0.01" },
-    { name: "expected_close_date", label: "Date de clôture prévue", type: "date" },
+    {
+      name: "expected_close_date",
+      label: "Date de clôture prévue",
+      type: "date",
+    },
+    {
+      name: "next_action",
+      label: "Prochaine action (ex. envoyer la simulation)",
+      type: "text",
+    },
+    { name: "next_follow_up", label: "Date de relance", type: "date" },
+    {
+      name: "owner_id",
+      label: "Responsable",
+      type: "relation",
+      relationTable: "profiles",
+      relationLabelField: "full_name",
+    },
+    {
+      name: "source",
+      label: "Origine",
+      type: "select",
+      options: [
+        { value: "instagram", label: "Instagram" },
+        { value: "whatsapp", label: "WhatsApp" },
+        { value: "site", label: "Site web" },
+        { value: "recommandation", label: "Recommandation" },
+        { value: "autre", label: "Autre" },
+      ],
+    },
+    {
+      name: "lost_reason",
+      label: "Motif de perte (si perdu)",
+      type: "textarea",
+    },
   ],
 };
 
