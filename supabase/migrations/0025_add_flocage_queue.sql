@@ -14,6 +14,13 @@
 -- CREATE OR REPLACE VIEW ne peut qu'ajouter une colonne à la fin de la liste
 -- (pas la réordonner), d'où sa position en dernier.
 -- ============================================================================
+-- La vue ci-dessous lit po.requires_flocage. La colonne n'était ajoutée qu'en
+-- 0033 : sur une base neuve, la file Flocage échouait ici et bloquait toute la
+-- suite de la chaîne. On la crée donc au moment où on en a besoin ; 0033 reste
+-- en place et ne fait plus que confirmer son existence.
+alter table public.pipeline_orders
+  add column if not exists requires_flocage boolean not null default true;
+
 create or replace view public.pipeline_orders_view as
  select po.id,
     po.number,

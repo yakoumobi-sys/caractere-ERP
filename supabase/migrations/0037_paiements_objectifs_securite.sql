@@ -187,22 +187,63 @@ alter view public.employee_performance set (security_invoker = on);
 -- ATTENTION : "revoke from public" retire aussi le droit implicite dont
 -- authenticated héritait — sans le grant explicite qui suit, chaque policy
 -- RLS échouerait en « permission denied for function » (vérifié hors ligne).
-revoke execute on function public."current_role"() from public, anon;
-revoke execute on function public.current_user_id() from public, anon;
-revoke execute on function public.is_active_user() from public, anon;
-revoke execute on function public.calculate_flocage_cost() from public, anon;
-grant execute on function public."current_role"() to authenticated;
-grant execute on function public.current_user_id() to authenticated;
-grant execute on function public.is_active_user() to authenticated;
-grant execute on function public.calculate_flocage_cost() to authenticated;
+-- calculate_flocage_cost() n'a jamais eu de migration : elle n'existe que sur
+-- la base historique. Un revoke sur une fonction absente est une erreur, qui
+-- faisait perdre tout le resserrement des droits sur une base neuve. On agit
+-- sur ce qui est là, surcharges comprises.
+do $$
+declare
+  f text;
+  r record;
+begin
+  foreach f in array array[
+    'current_role','current_user_id','is_active_user','calculate_flocage_cost'
+  ]
+  loop
+    for r in
+      select p.oid::regprocedure as signature
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = f
+    loop
+      execute format('revoke execute on function %s from public, anon', r.signature);
+      execute format('grant execute on function %s to authenticated', r.signature);
+    end loop;
+  end loop;
+end $$;
 
 -- Fonctions de trigger : jamais appelées directement (même précédent que la
--- migration 0021 pour post_invoice_journal & co).
-revoke execute on function public.handle_new_user() from public, anon, authenticated;
-revoke execute on function public.inventory_out_on_delivery() from public, anon, authenticated;
-revoke execute on function public.post_order_payment_journal() from public, anon, authenticated;
+-- migration 0021 pour post_invoice_journal & co), puis search_path fixé sur
+-- les fonctions signalées par l'advisor. Même tolérance que ci-dessus : ces
+-- fonctions n'existent pas toutes sur une base reconstruite de zéro.
+do $$
+declare
+  f text;
+  r record;
+begin
+  foreach f in array array[
+    'handle_new_user','inventory_out_on_delivery','post_order_payment_journal'
+  ]
+  loop
+    for r in
+      select p.oid::regprocedure as signature
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = f
+    loop
+      execute format('revoke execute on function %s from public, anon, authenticated', r.signature);
+    end loop;
+  end loop;
 
--- search_path fixé (fonctions créées hors migration, signalées par l'advisor).
-alter function public.create_product_variants() set search_path = public;
-alter function public.calculate_dtf_cost(p_product_id uuid, p_dtf_length_cm integer) set search_path = public;
-alter function public.calculate_final_price(p_product_id uuid, p_dtf_length_cm integer) set search_path = public;
+  foreach f in array array[
+    'create_product_variants','calculate_dtf_cost','calculate_final_price'
+  ]
+  loop
+    for r in
+      select p.oid::regprocedure as signature
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = f
+    loop
+      execute format('alter function %s set search_path = public', r.signature);
+    end loop;
+  end loop;
+end $$;

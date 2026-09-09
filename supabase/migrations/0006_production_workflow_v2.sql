@@ -89,6 +89,7 @@ begin
 end;
 $$;
 
+drop trigger if exists log_pipeline_stage on public.pipeline_orders;
 create trigger log_pipeline_stage
   after insert or update on public.pipeline_orders
   for each row execute function public.log_pipeline_stage();
@@ -130,7 +131,7 @@ alter table public.pipeline_order_prints drop column if exists technique;
 -- ----------------------------------------------------------------------------
 -- 5. Suivi qualité : fautes attribuées à un employé
 -- ----------------------------------------------------------------------------
-create table public.employee_faults (
+create table if not exists public.employee_faults (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references public.employees(id) on delete cascade,
   pipeline_order_id uuid references public.pipeline_orders(id) on delete set null,
@@ -139,11 +140,13 @@ create table public.employee_faults (
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index employee_faults_employee_idx on public.employee_faults(employee_id);
+create index if not exists employee_faults_employee_idx on public.employee_faults(employee_id);
 
 alter table public.employee_faults enable row level security;
+drop policy if exists "employee_faults_select" on public.employee_faults;
 create policy "employee_faults_select" on public.employee_faults for select to authenticated
   using (public.is_active_user());
+drop policy if exists "employee_faults_write" on public.employee_faults;
 create policy "employee_faults_write" on public.employee_faults for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');

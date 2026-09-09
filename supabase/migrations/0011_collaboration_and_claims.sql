@@ -84,6 +84,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists generate_claim_number_trigger on public.claims;
 create trigger generate_claim_number_trigger
   before insert on public.claims
   for each row

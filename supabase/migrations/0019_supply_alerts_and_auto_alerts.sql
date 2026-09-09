@@ -3,6 +3,40 @@
 -- + alertes automatiques (commandes en retard, échecs Yalidine)
 -- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- Les tables du module
+--
+-- supply_types et supply_alerts n'ont jamais eu de migration : elles ont été
+-- posées à la main sur la base historique, et 0016 comme cette migration-ci
+-- les tenaient pour acquises. Sur toute base neuve — CI, nouvel environnement,
+-- restauration — le module Alertes n'existait tout simplement pas, et la
+-- chaîne s'arrêtait ici. On les crée donc, à l'identique de l'existant :
+-- "if not exists" laisse la base historique intacte.
+-- ----------------------------------------------------------------------------
+create table if not exists public.supply_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  department text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.supply_alerts (
+  id uuid primary key default gen_random_uuid(),
+  number text unique,
+  alert_type text not null default 'approvisionnement'
+    check (alert_type in ('approvisionnement','retard_commande','yalidine_echec')),
+  department text not null,
+  title text not null,
+  description text,
+  priority text not null default 'normal' check (priority in ('low','normal','high','urgent')),
+  status text not null default 'ouverte' check (status in ('ouverte','en_cours','commandee','resolue')),
+  created_by uuid references public.employees(id) on delete set null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists supply_alerts_status_idx on public.supply_alerts(status);
+create index if not exists supply_alerts_created_idx on public.supply_alerts(created_at desc);
+
 alter table public.supply_alerts add column if not exists supply_type_id uuid references public.supply_types(id) on delete set null;
 alter table public.supply_alerts add column if not exists purchase_price numeric(12,2);
 alter table public.supply_alerts add column if not exists delivery_cost numeric(12,2);
@@ -186,3 +220,60 @@ drop trigger if exists alert_on_yalidine_failure_trigger on public.yalidine_ship
 create trigger alert_on_yalidine_failure_trigger
   after insert or update on public.yalidine_shipments
   for each row execute function public.alert_on_yalidine_failure();
+
+-- ----------------------------------------------------------------------------
+-- Numérotation des alertes : la fonction ci-dessus rend le numéro, ce trigger
+-- l'applique. Lui non plus n'avait jamais été créé par une migration.
+-- ----------------------------------------------------------------------------
+create or replace function public.auto_number_alert()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.number is null then
+    new.number := public.generate_alert_number();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_alert_number on public.supply_alerts;
+create trigger set_alert_number
+  before insert on public.supply_alerts
+  for each row execute function public.auto_number_alert();
+
+-- ----------------------------------------------------------------------------
+-- RLS : lecture pour tout utilisateur actif, écriture pour tous sauf readonly,
+-- comme le reste du schéma (0003).
+-- ----------------------------------------------------------------------------
+alter table public.supply_types enable row level security;
+alter table public.supply_alerts enable row level security;
+
+drop policy if exists "supply_types_select" on public.supply_types;
+create policy "supply_types_select" on public.supply_types for select to authenticated
+  using (public.is_active_user());
+drop policy if exists "supply_types_write" on public.supply_types;
+create policy "supply_types_write" on public.supply_types for all to authenticated
+  using (public.is_active_user() and public.current_role() <> 'readonly')
+  with check (public.is_active_user() and public.current_role() <> 'readonly');
+
+drop policy if exists "supply_alerts_select" on public.supply_alerts;
+create policy "supply_alerts_select" on public.supply_alerts for select to authenticated
+  using (public.is_active_user());
+drop policy if exists "supply_alerts_write" on public.supply_alerts;
+create policy "supply_alerts_write" on public.supply_alerts for all to authenticated
+  using (public.is_active_user() and public.current_role() <> 'readonly')
+  with check (public.is_active_user() and public.current_role() <> 'readonly');
+
+-- ----------------------------------------------------------------------------
+-- La vue que lisent la page Alertes, son détail et le tableau de bord : les
+-- alertes enrichies du libellé de leur fourniture et du nom du demandeur.
+-- ----------------------------------------------------------------------------
+create or replace view public.supply_alerts_view as
+  select
+    a.*,
+    st.name                                        as supply_type_name,
+    nullif(trim(e.first_name || ' ' || coalesce(e.last_name, '')), '') as created_by_name,
+    po.number                                      as purchase_order_number
+  from public.supply_alerts a
+  left join public.supply_types st    on st.id = a.supply_type_id
+  left join public.employees e        on e.id = a.created_by
+  left join public.purchase_orders po on po.id = a.purchase_order_id;

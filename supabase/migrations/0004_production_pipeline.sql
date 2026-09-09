@@ -4,7 +4,11 @@
 -- -> retour Commercial -> Livré au client
 -- ============================================================================
 
-create type public.pipeline_stage as enum (
+do $$
+begin
+  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                 where n.nspname = 'public' and t.typname = 'pipeline_stage') then
+    execute $ddl$create type public.pipeline_stage as enum (
   'reception_whatsapp',
   'commercial',
   'atelier_dtf',
@@ -12,9 +16,11 @@ create type public.pipeline_stage as enum (
   'flocage',
   'retour_commercial',
   'livre'
-);
+);$ddl$;
+  end if;
+end $$;
 
-create table public.pipeline_orders (
+create table if not exists public.pipeline_orders (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   contact_id uuid not null references public.contacts(id) on delete restrict,
@@ -26,12 +32,12 @@ create table public.pipeline_orders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index pipeline_orders_stage_idx on public.pipeline_orders(stage);
-create index pipeline_orders_contact_idx on public.pipeline_orders(contact_id);
+create index if not exists pipeline_orders_stage_idx on public.pipeline_orders(stage);
+create index if not exists pipeline_orders_contact_idx on public.pipeline_orders(contact_id);
 
 -- Historique des étapes : donne la traçabilité complète (qui, quand) et permet
 -- de calculer "depuis quand" une commande est dans son étape courante.
-create table public.pipeline_stage_log (
+create table if not exists public.pipeline_stage_log (
   id uuid primary key default gen_random_uuid(),
   pipeline_order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   stage public.pipeline_stage not null,
@@ -39,8 +45,9 @@ create table public.pipeline_stage_log (
   note text,
   created_at timestamptz not null default now()
 );
-create index pipeline_stage_log_order_idx on public.pipeline_stage_log(pipeline_order_id);
+create index if not exists pipeline_stage_log_order_idx on public.pipeline_stage_log(pipeline_order_id);
 
+drop trigger if exists set_updated_at on public.pipeline_orders;
 create trigger set_updated_at before update on public.pipeline_orders
   for each row execute function public.set_updated_at();
 
@@ -54,6 +61,7 @@ begin
 end;
 $$;
 
+drop trigger if exists set_pipeline_number on public.pipeline_orders;
 create trigger set_pipeline_number before insert on public.pipeline_orders
   for each row execute function public.set_pipeline_number();
 
@@ -72,6 +80,7 @@ begin
 end;
 $$;
 
+drop trigger if exists log_pipeline_stage on public.pipeline_orders;
 create trigger log_pipeline_stage
   after insert or update on public.pipeline_orders
   for each row execute function public.log_pipeline_stage();
@@ -106,14 +115,18 @@ left join public.employees e on e.id = po.assigned_to;
 alter table public.pipeline_orders enable row level security;
 alter table public.pipeline_stage_log enable row level security;
 
+drop policy if exists "pipeline_orders_select" on public.pipeline_orders;
 create policy "pipeline_orders_select" on public.pipeline_orders for select to authenticated
   using (public.is_active_user());
+drop policy if exists "pipeline_orders_write" on public.pipeline_orders;
 create policy "pipeline_orders_write" on public.pipeline_orders for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');
 
+drop policy if exists "pipeline_stage_log_select" on public.pipeline_stage_log;
 create policy "pipeline_stage_log_select" on public.pipeline_stage_log for select to authenticated
   using (public.is_active_user());
+drop policy if exists "pipeline_stage_log_write" on public.pipeline_stage_log;
 create policy "pipeline_stage_log_write" on public.pipeline_stage_log for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');

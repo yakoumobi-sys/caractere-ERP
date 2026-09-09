@@ -4,7 +4,7 @@
 -- (emplacement/taille/texte/technique) et fichiers (logo, mockup...)
 -- ============================================================================
 
-create table public.pipeline_order_items (
+create table if not exists public.pipeline_order_items (
   id uuid primary key default gen_random_uuid(),
   pipeline_order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   product_name text not null,   -- ex: "T-shirt", "Polo", "Tote bag"
@@ -13,9 +13,9 @@ create table public.pipeline_order_items (
   quantity numeric(12,2) not null default 1,
   position int not null default 0
 );
-create index pipeline_order_items_order_idx on public.pipeline_order_items(pipeline_order_id);
+create index if not exists pipeline_order_items_order_idx on public.pipeline_order_items(pipeline_order_id);
 
-create table public.pipeline_order_prints (
+create table if not exists public.pipeline_order_prints (
   id uuid primary key default gen_random_uuid(),
   pipeline_order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   placement text not null,      -- ex: "Coeur", "Dos", "Manche gauche"
@@ -24,9 +24,9 @@ create table public.pipeline_order_prints (
   technique text check (technique in ('dtf','broderie','flocage')),
   position int not null default 0
 );
-create index pipeline_order_prints_order_idx on public.pipeline_order_prints(pipeline_order_id);
+create index if not exists pipeline_order_prints_order_idx on public.pipeline_order_prints(pipeline_order_id);
 
-create table public.pipeline_order_files (
+create table if not exists public.pipeline_order_files (
   id uuid primary key default gen_random_uuid(),
   pipeline_order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   file_url text not null,
@@ -34,7 +34,7 @@ create table public.pipeline_order_files (
   uploaded_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index pipeline_order_files_order_idx on public.pipeline_order_files(pipeline_order_id);
+create index if not exists pipeline_order_files_order_idx on public.pipeline_order_files(pipeline_order_id);
 
 -- ----------------------------------------------------------------------------
 -- RLS (même politique que le reste de l'ERP : lecture pour tout utilisateur
@@ -70,11 +70,14 @@ insert into storage.buckets (id, name, public)
 values ('order-files', 'order-files', true)
 on conflict (id) do nothing;
 
+drop policy if exists "order_files_public_read" on storage;
 create policy "order_files_public_read" on storage.objects for select
   using (bucket_id = 'order-files');
 
+drop policy if exists "order_files_authenticated_insert" on storage;
 create policy "order_files_authenticated_insert" on storage.objects for insert to authenticated
   with check (bucket_id = 'order-files');
 
+drop policy if exists "order_files_authenticated_delete" on storage;
 create policy "order_files_authenticated_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'order-files');

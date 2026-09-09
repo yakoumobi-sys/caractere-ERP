@@ -16,8 +16,8 @@ create table if not exists public.employee_tasks (
   updated_at timestamptz not null default now()
 );
 
-create index employee_tasks_employee_idx on public.employee_tasks(employee_id);
-create index employee_tasks_completed_idx on public.employee_tasks(completed_at);
+create index if not exists employee_tasks_employee_idx on public.employee_tasks(employee_id);
+create index if not exists employee_tasks_completed_idx on public.employee_tasks(completed_at);
 
 -- Table pour Absences
 create table if not exists public.employee_absences (
@@ -31,8 +31,8 @@ create table if not exists public.employee_absences (
   updated_at timestamptz not null default now()
 );
 
-create index employee_absences_employee_idx on public.employee_absences(employee_id);
-create index employee_absences_date_idx on public.employee_absences(absence_date);
+create index if not exists employee_absences_employee_idx on public.employee_absences(employee_id);
+create index if not exists employee_absences_date_idx on public.employee_absences(absence_date);
 
 -- Table pour Yalidine Tracking
 create table if not exists public.yalidine_shipments (
@@ -47,8 +47,8 @@ create table if not exists public.yalidine_shipments (
   updated_at timestamptz not null default now()
 );
 
-create index yalidine_shipments_order_idx on public.yalidine_shipments(order_id);
-create index yalidine_shipments_tracking_idx on public.yalidine_shipments(yalidine_tracking_id);
+create index if not exists yalidine_shipments_order_idx on public.yalidine_shipments(order_id);
+create index if not exists yalidine_shipments_tracking_idx on public.yalidine_shipments(yalidine_tracking_id);
 
 -- Triggers pour updated_at
 create or replace function public.set_updated_at_tasks()
@@ -59,12 +59,15 @@ begin
 end;
 $$;
 
+drop trigger if exists set_updated_at_tasks on public.employee_tasks;
 create trigger set_updated_at_tasks before update on public.employee_tasks
   for each row execute function public.set_updated_at_tasks();
 
+drop trigger if exists set_updated_at_absences on public.employee_absences;
 create trigger set_updated_at_absences before update on public.employee_absences
   for each row execute function public.set_updated_at_tasks();
 
+drop trigger if exists set_updated_at_yalidine on public.yalidine_shipments;
 create trigger set_updated_at_yalidine before update on public.yalidine_shipments
   for each row execute function public.set_updated_at_tasks();
 
@@ -74,16 +77,20 @@ alter table public.employee_absences enable row level security;
 alter table public.yalidine_shipments enable row level security;
 
 -- Lecture: tous les utilisateurs actifs
+drop policy if exists "employee_tasks_select" on public.employee_tasks;
 create policy "employee_tasks_select" on public.employee_tasks for select
   to authenticated using (public.is_active_user());
 
+drop policy if exists "employee_absences_select" on public.employee_absences;
 create policy "employee_absences_select" on public.employee_absences for select
   to authenticated using (public.is_active_user());
 
+drop policy if exists "yalidine_shipments_select" on public.yalidine_shipments;
 create policy "yalidine_shipments_select" on public.yalidine_shipments for select
   to authenticated using (public.is_active_user());
 
 -- Écriture: propriétaire ou admin
+drop policy if exists "employee_tasks_write" on public.employee_tasks;
 create policy "employee_tasks_write" on public.employee_tasks for all
   to authenticated using (
     public.is_active_user() and (
@@ -91,6 +98,7 @@ create policy "employee_tasks_write" on public.employee_tasks for all
     )
   );
 
+drop policy if exists "employee_absences_write" on public.employee_absences;
 create policy "employee_absences_write" on public.employee_absences for all
   to authenticated using (
     public.is_active_user() and (
@@ -98,6 +106,7 @@ create policy "employee_absences_write" on public.employee_absences for all
     )
   );
 
+drop policy if exists "yalidine_shipments_write" on public.yalidine_shipments;
 create policy "yalidine_shipments_write" on public.yalidine_shipments for all
   to authenticated using (
     public.is_active_user() and public.current_role() in ('admin', 'sales')

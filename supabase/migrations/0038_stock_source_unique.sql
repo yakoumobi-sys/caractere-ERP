@@ -48,13 +48,20 @@ comment on column public.stock_moves.pipeline_order_id is
 -- ----------------------------------------------------------------------------
 -- 2. Livraison d'une commande de production -> sortie de stock
 --
--- L'ancienne version cherchait le produit par « p.name = v_item.product_name »
--- : un libellé saisi à la main, avec la casse et les espaces de l'opérateur.
--- 0035 a posé pipeline_order_items.product_id, on s'en sert d'abord ; la
--- correspondance par nom normalisé ne reste que pour les lignes anciennes.
+-- Trois défauts dans la version de 0030, corrigés ici :
 --
--- AFTER UPDATE et non plus BEFORE : rien à modifier sur la ligne en cours, et
--- un échec d'insertion ne doit pas empêcher la commande de changer d'étape.
+--   * elle se déclenchait sur « stage = 'livre' ». La colonne stage a été
+--     supprimée par 0006, qui l'a remplacée par status ('livre' -> 'livree').
+--     Le trigger ne pouvait donc jamais s'exécuter — et sur une base où il
+--     aurait existé, il aurait fait échouer toute mise à jour de commande.
+--     On lit désormais status = 'livree', la valeur qu'écrit l'application
+--     (voir lib/pipeline.ts et la contrainte posée en 0032) ;
+--   * elle cherchait le produit par « p.name = v_item.product_name », un
+--     libellé saisi à la main, avec la casse et les espaces de l'opérateur.
+--     0035 a posé pipeline_order_items.product_id, on s'en sert d'abord ; la
+--     correspondance par nom normalisé ne reste que pour les lignes anciennes ;
+--   * elle était BEFORE UPDATE : rien à modifier sur la ligne en cours, et un
+--     échec d'insertion ne doit pas empêcher la commande de changer d'étape.
 -- ----------------------------------------------------------------------------
 create or replace function public.inventory_out_on_delivery()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -62,7 +69,7 @@ declare
   v_default_wh uuid;
   v_already int;
 begin
-  if new.stage is distinct from 'livre' or old.stage is not distinct from 'livre' then
+  if new.status is distinct from 'livree' or old.status is not distinct from 'livree' then
     return new;
   end if;
 
@@ -72,8 +79,8 @@ begin
     return new;
   end if;
 
-  -- Un aller-retour d'étape (livré -> prête -> livré) ne doit pas sortir la
-  -- marchandise deux fois.
+  -- Un aller-retour de statut (livrée -> prête -> livrée) ne doit pas sortir
+  -- la marchandise deux fois.
   select count(*) into v_already
   from public.stock_moves
   where pipeline_order_id = new.id and type = 'sortie';

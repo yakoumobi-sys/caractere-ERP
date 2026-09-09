@@ -28,8 +28,8 @@ create table if not exists public.order_payments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index order_payments_order_idx on public.order_payments(pipeline_order_id);
-create index order_payments_created_idx on public.order_payments(created_at);
+create index if not exists order_payments_order_idx on public.order_payments(pipeline_order_id);
+create index if not exists order_payments_created_idx on public.order_payments(created_at);
 
 -- 4. Table: Sorties de stock (quand on livre)
 create table if not exists public.inventory_movements (
@@ -42,8 +42,8 @@ create table if not exists public.inventory_movements (
   recorded_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index inventory_movements_product_idx on public.inventory_movements(product_id);
-create index inventory_movements_order_idx on public.inventory_movements(pipeline_order_id);
+create index if not exists inventory_movements_product_idx on public.inventory_movements(product_id);
+create index if not exists inventory_movements_order_idx on public.inventory_movements(pipeline_order_id);
 
 -- 5. Fonction: Mettre à jour le solde client quand on enregistre un paiement
 create or replace function public.update_client_balance_on_payment()
@@ -169,19 +169,27 @@ for each row execute function public.inventory_out_on_delivery();
 -- 11. RLS pour order_payments
 alter table public.order_payments enable row level security;
 
+drop policy if exists "order_payments_select" on public.order_payments;
 create policy "order_payments_select" on public.order_payments for select
   to authenticated using (public.is_active_user());
 
+-- FOR INSERT n'accepte que WITH CHECK : un USING ici faisait échouer
+-- la migration entière, et avec elle tout ce qui suit.
+drop policy if exists "order_payments_insert" on public.order_payments;
 create policy "order_payments_insert" on public.order_payments for insert
-  to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'manager', 'sales'))
+  to authenticated
   with check (public.is_active_user() and public.current_role() in ('admin', 'manager', 'sales'));
 
 -- 12. RLS pour inventory_movements
 alter table public.inventory_movements enable row level security;
 
+drop policy if exists "inventory_movements_select" on public.inventory_movements;
 create policy "inventory_movements_select" on public.inventory_movements for select
   to authenticated using (public.is_active_user());
 
+-- FOR INSERT n'accepte que WITH CHECK : un USING ici faisait échouer
+-- la migration entière, et avec elle tout ce qui suit.
+drop policy if exists "inventory_movements_insert" on public.inventory_movements;
 create policy "inventory_movements_insert" on public.inventory_movements for insert
-  to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'manager', 'purchasing'))
+  to authenticated
   with check (public.is_active_user() and public.current_role() in ('admin', 'manager', 'purchasing'));
