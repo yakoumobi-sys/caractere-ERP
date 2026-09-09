@@ -29,7 +29,16 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
     new.email,
-    case when (select count(*) from public.profiles) = 0 then 'admin' else 'readonly' end
+    -- Les transtypages explicites sont indispensables : profiles.role est de
+    -- type user_role, et Postgres ne convertit pas implicitement un littéral
+    -- texte vers un enum. 0007 les avait ajoutés pour cette raison exacte ;
+    -- cette redéfinition les avait perdus, et toute création de compte
+    -- échouait sur « column role is of type user_role but expression is of
+    -- type text ».
+    case
+      when (select count(*) from public.profiles) = 0 then 'admin'::public.user_role
+      else 'readonly'::public.user_role
+    end
   );
   return new;
 end;

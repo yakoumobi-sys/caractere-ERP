@@ -93,25 +93,34 @@ create policy "claims_write" on public.claims
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');
 
-alter table public.supply_types enable row level security;
-drop policy if exists "supply_types_select" on public.supply_types;
-create policy "supply_types_select" on public.supply_types
-  for select to authenticated using (public.is_active_user());
-drop policy if exists "supply_types_write" on public.supply_types;
-create policy "supply_types_write" on public.supply_types
-  for all to authenticated
-  using (public.is_active_user() and public.current_role() <> 'readonly')
-  with check (public.is_active_user() and public.current_role() <> 'readonly');
-
-alter table public.supply_alerts enable row level security;
-drop policy if exists "supply_alerts_select" on public.supply_alerts;
-create policy "supply_alerts_select" on public.supply_alerts
-  for select to authenticated using (public.is_active_user());
-drop policy if exists "supply_alerts_write" on public.supply_alerts;
-create policy "supply_alerts_write" on public.supply_alerts
-  for all to authenticated
-  using (public.is_active_user() and public.current_role() <> 'readonly')
-  with check (public.is_active_user() and public.current_role() <> 'readonly');
+-- supply_types et supply_alerts n'existent, à ce point de la chaîne, que sur la
+-- base historique où elles ont été posées à la main (voir la note en fin de
+-- fichier). Les durcir sans condition faisait échouer cette migration sur toute
+-- base neuve. On les traite si elles sont là ; sinon 0019, qui les crée
+-- désormais pour de bon, pose les mêmes policies.
+do $$
+declare t text;
+begin
+  foreach t in array array['supply_types', 'supply_alerts']
+  loop
+    if to_regclass('public.' || t) is null then
+      continue;
+    end if;
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "%1$s_select" on public.%1$s', t);
+    execute format(
+      'create policy "%1$s_select" on public.%1$s for select to authenticated using (public.is_active_user())',
+      t
+    );
+    execute format('drop policy if exists "%1$s_write" on public.%1$s', t);
+    execute format(
+      'create policy "%1$s_write" on public.%1$s for all to authenticated '
+      'using (public.is_active_user() and public.current_role() <> ''readonly'') '
+      'with check (public.is_active_user() and public.current_role() <> ''readonly'')',
+      t
+    );
+  end loop;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- 3. Sécurité : suppression de la porte dérobée de création de compte
@@ -120,12 +129,11 @@ create policy "supply_alerts_write" on public.supply_alerts
 drop function if exists public.create_user(text, text);
 
 -- ----------------------------------------------------------------------------
--- Note : supply_alerts, supply_types, production_tasks, claims (schéma réel)
--- et yalidine_* n'existent pas dans les migrations 0001-0014 de ce repo —
--- elles ont été créées directement en base (SQL Editor / MCP) par une session
--- précédente sans migration correspondante. Le schéma vivant du projet
--- Supabase fait donc référence en cas de doute ; à terme, envisager de
--- régénérer les migrations manquantes (yalidine_shipments,
--- yalidine_tracking_history, supply_alerts, supply_types, tasks,
--- employee_tasks) pour que le repo reflète fidèlement la prod.
+-- Note historique : supply_alerts, supply_types, production_tasks, claims
+-- (schéma réel) et yalidine_* avaient été créées directement en base (SQL
+-- Editor / MCP) sans migration correspondante — le dépôt ne savait donc pas
+-- reconstruire la base, et la chaîne s'arrêtait ici sur tout environnement
+-- neuf. supply_types et supply_alerts sont désormais créées par 0019 ; les
+-- autres ont été retrouvées dans les migrations ultérieures. Un audit des
+-- tables et vues lues par le code ne signale plus de manquante.
 -- ============================================================================

@@ -6,14 +6,28 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 -- Types
 -- ----------------------------------------------------------------------------
-create type public.user_role as enum ('admin','manager','sales','purchasing','accounting','stock','hr','readonly');
-create type public.contact_type as enum ('client','prospect','fournisseur','autre');
-create type public.opportunity_stage as enum ('nouveau','qualification','proposition','negociation','gagne','perdu');
+-- create type n'accepte pas « if not exists » : on interroge le catalogue.
+do $$
+begin
+  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                 where n.nspname = 'public' and t.typname = 'user_role') then
+    execute $ddl$create type public.user_role as enum ('admin','manager','sales','purchasing','accounting','stock','hr','readonly');$ddl$;
+  end if;
+  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                 where n.nspname = 'public' and t.typname = 'contact_type') then
+    execute $ddl$create type public.contact_type as enum ('client','prospect','fournisseur','autre');$ddl$;
+  end if;
+  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                 where n.nspname = 'public' and t.typname = 'opportunity_stage') then
+    execute $ddl$create type public.opportunity_stage as enum ('nouveau','qualification','proposition','negociation','gagne','perdu');$ddl$;
+  end if;
+end $$;
+
 
 -- ----------------------------------------------------------------------------
 -- Société & utilisateurs
 -- ----------------------------------------------------------------------------
-create table public.companies (
+create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null default 'Caractère',
   siret text,
@@ -27,7 +41,7 @@ create table public.companies (
   created_at timestamptz not null default now()
 );
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   role public.user_role not null default 'readonly',
@@ -39,7 +53,7 @@ create table public.profiles (
 -- ----------------------------------------------------------------------------
 -- CRM
 -- ----------------------------------------------------------------------------
-create table public.contacts (
+create table if not exists public.contacts (
   id uuid primary key default gen_random_uuid(),
   type public.contact_type not null default 'client',
   name text not null,
@@ -55,10 +69,10 @@ create table public.contacts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index contacts_type_idx on public.contacts(type);
-create index contacts_owner_idx on public.contacts(owner_id);
+create index if not exists contacts_type_idx on public.contacts(type);
+create index if not exists contacts_owner_idx on public.contacts(owner_id);
 
-create table public.opportunities (
+create table if not exists public.opportunities (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid references public.contacts(id) on delete cascade,
   title text not null,
@@ -69,9 +83,9 @@ create table public.opportunities (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index opportunities_stage_idx on public.opportunities(stage);
+create index if not exists opportunities_stage_idx on public.opportunities(stage);
 
-create table public.activities (
+create table if not exists public.activities (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid references public.contacts(id) on delete cascade,
   opportunity_id uuid references public.opportunities(id) on delete set null,
@@ -80,19 +94,19 @@ create table public.activities (
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index activities_contact_idx on public.activities(contact_id);
+create index if not exists activities_contact_idx on public.activities(contact_id);
 
 -- ----------------------------------------------------------------------------
 -- Catalogue & stock
 -- ----------------------------------------------------------------------------
-create table public.product_categories (
+create table if not exists public.product_categories (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   created_at timestamptz not null default now()
 );
 
-create table public.products (
+create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   sku text not null unique,
   name text not null,
@@ -108,9 +122,9 @@ create table public.products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index products_category_idx on public.products(category_id);
+create index if not exists products_category_idx on public.products(category_id);
 
-create table public.warehouses (
+create table if not exists public.warehouses (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   address text,
@@ -118,7 +132,7 @@ create table public.warehouses (
   created_at timestamptz not null default now()
 );
 
-create table public.stock_moves (
+create table if not exists public.stock_moves (
   id uuid primary key default gen_random_uuid(),
   product_id uuid not null references public.products(id) on delete restrict,
   warehouse_id uuid not null references public.warehouses(id) on delete restrict,
@@ -129,8 +143,8 @@ create table public.stock_moves (
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index stock_moves_product_idx on public.stock_moves(product_id);
-create index stock_moves_warehouse_idx on public.stock_moves(warehouse_id);
+create index if not exists stock_moves_product_idx on public.stock_moves(product_id);
+create index if not exists stock_moves_warehouse_idx on public.stock_moves(warehouse_id);
 
 -- Niveaux de stock calculés (vue) plutôt que stockés, pour rester toujours cohérents
 create view public.product_stock_levels as
@@ -149,7 +163,7 @@ create view public.product_stock_levels as
 -- ----------------------------------------------------------------------------
 -- Achats
 -- ----------------------------------------------------------------------------
-create table public.suppliers (
+create table if not exists public.suppliers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   contact_name text,
@@ -164,7 +178,7 @@ create table public.suppliers (
   updated_at timestamptz not null default now()
 );
 
-create table public.purchase_orders (
+create table if not exists public.purchase_orders (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   supplier_id uuid references public.suppliers(id) on delete restrict,
@@ -180,7 +194,7 @@ create table public.purchase_orders (
   updated_at timestamptz not null default now()
 );
 
-create table public.purchase_order_lines (
+create table if not exists public.purchase_order_lines (
   id uuid primary key default gen_random_uuid(),
   po_id uuid not null references public.purchase_orders(id) on delete cascade,
   product_id uuid references public.products(id) on delete restrict,
@@ -191,12 +205,12 @@ create table public.purchase_order_lines (
   received_qty numeric(12,2) not null default 0,
   position int not null default 0
 );
-create index po_lines_po_idx on public.purchase_order_lines(po_id);
+create index if not exists po_lines_po_idx on public.purchase_order_lines(po_id);
 
 -- ----------------------------------------------------------------------------
 -- Ventes & facturation
 -- ----------------------------------------------------------------------------
-create table public.sales_quotes (
+create table if not exists public.sales_quotes (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   contact_id uuid references public.contacts(id) on delete restrict,
@@ -212,7 +226,7 @@ create table public.sales_quotes (
   updated_at timestamptz not null default now()
 );
 
-create table public.sales_quote_lines (
+create table if not exists public.sales_quote_lines (
   id uuid primary key default gen_random_uuid(),
   quote_id uuid not null references public.sales_quotes(id) on delete cascade,
   product_id uuid references public.products(id) on delete restrict,
@@ -222,9 +236,9 @@ create table public.sales_quote_lines (
   tax_rate numeric(5,2) not null default 20,
   position int not null default 0
 );
-create index quote_lines_quote_idx on public.sales_quote_lines(quote_id);
+create index if not exists quote_lines_quote_idx on public.sales_quote_lines(quote_id);
 
-create table public.sales_orders (
+create table if not exists public.sales_orders (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   quote_id uuid references public.sales_quotes(id) on delete set null,
@@ -240,7 +254,7 @@ create table public.sales_orders (
   updated_at timestamptz not null default now()
 );
 
-create table public.sales_order_lines (
+create table if not exists public.sales_order_lines (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.sales_orders(id) on delete cascade,
   product_id uuid references public.products(id) on delete restrict,
@@ -250,9 +264,9 @@ create table public.sales_order_lines (
   tax_rate numeric(5,2) not null default 20,
   position int not null default 0
 );
-create index order_lines_order_idx on public.sales_order_lines(order_id);
+create index if not exists order_lines_order_idx on public.sales_order_lines(order_id);
 
-create table public.invoices (
+create table if not exists public.invoices (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   order_id uuid references public.sales_orders(id) on delete set null,
@@ -270,7 +284,7 @@ create table public.invoices (
   updated_at timestamptz not null default now()
 );
 
-create table public.invoice_lines (
+create table if not exists public.invoice_lines (
   id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
   product_id uuid references public.products(id) on delete restrict,
@@ -280,9 +294,9 @@ create table public.invoice_lines (
   tax_rate numeric(5,2) not null default 20,
   position int not null default 0
 );
-create index invoice_lines_invoice_idx on public.invoice_lines(invoice_id);
+create index if not exists invoice_lines_invoice_idx on public.invoice_lines(invoice_id);
 
-create table public.payments (
+create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
   amount numeric(12,2) not null,
@@ -292,12 +306,12 @@ create table public.payments (
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index payments_invoice_idx on public.payments(invoice_id);
+create index if not exists payments_invoice_idx on public.payments(invoice_id);
 
 -- ----------------------------------------------------------------------------
 -- Comptabilité (base)
 -- ----------------------------------------------------------------------------
-create table public.chart_of_accounts (
+create table if not exists public.chart_of_accounts (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   name text not null,
@@ -306,7 +320,7 @@ create table public.chart_of_accounts (
   created_at timestamptz not null default now()
 );
 
-create table public.journal_entries (
+create table if not exists public.journal_entries (
   id uuid primary key default gen_random_uuid(),
   entry_date date not null default current_date,
   reference text,
@@ -317,7 +331,7 @@ create table public.journal_entries (
   created_at timestamptz not null default now()
 );
 
-create table public.journal_lines (
+create table if not exists public.journal_lines (
   id uuid primary key default gen_random_uuid(),
   entry_id uuid not null references public.journal_entries(id) on delete cascade,
   account_id uuid not null references public.chart_of_accounts(id) on delete restrict,
@@ -325,13 +339,13 @@ create table public.journal_lines (
   credit numeric(12,2) not null default 0,
   label text
 );
-create index journal_lines_entry_idx on public.journal_lines(entry_id);
-create index journal_lines_account_idx on public.journal_lines(account_id);
+create index if not exists journal_lines_entry_idx on public.journal_lines(entry_id);
+create index if not exists journal_lines_account_idx on public.journal_lines(account_id);
 
 -- ----------------------------------------------------------------------------
 -- RH & Projets (socle, à enrichir)
 -- ----------------------------------------------------------------------------
-create table public.employees (
+create table if not exists public.employees (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text not null,
@@ -346,7 +360,7 @@ create table public.employees (
   updated_at timestamptz not null default now()
 );
 
-create table public.projects (
+create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   contact_id uuid references public.contacts(id) on delete set null,

@@ -48,6 +48,7 @@ begin
     'employees','projects'
   ]
   loop
+    execute format('drop policy if exists "%1$s_select" on public.%1$s', t);
     execute format(
       'create policy "%1$s_select" on public.%1$s for select to authenticated using (public.is_active_user())',
       t
@@ -68,6 +69,7 @@ begin
     'employees','projects'
   ]
   loop
+    execute format('drop policy if exists "%1$s_write" on public.%1$s', t);
     execute format(
       'create policy "%1$s_write" on public.%1$s for all to authenticated using (public.is_active_user() and public.current_role() <> ''readonly'') with check (public.is_active_user() and public.current_role() <> ''readonly'')',
       t
@@ -76,25 +78,31 @@ begin
 end $$;
 
 -- Comptabilité : réservée à admin / accounting
+drop policy if exists "chart_of_accounts_write" on public.chart_of_accounts;
 create policy "chart_of_accounts_write" on public.chart_of_accounts for all to authenticated
   using (public.current_role() in ('admin','accounting'))
   with check (public.current_role() in ('admin','accounting'));
 
+drop policy if exists "journal_entries_write" on public.journal_entries;
 create policy "journal_entries_write" on public.journal_entries for all to authenticated
   using (public.current_role() in ('admin','accounting'))
   with check (public.current_role() in ('admin','accounting'));
 
+drop policy if exists "journal_lines_write" on public.journal_lines;
 create policy "journal_lines_write" on public.journal_lines for all to authenticated
   using (public.current_role() in ('admin','accounting'))
   with check (public.current_role() in ('admin','accounting'));
 
 -- Société & profils : réservés à admin (les profils peuvent aussi être lus par tous via la policy select ci-dessus)
+drop policy if exists "companies_write" on public.companies;
 create policy "companies_write" on public.companies for all to authenticated
   using (public.current_role() = 'admin') with check (public.current_role() = 'admin');
 
+drop policy if exists "profiles_write_self_or_admin" on public.profiles;
 create policy "profiles_write_self_or_admin" on public.profiles for update to authenticated
   using (auth.uid() = id or public.current_role() = 'admin')
   with check (auth.uid() = id or public.current_role() = 'admin');
 
+drop policy if exists "profiles_admin_insert" on public.profiles;
 create policy "profiles_admin_insert" on public.profiles for insert to authenticated
   with check (public.current_role() = 'admin');

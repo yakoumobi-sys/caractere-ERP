@@ -156,31 +156,43 @@ end;
 $$;
 
 -- search_path fixé sur les fonctions restantes signalées "mutable" par l'audit.
-alter function public.set_invoice_number() set search_path = public;
-alter function public.set_po_number() set search_path = public;
-alter function public.recompute_totals() set search_path = public;
-alter function public.recompute_po_totals() set search_path = public;
-alter function public.check_journal_balance() set search_path = public;
-alter function public.auto_number_order() set search_path = public;
-alter function public.generate_claim_number() set search_path = public;
-alter function public.auto_number_claim() set search_path = public;
-alter function public.update_updated_at() set search_path = public;
-alter function public.mark_as_paid_on_confirmation() set search_path = public;
-alter function public.create_journal_entries_for_order() set search_path = public;
-alter function public.set_pipeline_number() set search_path = public;
-alter function public.auto_number_alert() set search_path = public;
-alter function public.log_pipeline_stage() set search_path = public;
-alter function public.log_yalidine_status_change() set search_path = public;
-alter function public.auto_confirm_on_yalidine_delivery() set search_path = public;
-alter function public.get_yalidine_status_label(status text) set search_path = public;
-alter function public.set_updated_at() set search_path = public;
-alter function public.next_document_number(p_prefix text, p_table text) set search_path = public;
-alter function public.set_quote_number() set search_path = public;
-alter function public.set_order_number() set search_path = public;
-alter function public.generate_order_number() set search_path = public;
-alter function public.set_updated_at_tasks() set search_path = public;
-alter function public.prevent_invoice_status_regression() set search_path = public;
-alter function public.lock_invoice_lines_when_posted() set search_path = public;
+--
+-- Plusieurs de ces fonctions n'ont jamais été créées par une migration : elles
+-- n'existent que sur la base historique, posées à la main. Un ALTER FUNCTION
+-- sur une fonction absente est une erreur, qui faisait échouer ce durcissement
+-- en entier sur toute base neuve — donc en CI et sur tout nouvel environnement.
+-- On durcit ce qui est là, et on ignore le reste plutôt que de tout perdre.
+do $$
+declare
+  f text;
+  r record;
+begin
+  foreach f in array array[
+    'set_invoice_number','set_po_number','recompute_totals','recompute_po_totals',
+    'check_journal_balance','auto_number_order','generate_claim_number',
+    'auto_number_claim','update_updated_at','mark_as_paid_on_confirmation',
+    'create_journal_entries_for_order','set_pipeline_number','auto_number_alert',
+    'log_pipeline_stage',
+    'log_yalidine_status_change','auto_confirm_on_yalidine_delivery',
+    'get_yalidine_status_label','set_updated_at','next_document_number',
+    'set_quote_number','set_order_number','generate_order_number',
+    'set_updated_at_tasks','prevent_invoice_status_regression',
+    'lock_invoice_lines_when_posted'
+  ]
+  loop
+    -- Une même fonction peut exister en plusieurs surcharges : on les traite
+    -- toutes, en désignant chacune par sa signature exacte.
+    for r in
+      select p.oid::regprocedure as signature
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = f
+    loop
+      execute format('alter function %s set search_path = public', r.signature);
+    end loop;
+  end loop;
+end $$;
+
 alter function public.prevent_posted_invoice_delete() set search_path = public;
 
 -- next_document_number : appelée en imbriqué (non SECURITY DEFINER à l'origine)
@@ -195,11 +207,23 @@ alter table public.document_number_counters enable row level security;
 -- RLS des tables sous-jacentes ; ces policies autorisent déjà tout
 -- utilisateur actif à lire, donc aucun changement de comportement pour
 -- l'app — seule la fuite anon est fermée).
-alter view public.supply_alerts_view set (security_invoker = on);
-alter view public.employee_stats set (security_invoker = on);
-alter view public.product_stock_levels set (security_invoker = on);
-alter view public.yalidine_shipments_view set (security_invoker = on);
-alter view public.pipeline_orders_view set (security_invoker = on);
+-- Même précaution que pour les fonctions ci-dessus : employee_stats n'a jamais
+-- eu de migration et n'existe que sur la base historique. On durcit les vues
+-- présentes plutôt que d'abandonner le durcissement entier sur l'absence
+-- d'une seule.
+do $$
+declare v text;
+begin
+  foreach v in array array[
+    'supply_alerts_view','employee_stats','product_stock_levels',
+    'yalidine_shipments_view','pipeline_orders_view'
+  ]
+  loop
+    if to_regclass('public.' || v) is not null then
+      execute format('alter view public.%I set (security_invoker = on)', v);
+    end if;
+  end loop;
+end $$;
 
 -- Droits d'exécution resserrés sur les fonctions SECURITY DEFINER sensibles.
 revoke execute on function public.alert_on_yalidine_failure() from public, anon, authenticated;
@@ -217,11 +241,19 @@ revoke execute on function public.supply_alert_complete(uuid) from public, anon;
 revoke execute on function public.sync_stale_order_alerts() from public, anon;
 
 -- yalidine_tracking_history : RLS activée sans policy = personne ne pouvait
--- lire l'historique de tracking. Alignée sur yalidine_shipments.
-drop policy if exists "yalidine_tracking_history_select" on public.yalidine_tracking_history;
-create policy "yalidine_tracking_history_select" on public.yalidine_tracking_history for select
-  to authenticated using (public.is_active_user());
+-- lire l'historique de tracking. Alignée sur yalidine_shipments. Cette table
+-- non plus n'a jamais eu de migration — d'où la condition d'existence.
+do $$
+begin
+  if to_regclass('public.yalidine_tracking_history') is null then
+    return;
+  end if;
 
-drop policy if exists "yalidine_tracking_history_write" on public.yalidine_tracking_history;
-create policy "yalidine_tracking_history_write" on public.yalidine_tracking_history for all
-  to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'sales'));
+  drop policy if exists "yalidine_tracking_history_select" on public.yalidine_tracking_history;
+  create policy "yalidine_tracking_history_select" on public.yalidine_tracking_history for select
+    to authenticated using (public.is_active_user());
+
+  drop policy if exists "yalidine_tracking_history_write" on public.yalidine_tracking_history;
+  create policy "yalidine_tracking_history_write" on public.yalidine_tracking_history for all
+    to authenticated using (public.is_active_user() and public.current_role() in ('admin', 'sales'));
+end $$;

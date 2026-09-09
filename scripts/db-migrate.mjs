@@ -12,6 +12,16 @@
  *   node scripts/db-migrate.mjs --baseline   marque tout comme appliqué, sans
  *                                            rien exécuter (à lancer une fois,
  *                                            sur une base déjà construite)
+ *   node scripts/db-migrate.mjs --baseline --upto 0037_...
+ *                                            n'amorce que jusqu'à cette
+ *                                            migration incluse ; les suivantes
+ *                                            restent à appliquer. C'est ce
+ *                                            qu'il faut sur une base existante
+ *                                            à qui il ne manque que les
+ *                                            dernières migrations : un
+ *                                            --baseline nu les marquerait
+ *                                            appliquées sans les exécuter, et
+ *                                            le correctif ne serait jamais posé.
  *   node scripts/db-migrate.mjs --check      liste ce qui manque, sort en
  *                                            échec s'il en reste (pour la CI)
  *   node scripts/db-migrate.mjs              applique les migrations absentes
@@ -57,6 +67,14 @@ async function main() {
       ? "check"
       : "apply";
 
+  // --upto <version> : borne haute de l'amorçage. Le préfixe suffit ("0037").
+  const iUpto = process.argv.indexOf("--upto");
+  const upto = iUpto !== -1 ? process.argv[iUpto + 1] : null;
+  if (iUpto !== -1 && !upto) {
+    console.error("--upto attend une version, par exemple : --baseline --upto 0037");
+    process.exit(1);
+  }
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     console.error(
@@ -84,13 +102,32 @@ async function main() {
     const manquantes = migrations.filter((m) => !connues.has(m.version));
 
     if (mode === "baseline") {
-      for (const m of manquantes) {
+      let aMarquer = manquantes;
+
+      if (upto) {
+        const cible = migrations.find((m) => m.version.startsWith(upto));
+        if (!cible) {
+          console.error(`Aucune migration ne commence par « ${upto} ».`);
+          process.exit(1);
+        }
+        aMarquer = manquantes.filter((m) => m.version <= cible.version);
+      }
+
+      for (const m of aMarquer) {
         await client.query(
           "insert into public.schema_migrations_repo (version, checksum) values ($1, $2) on conflict (version) do nothing",
           [m.version, m.checksum]
         );
       }
-      console.log(`Référence posée : ${manquantes.length} migration(s) marquée(s) comme appliquée(s), aucune exécutée.`);
+
+      const restantes = manquantes.filter((m) => !aMarquer.includes(m));
+      console.log(
+        `Référence posée : ${aMarquer.length} migration(s) marquée(s) comme appliquée(s), aucune exécutée.`
+      );
+      if (restantes.length > 0) {
+        console.log(`${restantes.length} migration(s) restent à appliquer (npm run db:migrate) :`);
+        for (const m of restantes) console.log(`  - ${m.version}`);
+      }
       return;
     }
 

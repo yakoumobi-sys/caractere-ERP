@@ -19,6 +19,8 @@ const NAV_BUTTONS = [
       { href: "/dashboard", label: "Tableau de bord", exact: true, wide: true },
       { href: "/alerts", label: "Alertes" },
       { href: "/sms-notifications", label: "📱 SMS" },
+      { href: "/inventory/stock", label: "📦 Stock" },
+      { href: "/inventory/movements", label: "Mouvements" },
     ],
   },
   {
@@ -50,7 +52,7 @@ const NAV_ACCORDIONS = [
     items: [
       { href: "/crm/contacts", label: "Clients" },
       { href: "/inventory/products", label: "Produits" },
-      { href: "/inventory/warehouses", label: "Stock" },
+      { href: "/inventory/warehouses", label: "Entrepôts" },
       { href: "/accounting/chart-of-accounts", label: "Comptabilité" },
       { href: "/purchasing/suppliers", label: "🏭 Fournisseurs" },
     ],

@@ -79,7 +79,18 @@ end $$;
 -- 3) claims : même bug (compteur non atomique + %05s), pas encore déclenché
 --    (aucune réclamation créée à ce jour) mais corrigé avant utilisation —
 --    aligné sur le schéma commun next_document_number (préfixe "REC").
-create or replace function public.generate_claim_number()
+--
+--    0011 avait défini generate_claim_number() comme fonction de trigger
+--    (RETURNS trigger, posée directement sur claims). La redéfinir en RETURNS
+--    text est refusé par Postgres — « cannot change return type of existing
+--    function » — ce qui faisait échouer toute la migration. On démonte donc
+--    l'ancien montage avant de poser le nouveau : une fonction qui rend le
+--    numéro, et un trigger qui l'applique, comme pour les autres documents.
+drop trigger if exists generate_claim_number_trigger on public.claims;  -- nom posé par 0011
+drop trigger if exists set_claim_number on public.claims;
+drop function if exists public.generate_claim_number();
+
+create function public.generate_claim_number()
 returns text
 language plpgsql
 set search_path to 'public'
@@ -88,3 +99,21 @@ begin
   return public.next_document_number('REC', 'claims');
 end;
 $function$;
+
+create or replace function public.auto_number_claim()
+returns trigger
+language plpgsql
+set search_path to 'public'
+as $function$
+begin
+  if new.number is null then
+    new.number := public.generate_claim_number();
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists set_claim_number on public.claims;
+create trigger set_claim_number
+  before insert on public.claims
+  for each row execute function public.auto_number_claim();

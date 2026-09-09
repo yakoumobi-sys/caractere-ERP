@@ -110,10 +110,13 @@ export interface StockMove {
   type: "entree" | "sortie" | "ajustement" | "transfert";
   reference: string | null;
   note: string | null;
+  /** Commande de production à l'origine du mouvement (migration 0038) */
+  pipeline_order_id: string | null;
   created_by: string | null;
   created_at: string;
 }
 
+/** Quantité d'un article dans un entrepôt donné */
 export interface ProductStockLevel {
   product_id: string;
   sku: string;
@@ -121,6 +124,28 @@ export interface ProductStockLevel {
   warehouse_id: string;
   warehouse_name: string;
   quantity: number;
+  last_move_at: string | null;
+}
+
+/**
+ * Une ligne par article suivi, toutes zones confondues, avec son état au regard
+ * du seuil de réapprovisionnement (vue product_stock_summary, migration 0038).
+ */
+export interface ProductStockSummary {
+  product_id: string;
+  sku: string;
+  name: string;
+  unit: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  reorder_point: number;
+  sale_price: number;
+  purchase_cost: number;
+  is_active: boolean;
+  quantity: number;
+  stock_value: number;
+  last_move_at: string | null;
+  stock_status: "rupture" | "faible" | "ok";
 }
 
 export interface Supplier {
@@ -365,6 +390,7 @@ export interface Database {
     };
     Views: {
       product_stock_levels: { Row: ProductStockLevel };
+      product_stock_summary: { Row: ProductStockSummary };
     };
   };
 }

@@ -3,7 +3,7 @@
 -- ============================================================================
 
 -- 1. MESSAGERIE EMPLOYÉS
-create table public.employee_messages (
+create table if not exists public.employee_messages (
   id uuid primary key default gen_random_uuid(),
   sender_id uuid not null references public.employees(id) on delete cascade,
   recipient_id uuid not null references public.employees(id) on delete cascade,
@@ -12,12 +12,12 @@ create table public.employee_messages (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index employee_messages_sender_idx on public.employee_messages(sender_id);
-create index employee_messages_recipient_idx on public.employee_messages(recipient_id);
-create index employee_messages_created_idx on public.employee_messages(created_at desc);
+create index if not exists employee_messages_sender_idx on public.employee_messages(sender_id);
+create index if not exists employee_messages_recipient_idx on public.employee_messages(recipient_id);
+create index if not exists employee_messages_created_idx on public.employee_messages(created_at desc);
 
 -- 2. SUPPLY CHAIN MANAGEMENT
-create table public.suppliers (
+create table if not exists public.suppliers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   contact_name text,
@@ -34,7 +34,7 @@ create table public.suppliers (
   updated_at timestamptz not null default now()
 );
 
-create table public.stock_movements (
+create table if not exists public.stock_movements (
   id uuid primary key default gen_random_uuid(),
   product_id uuid references public.products(id) on delete set null,
   movement_type text check (movement_type in ('entree', 'sortie', 'ajustement')) not null,
@@ -44,10 +44,10 @@ create table public.stock_movements (
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
-create index stock_movements_product_idx on public.stock_movements(product_id);
-create index stock_movements_created_idx on public.stock_movements(created_at desc);
+create index if not exists stock_movements_product_idx on public.stock_movements(product_id);
+create index if not exists stock_movements_created_idx on public.stock_movements(created_at desc);
 
-create table public.purchase_orders (
+create table if not exists public.purchase_orders (
   id uuid primary key default gen_random_uuid(),
   number text unique,
   supplier_id uuid references public.suppliers(id) on delete set null,
@@ -58,11 +58,11 @@ create table public.purchase_orders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index purchase_orders_supplier_idx on public.purchase_orders(supplier_id);
-create index purchase_orders_status_idx on public.purchase_orders(status);
+create index if not exists purchase_orders_supplier_idx on public.purchase_orders(supplier_id);
+create index if not exists purchase_orders_status_idx on public.purchase_orders(status);
 
 -- 3. OBJECTIFS DU MOIS
-create table public.monthly_objectives (
+create table if not exists public.monthly_objectives (
   id uuid primary key default gen_random_uuid(),
   month text not null, -- format: '2026-01'
   objective_type text check (objective_type in ('commun', 'individuel')) not null,
@@ -75,11 +75,11 @@ create table public.monthly_objectives (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index monthly_objectives_month_idx on public.monthly_objectives(month);
-create index monthly_objectives_employee_idx on public.monthly_objectives(employee_id);
-create index monthly_objectives_status_idx on public.monthly_objectives(status);
+create index if not exists monthly_objectives_month_idx on public.monthly_objectives(month);
+create index if not exists monthly_objectives_employee_idx on public.monthly_objectives(employee_id);
+create index if not exists monthly_objectives_status_idx on public.monthly_objectives(status);
 
-create table public.objective_updates (
+create table if not exists public.objective_updates (
   id uuid primary key default gen_random_uuid(),
   objective_id uuid not null references public.monthly_objectives(id) on delete cascade,
   progress_value integer not null,
@@ -90,14 +90,14 @@ create table public.objective_updates (
 
 -- 4. UPDATE pipeline_orders pour ajouter liste de couleurs/tailles
 -- (Ces données sont déjà dans les items et prints, on ajoute just une table de lookup)
-create table public.product_colors (
+create table if not exists public.product_colors (
   id uuid primary key default gen_random_uuid(),
   color text not null unique,
   hex_value text,
   created_at timestamptz not null default now()
 );
 
-create table public.product_sizes (
+create table if not exists public.product_sizes (
   id uuid primary key default gen_random_uuid(),
   size text not null unique,
   category text, -- XS, S, M, L, XL, XXL
@@ -114,48 +114,78 @@ alter table public.objective_updates enable row level security;
 alter table public.product_colors enable row level security;
 alter table public.product_sizes enable row level security;
 
+-- ----------------------------------------------------------------------------
+-- current_user_id() : l'employé correspondant au compte connecté.
+--
+-- Les policies ci-dessous s'en servent pour qu'un employé ne lise que ses
+-- propres messages et objectifs. Elle n'avait jamais été créée par une
+-- migration — seulement posée à la main sur la base historique — et 0037
+-- révoque puis accorde ses droits en la tenant pour acquise. Sur une base
+-- neuve, toutes ces policies échouaient.
+--
+-- SECURITY DEFINER, comme current_role() et is_active_user() (0003) : la
+-- policy doit pouvoir lire employees sans que l'utilisateur y ait accès.
+-- ----------------------------------------------------------------------------
+create or replace function public.current_user_id()
+returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from public.employees where profile_id = auth.uid() limit 1;
+$$;
+
 -- Messages: Can read own messages
+drop policy if exists "employee_messages_select" on public.employee_messages;
 create policy "employee_messages_select" on public.employee_messages for select to authenticated
   using (public.is_active_user() and (sender_id = public.current_user_id() or recipient_id = public.current_user_id()));
 
+drop policy if exists "employee_messages_insert" on public.employee_messages;
 create policy "employee_messages_insert" on public.employee_messages for insert to authenticated
-  using (public.is_active_user() and sender_id = public.current_user_id());
+  with check (public.is_active_user() and sender_id = public.current_user_id());
 
 -- Suppliers: All authenticated users can read
+drop policy if exists "suppliers_select" on public.suppliers;
 create policy "suppliers_select" on public.suppliers for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "suppliers_write" on public.suppliers;
 create policy "suppliers_write" on public.suppliers for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');
 
 -- Stock movements: All authenticated users can read
+drop policy if exists "stock_movements_select" on public.stock_movements;
 create policy "stock_movements_select" on public.stock_movements for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "stock_movements_insert" on public.stock_movements;
 create policy "stock_movements_insert" on public.stock_movements for insert to authenticated
-  using (public.is_active_user() and public.current_role() <> 'readonly');
+  with check (public.is_active_user() and public.current_role() <> 'readonly');
 
 -- Purchase orders: All authenticated users can read
+drop policy if exists "purchase_orders_select" on public.purchase_orders;
 create policy "purchase_orders_select" on public.purchase_orders for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "purchase_orders_write" on public.purchase_orders;
 create policy "purchase_orders_write" on public.purchase_orders for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');
 
 -- Objectives: Can read own objectives or common ones
+drop policy if exists "monthly_objectives_select" on public.monthly_objectives;
 create policy "monthly_objectives_select" on public.monthly_objectives for select to authenticated
   using (public.is_active_user() and (objective_type = 'commun' or employee_id = public.current_user_id()));
 
+drop policy if exists "monthly_objectives_write" on public.monthly_objectives;
 create policy "monthly_objectives_write" on public.monthly_objectives for all to authenticated
   using (public.is_active_user() and public.current_role() <> 'readonly' and (objective_type = 'commun' or employee_id = public.current_user_id()))
   with check (public.is_active_user() and public.current_role() <> 'readonly' and (objective_type = 'commun' or employee_id = public.current_user_id()));
 
 -- Product lists: All authenticated users can read
+drop policy if exists "product_colors_select" on public.product_colors;
 create policy "product_colors_select" on public.product_colors for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "product_sizes_select" on public.product_sizes;
 create policy "product_sizes_select" on public.product_sizes for select to authenticated
   using (public.is_active_user());
 
@@ -164,7 +194,7 @@ alter table public.pipeline_orders add column if not exists requires_flocage_v2 
 -- Note: Migration will handle data transfer if needed
 
 -- 7. SMS NOTIFICATIONS
-create table public.sms_templates (
+create table if not exists public.sms_templates (
   id uuid primary key default gen_random_uuid(),
   stage text not null unique,
   message_template text not null,
@@ -173,7 +203,7 @@ create table public.sms_templates (
 );
 
 -- SMS delivery history
-create table public.sms_delivery (
+create table if not exists public.sms_delivery (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.pipeline_orders(id) on delete cascade,
   customer_phone text not null,
@@ -186,9 +216,9 @@ create table public.sms_delivery (
   sent_at timestamptz,
   created_at timestamptz not null default now()
 );
-create index sms_delivery_order_idx on public.sms_delivery(order_id);
-create index sms_delivery_status_idx on public.sms_delivery(status);
-create index sms_delivery_stage_idx on public.sms_delivery(stage);
+create index if not exists sms_delivery_order_idx on public.sms_delivery(order_id);
+create index if not exists sms_delivery_status_idx on public.sms_delivery(status);
+create index if not exists sms_delivery_stage_idx on public.sms_delivery(stage);
 
 -- Insert default SMS templates
 insert into public.sms_templates (stage, message_template, description) values
@@ -207,12 +237,14 @@ on conflict (stage) do nothing;
 alter table public.sms_templates enable row level security;
 alter table public.sms_delivery enable row level security;
 
+drop policy if exists "sms_templates_select" on public.sms_templates;
 create policy "sms_templates_select" on public.sms_templates for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "sms_delivery_select" on public.sms_delivery;
 create policy "sms_delivery_select" on public.sms_delivery for select to authenticated
   using (public.is_active_user());
 
+drop policy if exists "sms_delivery_insert" on public.sms_delivery;
 create policy "sms_delivery_insert" on public.sms_delivery for insert to authenticated
-  using (public.is_active_user() and public.current_role() <> 'readonly')
   with check (public.is_active_user() and public.current_role() <> 'readonly');

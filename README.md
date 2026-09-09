@@ -56,7 +56,36 @@ configuration d'écran plutôt qu'à reconstruire l'infrastructure.
    `db-migrate` le fait à chaque merge sur `main` — il a besoin du secret Actions `DATABASE_URL`, au
    format Session pooler (`postgresql://postgres.<ref>:<mdp>@aws-0-<région>.pooler.supabase.com:5432/postgres`).
    Puis exécuter `supabase/seed.sql` dans le SQL Editor.
+
+   La chaîne est vérifiée : elle se rejoue intégralement sur une base vierge, de 0001 à la dernière.
+   Un environnement neuf s'obtient donc avec cette seule commande.
 3. Dans **Project Settings → API**, récupérer l'URL du projet et la clé `anon public`.
+
+### 1 bis. Base déjà construite (reprise)
+
+Une base montée avant que les migrations ne soient suivies par le dépôt possède déjà la plupart des
+objets, mais son registre est vide : `npm run db:migrate` tenterait alors de rejouer `0001` et
+échouerait sur « type user_role already exists ». Les migrations qui restructurent une table (0006
+remplace la colonne `stage` de `pipeline_orders` par `status`) ne peuvent de toute façon pas être
+rejouées sur le schéma d'arrivée.
+
+On amorce donc le registre jusqu'à la dernière migration que la base possède déjà, puis on applique
+le reste :
+
+```bash
+# Le registre considère 0001..0037 comme appliquées, sans rien exécuter,
+# et annonce ce qui reste.
+DATABASE_URL=<chaîne Session pooler> npm run db:baseline -- --upto 0037
+
+# Applique uniquement les migrations postérieures.
+DATABASE_URL=<chaîne Session pooler> npm run db:migrate
+```
+
+`npm run db:baseline` sans `--upto` marque **tout** comme appliqué, y compris ce que la base n'a pas
+encore : à ne lancer que sur une base réellement à jour.
+
+Pour savoir où placer la borne, comparer les tables présentes avec ce que chaque migration crée —
+`npm run db:check` liste les migrations absentes du registre, pas celles absentes de la base.
 
 ### 2. Configurer l'application
 

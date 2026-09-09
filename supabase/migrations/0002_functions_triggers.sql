@@ -39,6 +39,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -71,6 +72,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists set_quote_number on public.sales_quotes;
 create trigger set_quote_number before insert on public.sales_quotes
   for each row execute function public.set_quote_number();
 
@@ -83,6 +85,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists set_order_number on public.sales_orders;
 create trigger set_order_number before insert on public.sales_orders
   for each row execute function public.set_order_number();
 
@@ -95,6 +98,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists set_invoice_number on public.invoices;
 create trigger set_invoice_number before insert on public.invoices
   for each row execute function public.set_invoice_number();
 
@@ -107,6 +111,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists set_po_number on public.purchase_orders;
 create trigger set_po_number before insert on public.purchase_orders
   for each row execute function public.set_po_number();
 
@@ -159,18 +164,22 @@ begin
 end;
 $$;
 
+drop trigger if exists recompute_quote_totals on public.sales_quote_lines;
 create trigger recompute_quote_totals
   after insert or update or delete on public.sales_quote_lines
   for each row execute function public.recompute_totals('sales_quotes', 'quote_id');
 
+drop trigger if exists recompute_order_totals on public.sales_order_lines;
 create trigger recompute_order_totals
   after insert or update or delete on public.sales_order_lines
   for each row execute function public.recompute_totals('sales_orders', 'order_id');
 
+drop trigger if exists recompute_invoice_totals on public.invoice_lines;
 create trigger recompute_invoice_totals
   after insert or update or delete on public.invoice_lines
   for each row execute function public.recompute_totals('invoices', 'invoice_id');
 
+drop trigger if exists recompute_po_totals on public.purchase_order_lines;
 create trigger recompute_po_totals
   after insert or update or delete on public.purchase_order_lines
   for each row execute function public.recompute_po_totals();
@@ -223,6 +232,7 @@ begin
 end;
 $$;
 
+drop trigger if exists post_invoice_journal on public.invoices;
 create trigger post_invoice_journal
   after update on public.invoices
   for each row execute function public.post_invoice_journal();
@@ -265,6 +275,7 @@ begin
 end;
 $$;
 
+drop trigger if exists post_payment_journal on public.payments;
 create trigger post_payment_journal
   after insert on public.payments
   for each row execute function public.post_payment_journal();
@@ -295,6 +306,7 @@ begin
 end;
 $$;
 
+drop trigger if exists receive_purchase_order on public.purchase_orders;
 create trigger receive_purchase_order
   after update on public.purchase_orders
   for each row execute function public.receive_purchase_order();
