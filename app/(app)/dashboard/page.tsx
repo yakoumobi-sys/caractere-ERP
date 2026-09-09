@@ -82,7 +82,7 @@ export default async function DashboardPage() {
   const [{ data: orderRows }, , { data: stockLevels }, { data: allOrders }, { data: employees }, { data: dailySales }] = await Promise.all([
     supabase.from("pipeline_orders").select("created_at,technique").gte("created_at", since14),
     Promise.resolve(queueCounts),
-    supabase.from("product_stock_levels").select("*"),
+    supabase.from("product_stock_summary").select("product_id, stock_status").eq("is_active", true),
     supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
     supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
     supabase
@@ -158,7 +158,12 @@ export default async function DashboardPage() {
     revenueData = Array.from(revenueByDay.entries()).map(([day, total]) => ({ day: shortDay(day), total }));
   }
 
-  const lowStockProducts = (stockLevels ?? []).filter((row: any) => row.quantity <= 0);
+  // product_stock_summary donne une ligne par article suivi et son état au
+  // regard du seuil (migration 0038). L'ancien décompte lisait
+  // product_stock_levels, un CROSS JOIN produits × entrepôts : chaque couple
+  // sans le moindre mouvement y apparaissait à 0 et gonflait le compteur de
+  // ruptures d'articles qui n'ont jamais été stockés dans cet entrepôt.
+  const lowStockProducts = (stockLevels ?? []).filter((row: any) => row.stock_status !== "ok");
 
   const ordersByDay = new Map(lastNDays(14).map((d) => [d, { dtf: 0, broderie: 0, gros: 0 }]));
   for (const o of orderRows ?? []) {
@@ -318,7 +323,7 @@ export default async function DashboardPage() {
                   icon={<IconTrend />}
                   hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
                 />
-                <KpiCard label="Ruptures de stock" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="produits à quantité ≤ 0" />
+                <KpiCard label="Stock à réapprovisionner" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="articles en rupture ou sous leur seuil" />
               </div>
             </div>
           </Card>
