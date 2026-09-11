@@ -163,6 +163,11 @@ export const NAV_ICONS: Record<string, (p: Props) => JSX.Element> = {
   "Général": IconGrid,
   "Production": IconFactory,
   "CRM": IconContacts,
+  // Sections renommées par la refonte commerciale : sans ces entrées, la barre
+  // latérale les affichait sans icône, seules de tout le menu.
+  "Commercial": IconContacts,
+  "Catalogue & achats": IconBag,
+  "Confirmation": IconCart,
   "Ventes": IconCart,
   "Achats": IconBag,
   "Stock": IconBox,

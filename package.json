@@ -14,7 +14,9 @@
     "test:report": "playwright show-report",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:check": "node scripts/db-migrate.mjs --check",
-    "db:baseline": "node scripts/db-migrate.mjs --baseline"
+    "db:baseline": "node scripts/db-migrate.mjs --baseline",
+    "test:finance": "node tests/financial-integrity.mjs",
+    "test:concurrency": "node tests/financial-concurrency.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -28,6 +30,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.48.0",
     "@types/node": "^20",
     "@types/react": "^18",

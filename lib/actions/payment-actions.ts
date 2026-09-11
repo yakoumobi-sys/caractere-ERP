@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { moneyInput, orderMethods } from "@/lib/finance";
 import { canRecordPayments } from "@/lib/roles";
 
 /**
@@ -12,16 +13,21 @@ export async function recordOrderPayment(
   orderId: string,
   amount: number,
   paymentMethod: string,
-  notes?: string
+  notes?: string,
+  requestId?: string,
 ) {
   const supabase = createClient();
   const profile = await getCurrentProfile();
 
-  if (!profile?.id) throw new Error("Non authentifié");
+  if (!profile?.id || !profile.is_active) throw new Error("Non authentifié");
   if (!canRecordPayments(profile.role)) {
-    throw new Error("Seuls les rôles Administrateur, Manager et Ventes peuvent enregistrer un paiement.");
+    throw new Error(
+      "Seuls les rôles Administrateur, Manager et Ventes peuvent enregistrer un paiement.",
+    );
   }
-  if (amount <= 0) throw new Error("Le montant doit être positif");
+  moneyInput.parse(amount);
+  if (!orderMethods.includes(paymentMethod as (typeof orderMethods)[number]))
+    throw new Error("Mode de règlement invalide.");
 
   const { error } = await supabase.from("order_payments").insert({
     pipeline_order_id: orderId,
@@ -29,9 +35,13 @@ export async function recordOrderPayment(
     payment_method: paymentMethod,
     notes: notes || null,
     recorded_by: profile.id,
+    request_id: requestId ?? null,
   });
 
-  if (error) throw new Error(error.message);
+  if (error && error.code !== "23505") throw new Error(error.message);
+  revalidatePath("/cash");
+  revalidatePath("/sales");
+  revalidatePath("/crm/contacts");
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production", "layout");
@@ -76,8 +86,12 @@ export async function getOrderPaymentInfo(orderId: string) {
   }
 
   // Calculer les totaux
-  const totalPaid = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-  const remaining = (order.order_total || 0) - totalPaid;
+  const totalPaid = (payments || []).reduce(
+    (sum, p) => sum + (p.amount || 0),
+    0,
+  );
+  const remaining =
+    order.order_total === null ? null : Number(order.order_total) - totalPaid;
 
   return {
     order: {
@@ -94,7 +108,8 @@ export async function getOrderPaymentInfo(orderId: string) {
     summary: {
       totalPaid,
       remaining,
-      isFullyPaid: remaining <= 0,
+      isFullyPaid:
+        remaining !== null && Number(order.order_total) > 0 && remaining <= 0,
     },
   };
 }
@@ -106,7 +121,8 @@ export async function getOrderPaymentInfo(orderId: string) {
 export async function setOrderTotal(orderId: string, total: number | null) {
   const supabase = createClient();
   const profile = await getCurrentProfile();
-  if (!profile?.id) throw new Error("Non authentifié");
+  if (!profile?.id || !profile.is_active) throw new Error("Non authentifié");
+  if (!canRecordPayments(profile.role)) throw new Error("Accès refusé.");
   if (total !== null && (!Number.isFinite(total) || total < 0)) {
     throw new Error("Le montant doit être un nombre positif.");
   }
@@ -142,51 +158,29 @@ export async function getClientBalance(contactId: string) {
 /**
  * Met à jour le statut de paiement d'une commande
  */
-export async function updateOrderPaymentStatus(
-  orderId: string,
-  newStatus: "unpaid" | "partial" | "paid"
-) {
-  const supabase = createClient();
-
-  const { error } = await supabase
-    .from("pipeline_orders")
-    .update({ payment_status: newStatus })
-    .eq("id", orderId);
-
-  if (error) throw new Error(error.message);
-
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production", "layout");
-}
-
 /**
  * Enregistre le versement initial lors de la création de la commande
  */
 export async function recordInitialPayment(
   orderId: string,
   amount: number,
-  contactId: string
+  contactId: string,
 ) {
-  const supabase = createClient();
-  const profile = await getCurrentProfile();
-
-  if (!profile?.id) throw new Error("Non authentifié");
-  if (amount < 0) throw new Error("Le versement ne peut pas être négatif");
-
-  // Enregistrer le paiement
-  if (amount > 0) {
-    const { error: paymentError } = await supabase.from("order_payments").insert({
-      pipeline_order_id: orderId,
-      amount,
-      payment_method: "cash",
-      notes: "Versement initial",
-      recorded_by: profile.id,
-    });
-
-    if (paymentError) throw new Error(paymentError.message);
-  }
-
-  // Le trigger update_client_balance_on_payment_trigger se charge de mettre à jour le solde
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production", "layout");
+  if (!Number.isFinite(amount) || amount < 0)
+    throw new Error("Montant invalide.");
+  if (amount === 0) return;
+  const { data, error } = await createClient()
+    .from("pipeline_orders")
+    .select("contact_id")
+    .eq("id", orderId)
+    .single();
+  if (error || data?.contact_id !== contactId)
+    throw new Error("Client de commande invalide.");
+  await recordOrderPayment(
+    orderId,
+    amount,
+    "cash",
+    "Versement initial",
+    orderId,
+  );
 }
