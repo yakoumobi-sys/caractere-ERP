@@ -96,7 +96,7 @@ jobs:
           retention-days: 30
 
       - name: Upload JUnit results
-        if: always()
+        if: always() && hashFiles('tests/results/junit.xml') != ''
         uses: dorny/test-reporter@v1
         with:
           name: E2E Test Results
