@@ -81,7 +81,7 @@ export function OrderDetailsFields({
     if (total > 0) {
       setOrderTotal(String(total));
     }
-  }, [items.map((i) => `${i.product_id}:${i.quantity}`).join("|"), products]);
+  }, [items, products]);
 
   useEffect(() => {
     if (!useYalidine || wilayas.length > 0) return;

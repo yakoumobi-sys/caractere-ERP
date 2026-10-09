@@ -1,3 +1,4 @@
+import { CashClosureForm } from "@/components/finance/cash-closure-form";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -32,13 +33,14 @@ export default async function Page({
   const to = valid(searchParams.to) ? searchParams.to! : today;
   const page = Math.max(1, Math.floor(Number(searchParams.page) || 1));
   const db = createClient();
-  const [book, accounts] = await Promise.all([
+  const [book, accounts, closures] = await Promise.all([
     db.rpc("cash_book", { p_from: from, p_to: to, p_offset: (page - 1) * 50 }),
     db
       .from("chart_of_accounts")
       .select("id,code,name,type")
       .eq("is_active", true)
       .order("code"),
+    db.from("cash_closures").select("id,closing_date,expected_amount,counted_amount,difference,note").order("closing_date", { ascending: false }).limit(15),
   ]);
   const data = book.data;
   const url = (n: number) =>
@@ -125,8 +127,7 @@ export default async function Page({
               </div>
             </div>
             <p className="text-sm text-slate-500 mt-3">
-              Deux circuits distincts. Un règlement déjà saisi sur une commande
-              atelier ne doit pas être saisi une seconde fois sur une facture.
+              Les factures liées à l’atelier reprennent les versements de la commande. Chaque encaissement est enregistré une seule fois.
             </p>
           </Card>
           <Card className="overflow-x-auto">
@@ -182,6 +183,14 @@ export default async function Page({
           </div>
         </>
       )}
+      {["admin", "manager", "accounting"].includes(profile.role) && <Card className="p-5">
+        <h2 className="font-semibold mb-3">Clôtures & comptages de caisse</h2>
+        <p className="text-sm text-slate-500 mb-4">Comparez les espèces présentes au solde comptable. Un écart reste visible et doit être expliqué ; le comptage ne génère pas de correction automatique.</p>
+        {closures.error ? <p role="alert">Clôtures indisponibles.</p> : <>
+          {!!closures.data?.length && <div className="overflow-x-auto mb-5"><table className="w-full text-sm"><thead className="text-left"><tr>{["Date", "Comptable", "Compté", "Écart", "Motif"].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{closures.data.map(c => <tr key={c.id} className="border-t"><td className="p-2 whitespace-nowrap">{formatDate(c.closing_date)}</td><td className="p-2">{formatMoney(c.expected_amount)}</td><td className="p-2">{formatMoney(c.counted_amount)}</td><td className={`p-2 ${Number(c.difference) ? "text-red-600 font-semibold" : ""}`}>{formatMoney(c.difference)}</td><td className="p-2">{c.note}</td></tr>)}</tbody></table></div>}
+          {["admin", "accounting"].includes(profile.role) && <CashClosureForm today={today} />}
+        </>}
+      </Card>}
       {["admin", "accounting"].includes(profile.role) && (
         <Card className="p-5">
           <h2 className="font-semibold mb-2">Dépense ou transfert d’espèces</h2>

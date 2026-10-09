@@ -16,7 +16,8 @@
     "db:check": "node scripts/db-migrate.mjs --check",
     "db:baseline": "node scripts/db-migrate.mjs --baseline",
     "test:finance": "node tests/financial-integrity.mjs",
-    "test:concurrency": "node tests/financial-concurrency.mjs"
+    "test:concurrency": "node tests/financial-concurrency.mjs",
+    "test:migrations": "node tests/migration-chain.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

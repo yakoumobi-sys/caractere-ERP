@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { canWrite } from "@/lib/roles";
+import { canManageStock } from "@/lib/roles";
 import { Card, LinkButton, PageHeader } from "@/components/ui";
 import { StockManager } from "@/components/inventory/stock-manager";
 import type { StockRow, WarehouseLevel, WarehouseOption } from "@/components/inventory/stock-types";
@@ -100,7 +100,7 @@ export default async function Page() {
         levels={perWarehouse}
         warehouses={warehouseOptions}
         categories={categories}
-        canWrite={canWrite(profile?.role) && warehouseOptions.length > 0}
+        canWrite={canManageStock(profile?.role) && warehouseOptions.length > 0}
       />
 
       {warehouseOptions.length === 0 && (

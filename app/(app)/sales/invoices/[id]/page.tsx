@@ -25,11 +25,12 @@ export default async function Page({ params }: { params: { id: string } }) {
     params.id,
   );
   const supabase = createClient();
-  const { data: payments, error: paymentsError } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("invoice_id", params.id)
-    .order("paid_at", { ascending: false });
+  const linkedOrder = record?.pipeline_order_id as string | undefined;
+  const receiptQuery = linkedOrder
+    ? supabase.from("order_payments").select("id,amount,payment_method,notes,created_at").eq("pipeline_order_id", linkedOrder).order("created_at", { ascending: false })
+    : supabase.from("payments").select("*").eq("invoice_id", params.id).order("paid_at", { ascending: false });
+  const { data: receipts, error: paymentsError } = await receiptQuery;
+  const payments = linkedOrder ? receipts?.map((p: any) => ({ ...p, method: p.payment_method, note: p.notes, paid_at: p.created_at })) : receipts;
 
   async function validate() {
     "use server";
@@ -79,6 +80,10 @@ export default async function Page({ params }: { params: { id: string } }) {
         }
       />
 
+      {linkedOrder && <Card className="p-5 mb-5">
+        <p className="text-sm mb-3">Facture liée à une commande atelier. Les versements sont enregistrés sur cette commande et repris ici après validation. Le stock sort à la livraison.</p>
+        <LinkButton href={`/production/${linkedOrder}`} variant="secondary">Commande & encaissements</LinkButton>
+      </Card>}
       <DocumentForm
         config={invoicesConfig}
         record={record}
@@ -125,7 +130,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             </table>
           )}
 
-          {balance > 0 && canPay && !paymentsError && (
+          {balance > 0 && canPay && !paymentsError && !linkedOrder && (
             <PaymentForm
               invoiceId={params.id}
               balance={balance}

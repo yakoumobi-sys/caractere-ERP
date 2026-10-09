@@ -20,6 +20,7 @@ await db.exec(
     "",
   ),
 );
+await db.exec("alter type public.user_role add value if not exists 'atelier'");
 await db.exec(migration("0002_functions_triggers.sql"));
 await db.exec(migration("0003_rls.sql"));
 await db.exec(migration("0007_fix_new_user_trigger.sql"));
@@ -59,6 +60,16 @@ await db.exec(
   ),
 );
 await db.exec(migration("0039_commercial_cash_integrity.sql"));
+// Extend the fixture with actual atelier delivery/catalog dependencies.
+await db.exec(`alter table pipeline_orders add column status text default 'prete';
+  create table pipeline_order_items(id uuid primary key default gen_random_uuid(),pipeline_order_id uuid references pipeline_orders(id) on delete cascade,product_id uuid references products(id),product_name text not null,color text,size text,quantity numeric(12,2) default 1,position int default 0);
+  create table inventory_movements(id uuid primary key,product_id uuid,pipeline_order_id uuid,quantity numeric,movement_type text,reason text,recorded_by uuid,created_at timestamptz);
+  alter table pipeline_order_items enable row level security;
+  create policy items_test on pipeline_order_items for all to authenticated using(public.is_active_user()) with check(public.is_active_user());`);
+await db.exec(migration("0038_stock_source_unique.sql"));
+await db.exec(migration("0040_journal_immuable.sql"));
+await db.exec(migration("0041_caractere_order_invoice_bridge.sql"));
+await db.exec(migration("0042_caractere_operations_controls.sql"));
 await db.exec(`create trigger post_order_payment_journal_trigger after insert on order_payments for each row execute function post_order_payment_journal();
   grant usage on schema public,auth to authenticated; grant select,insert,update,delete on all tables in schema public to authenticated;
   grant execute on function auth.uid() to authenticated; set role authenticated;`);
@@ -354,6 +365,111 @@ await test("Cash book totals are aggregated across every movement, with distinct
   assert.equal(Number(row.data.invoice_receipts), 10000);
   assert.equal(Number(row.data.order_receipts), 2000);
 });
+await test("Linked atelier invoice attributes advances without receiving cash or exiting stock twice", async () => {
+  await db.query("insert into warehouses(name,is_default) values('Atelier',true)");
+  const product=(await one("insert into products(sku,name,track_inventory) values('POLO-TEST','Polo',true) returning id")).id;
+  const wh=(await one("select id from warehouses where is_default limit 1")).id;
+  await db.query("insert into stock_moves(product_id,warehouse_id,quantity,type) values($1,$2,100,'entree')",[product,wh]);
+  const atelier=(await one("insert into pipeline_orders(number,contact_id,order_total) values('AT-LINK',$1,10000) returning id",[client])).id;
+  await db.query("insert into pipeline_order_items(pipeline_order_id,product_id,product_name,quantity) values($1,$2,'Polo',10)",[atelier,product]);
+  await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,4000,'cash')",[atelier]);
+  await db.query("update pipeline_orders set status='livree' where id=$1",[atelier]);
+  const linked=(await one("select create_pipeline_invoice($1) id",[atelier])).id;
+  assert.equal((await one("select create_pipeline_invoice($1) id",[atelier])).id,linked);
+  assert.equal(Number((await one("select amount_paid from invoices where id=$1",[linked])).amount_paid),0);
+  const cashBefore=Number((await one("select cash_book('2020-01-01','2099-01-01',0) data")).data.closing);
+  await db.query("update invoices set status='validee' where id=$1",[linked]);
+  const inv=await one("select amount_paid,status from invoices where id=$1",[linked]);
+  assert.equal(Number(inv.amount_paid),4000); assert.equal(inv.status,'validee');
+  assert.equal(Number((await one("select quantity from product_stock_summary where product_id=$1",[product])).quantity),90);
+  assert.equal(Number((await one("select cash_book('2020-01-01','2099-01-01',0) data")).data.closing),cashBefore);
+  await rejects("insert into payments(invoice_id,amount,method) values($1,6000,'especes')",[linked]);
+  await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,6000,'transfer')",[atelier]);
+  const paid=await one("select amount_paid,status from invoices where id=$1",[linked]);
+  assert.equal(Number(paid.amount_paid),10000); assert.equal(paid.status,'payee');
+  assert.equal((await one("select payment_status from pipeline_orders where id=$1",[atelier])).payment_status,'paid');
+  assert.equal(Number((await one("select sum(debit-credit) n from journal_lines join chart_of_accounts a on a.id=account_id where a.code='4191' and entry_id in (select id from journal_entries where source_id=$1 or source_id in (select id from order_payments where pipeline_order_id=$2))",[linked,atelier])).n),0);
+  await rejects("update pipeline_orders set order_total=12000 where id=$1",[atelier]);
+  await rejects("delete from pipeline_orders where id=$1",[atelier]);
+  await rejects("update pipeline_order_items set quantity=20 where pipeline_order_id=$1",[atelier]);
+  await db.query("update pipeline_orders set status='prete' where id=$1",[atelier]);
+  await db.query("update pipeline_orders set status='livree' where id=$1",[atelier]);
+  assert.equal(Number((await one("select quantity from product_stock_summary where product_id=$1",[product])).quantity),90);
+});
+await test("Invoice first, delivery later exits stock once; fully paid advances mark invoice paid",async()=>{
+  const product=(await one("select id from products where sku='POLO-TEST'")).id;
+  const atelier=(await one("insert into pipeline_orders(number,contact_id,order_total) values('AT-SECOND',$1,2000) returning id",[client])).id;
+  await db.query("insert into pipeline_order_items(pipeline_order_id,product_id,product_name,quantity) values($1,$2,'Polo',2)",[atelier,product]);
+  await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,2000,'cash')",[atelier]);
+  const linked=(await one("select create_pipeline_invoice($1) id",[atelier])).id;
+  await db.query("update invoices set status='validee' where id=$1",[linked]);
+  assert.equal((await one("select status from invoices where id=$1",[linked])).status,'payee');
+  assert.equal(Number((await one("select quantity from product_stock_summary where product_id=$1",[product])).quantity),90);
+  await db.query("update pipeline_orders set status='livree' where id=$1",[atelier]);
+  assert.equal(Number((await one("select quantity from product_stock_summary where product_id=$1",[product])).quantity),88);
+});
+await test("Linked invoice cannot validate a different client or amount",async()=>{
+  const atelier=(await one("insert into pipeline_orders(number,contact_id,order_total) values('AT-MISMATCH',$1,2000) returning id",[client])).id;
+  await db.query("insert into pipeline_order_items(pipeline_order_id,product_name,quantity) values($1,'Impression',1)",[atelier]);
+  const linked=(await one("select create_pipeline_invoice($1) id",[atelier])).id;
+  await save('invoices',linked,header,[{...lines[0],quantity:1,price:1000}]);
+  await rejects("update invoices set status='validee' where id=$1",[linked]);
+  const other=(await one("insert into contacts(name) values('Autre client') returning id")).id;
+  await rejects("update invoices set contact_id=$2 where id=$1",[linked,other]);
+});
+await test("CRM balance includes standalone invoices but never counts a linked invoice twice",async()=>{
+  const c=(await one("insert into contacts(name) values('Client solde unifié') returning id")).id;
+  const atelier=(await one("insert into pipeline_orders(number,contact_id,order_total) values('AT-BALANCE',$1,2000) returning id",[c])).id;
+  await db.query("insert into pipeline_order_items(pipeline_order_id,product_name,quantity) values($1,'Service',1)",[atelier]);
+  await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'transfer')",[atelier]);
+  const linked=(await one("select create_pipeline_invoice($1) id",[atelier])).id;
+  await db.query("update invoices set status='validee' where id=$1",[linked]);
+  assert.equal(Number((await one("select balance from contacts where id=$1",[c])).balance),1500);
+  const standalone=await save('invoices',null,{...header,contact_id:c},[{...lines[0],quantity:1,price:1000}]);
+  await db.query("update invoices set status='validee' where id=$1",[standalone]);
+  assert.equal(Number((await one("select balance from contacts where id=$1",[c])).balance),2500);
+  await db.query("insert into payments(invoice_id,amount,method) values($1,500,'virement')",[standalone]);
+  assert.equal(Number((await one("select balance from contacts where id=$1",[c])).balance),2000);
+});
+await test("Stock transfers are atomic, bounded by availability and restricted by role",async()=>{
+  const product=(await one("select id from products where sku='POLO-TEST'")).id;
+  const from=(await one("select id from warehouses where is_default limit 1")).id;
+  const to=(await one("insert into warehouses(name) values('Boutique') returning id")).id;
+  await rejects("select stock_transfer($1,$2,$3,1000,null)",[product,from,to]);
+  await rejects("select stock_transfer($1,$2,$3,'NaN',null)",[product,from,to]);
+  await db.query("select stock_transfer($1,$2,$3,8,'Réassort boutique')",[product,from,to]);
+  assert.equal(Number((await one("select quantity from product_stock_summary where product_id=$1",[product])).quantity),88);
+  assert.equal(Number((await one("select quantity from product_stock_levels where product_id=$1 and warehouse_id=$2",[product,to])).quantity),8);
+  await db.exec("reset role; insert into auth.users(id,email) values('10000000-0000-4000-8000-000000000004','atelier@test.local'); update profiles set role='atelier' where id='10000000-0000-4000-8000-000000000004'; set role authenticated; select set_config('app.user_id','10000000-0000-4000-8000-000000000004',false);");
+  await rejects("select stock_transfer($1,$2,$3,1,null)",[product,from,to]);
+  await rejects("insert into stock_moves(product_id,warehouse_id,quantity,type) values($1,$2,1,'entree')",[product,from]);
+  assert.equal(Number((await one("select count(*) n from invoices")).n),0);
+  assert.equal(Number((await one("select count(*) n from order_payments")).n),0);
+  await db.exec("select set_config('app.user_id','"+admin+"',false)");
+  await db.exec("reset role");
+  await rejects("update stock_moves set quantity=1 where product_id=$1",[product]);
+  await db.exec("set role authenticated");
+});
+await test("Preparation records promised date, BAT, blockers and quality checks",async()=>{
+  await db.query("select save_order_preparation($1,'2026-10-10','envoye','Logo à vectoriser',true,false)",[order]);
+  const prep=await one("select due_date,bat_status,blocked_reason,quality_checked,packaging_checked from pipeline_orders where id=$1",[order]);
+  assert.equal(prep.bat_status,'envoye'); assert.equal(prep.blocked_reason,'Logo à vectoriser'); assert.equal(prep.quality_checked,true); assert.equal(prep.packaging_checked,false);
+  await rejects("select save_order_preparation($1,current_date,'fake',null,false,false)",[order]);
+});
+await test("Cash counting freezes the period, preserves discrepancies, and rolls back a backdated receipt",async()=>{
+  const book=(await one("select cash_book('2020-01-01',current_date,0) data")).data;
+  const counted=Number(book.closing)-100;
+  await rejects("select close_cash_day(current_date,$1,'')",[counted]);
+  const closing=(await one("select close_cash_day(current_date,$1,'Écart à rapprocher') id",[counted])).id;
+  assert.equal((await one("select close_cash_day(current_date,$1,'Écart à rapprocher') id",[counted])).id,closing);
+  assert.equal(Number((await one("select difference from cash_closures where id=$1",[closing])).difference),-100);
+  await rejects("select close_cash_day(current_date,$1,'Autre comptage')",[counted]);
+  await rejects("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'cash')",[order]);
+  assert.equal(Number((await one("select sum(amount) n from order_payments where pipeline_order_id=$1",[order])).n),2000);
+  assert.equal(Number((await one("select cash_book('2020-01-01',current_date,0) data")).data.closing),Number(book.closing));
+  // Closing cash does not block noncash receipts on the same date.
+  await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'transfer')",[order]);
+});
 await test("Readonly user cannot save, receive money or create a cash movement", async () => {
   await db.exec(
     `reset role; insert into auth.users(id,email) values('10000000-0000-4000-8000-000000000003','reader@test.local'); set role authenticated; select set_config('app.user_id','10000000-0000-4000-8000-000000000003',false);`,
@@ -364,6 +480,9 @@ await test("Readonly user cannot save, receive money or create a cash movement",
     [order],
   );
   await rejects("select cash_book('2026-01-01','2026-12-31',0)");
+  await rejects("select create_pipeline_invoice($1)",[order]);
+  await rejects("select close_cash_day(current_date,0,'Non autorisé')");
+  await rejects("select save_order_preparation($1,current_date,'valide',null,true,true)",[order]);
 });
 console.log(`${tests} financial integration checks passed.`);
 await db.close();
