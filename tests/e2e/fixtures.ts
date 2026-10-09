@@ -113,7 +113,16 @@ export async function cleanupTestData(ids: { contacts?: string[]; orders?: strin
   const supabase = createLocalAdmin();
 
   if (ids.orders?.length) {
-    const { error } = await supabase.from('pipeline_orders').delete().in('id', ids.orders);
+    // Follow the real administrator permissions; never bypass evidence guards.
+    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const session = await admin.auth.signInWithPassword({
+      email: 'e2eadmin@example.test', password: process.env.TEST_PASSWORD || 'CaractereE2E-2026!',
+    });
+    if (session.error) throw new Error(session.error.message);
+    const { error } = await admin.from('pipeline_orders').delete().in('id', ids.orders);
+    await admin.auth.signOut();
     if (error) throw new Error(error.message);
   }
 

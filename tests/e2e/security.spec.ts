@@ -76,7 +76,7 @@ test.describe('Sécurité des webhooks', () => {
   });
 
   test('JSON invalide est rejeté', async ({ request }) => {
-    const response = await request.post(endpoint, { headers: { 'x-twilio-signature': 'invalid', 'Content-Type': 'application/json' }, data: 'INVALID_JSON{{{' });
+    const response = await request.post(endpoint, { headers: { 'x-twilio-signature': 'invalid', 'Content-Type': 'application/json' }, data: Buffer.from('INVALID_JSON{{{') });
     expect(response.status()).toBe(400);
   });
 

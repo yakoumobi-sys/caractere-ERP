@@ -111,6 +111,16 @@ try {
     ),
     2000,
   );
+  await db.exec(`reset role;
+    insert into employees(first_name,last_name,profile_id) values('Directory','Test','10000000-0000-4000-8000-000000000041');
+    grant select on employees to anon;
+    set role anon;`);
+  const directory = (await db.query('select * from public.get_login_users()')).rows;
+  assert.equal(directory.length, 1);
+  assert.equal(directory[0].full_name, 'Directory Test');
+  assert.deepEqual(Object.keys(directory[0]).sort(), ['full_name', 'id']);
+  assert.equal(Number((await db.query('select count(*) n from employees')).rows[0].n), 0);
+  console.log('PASS public login directory exposes names without exposing HR records.');
   console.log(
     "PASS complete-schema atelier → invoice → delivery → final payment.",
   );
