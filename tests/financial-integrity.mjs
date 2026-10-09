@@ -457,16 +457,16 @@ await test("Preparation records promised date, BAT, blockers and quality checks"
   await rejects("select save_order_preparation($1,current_date,'fake',null,false,false)",[order]);
 });
 await test("Cash counting freezes the period, preserves discrepancies, and rolls back a backdated receipt",async()=>{
-  const book=(await one("select cash_book('2020-01-01',current_date,0) data")).data;
+  const book=(await one("select cash_book('2020-01-01',(now() at time zone 'Africa/Algiers')::date,0) data")).data;
   const counted=Number(book.closing)-100;
-  await rejects("select close_cash_day(current_date,$1,'')",[counted]);
-  const closing=(await one("select close_cash_day(current_date,$1,'Écart à rapprocher') id",[counted])).id;
-  assert.equal((await one("select close_cash_day(current_date,$1,'Écart à rapprocher') id",[counted])).id,closing);
+  await rejects("select close_cash_day((now() at time zone 'Africa/Algiers')::date,$1,'')",[counted]);
+  const closing=(await one("select close_cash_day((now() at time zone 'Africa/Algiers')::date,$1,'Écart à rapprocher') id",[counted])).id;
+  assert.equal((await one("select close_cash_day((now() at time zone 'Africa/Algiers')::date,$1,'Écart à rapprocher') id",[counted])).id,closing);
   assert.equal(Number((await one("select difference from cash_closures where id=$1",[closing])).difference),-100);
-  await rejects("select close_cash_day(current_date,$1,'Autre comptage')",[counted]);
+  await rejects("select close_cash_day((now() at time zone 'Africa/Algiers')::date,$1,'Autre comptage')",[counted]);
   await rejects("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'cash')",[order]);
   assert.equal(Number((await one("select sum(amount) n from order_payments where pipeline_order_id=$1",[order])).n),2000);
-  assert.equal(Number((await one("select cash_book('2020-01-01',current_date,0) data")).data.closing),Number(book.closing));
+  assert.equal(Number((await one("select cash_book('2020-01-01',(now() at time zone 'Africa/Algiers')::date,0) data")).data.closing),Number(book.closing));
   // Closing cash does not block noncash receipts on the same date.
   await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'transfer')",[order]);
 });
