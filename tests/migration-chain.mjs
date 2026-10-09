@@ -8,7 +8,8 @@ const db = new PGlite({ extensions: { pgcrypto } });
 try {
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create schema storage;
-    create table auth.users(id uuid primary key default gen_random_uuid(), instance_id uuid, email text unique, encrypted_password text, email_confirmed_at timestamptz, created_at timestamptz, updated_at timestamptz, aud text, role text, confirmation_token text, recovery_token text, email_change_token_new text, email_change text, raw_app_meta_data jsonb default '{}', raw_user_meta_data jsonb default '{}');
+    create table auth.users(id uuid primary key default gen_random_uuid(), instance_id uuid, email text, is_sso_user boolean not null default false, encrypted_password text, email_confirmed_at timestamptz, created_at timestamptz, updated_at timestamptz, aud text, role text, confirmation_token text, recovery_token text, email_change_token_new text, email_change text, raw_app_meta_data jsonb default '{}', raw_user_meta_data jsonb default '{}');
+    create unique index users_email_partial_key on auth.users(email) where not is_sso_user;
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     create function auth.role() returns text language sql stable as $$ select current_user::text $$;
     create table storage.buckets(id text primary key,name text,public boolean);

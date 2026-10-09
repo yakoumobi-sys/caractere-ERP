@@ -27,7 +27,9 @@ WHERE NOT EXISTS (
   SELECT 1 FROM auth.users u
   WHERE u.email = LOWER(e.first_name) || '@caractere.com'
 )
-ON CONFLICT(email) DO NOTHING;
+-- Auth uses a partial email index for non-SSO accounts; let PostgreSQL
+-- infer all unique conflicts rather than requiring a full email constraint.
+ON CONFLICT DO NOTHING;
 
 -- Mettre à jour TOUS les mots de passe à 123456 (pour simplifier les tests)
 UPDATE auth.users
