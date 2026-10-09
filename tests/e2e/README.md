@@ -1,184 +1,37 @@
-# 🧪 Tests E2E — Caractère ERP
+# Tests E2E de Caractère ERP
 
-Suite de tests automatisés pour les workflows critiques de l'ERP.
+La suite couvre la création de commandes depuis l'interface, la sélection des clients, les callbacks Twilio signés (formulaire et JSON), la mise à jour réelle du statut SMS, l'authentification du webhook site, le refus d'une modification CRM par un profil readonly et l'absence de clé privilégiée dans le navigateur.
 
-## 📋 Coverage
+Les tests financiers et les migrations ont leurs suites distinctes : `npm run test:finance` et `npm run test:migrations`. Cette suite E2E ne couvre pas encore tous les parcours financiers dans le navigateur.
 
-✅ Création de commande (simple & bulk)  
-✅ Facturation & comptabilisation automatique  
-✅ Paiements & solde client  
-✅ Stock & mouvements automatiques  
-✅ Sécurité (RLS, webhooks)  
-✅ Performance (N+1 fixes)
+## En CI
 
-## 🚀 Setup
+Le workflow démarre Supabase local avec les migrations du dépôt, puis crée deux comptes fictifs. Aucune clé ni aucun compte de production n'est utilisé. Les écritures de test refusent les URL Supabase hébergées. La base et les comptes sont jetés à la fin du job.
 
-### 1. Installer Playwright
+## En local
+
+Docker et Supabase CLI 2.120.0 sont requis.
 
 ```bash
-npm install --save-dev @playwright/test
+supabase start
+supabase status -o env --override-name api.url=NEXT_PUBLIC_SUPABASE_URL,auth.anon_key=NEXT_PUBLIC_SUPABASE_ANON_KEY,auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY > .e2e.env
+set -a
+. ./.e2e.env
+export TWILIO_AUTH_TOKEN=local-e2e-twilio-token
+export TWILIO_WEBHOOK_URL=http://localhost:3000/api/webhooks/twilio
+export SITE_ORDERS_WEBHOOK_SECRET=local-e2e-site-secret
+export TEST_USERNAME=E2EAdmin
+export TEST_PASSWORD=CaractereE2E-2026!
+set +a
+node tests/e2e/setup-local.mjs
 npx playwright install chromium
-```
-
-### 2. Variables d'environnement
-
-Créer `.env.test` :
-
-```env
-# Supabase (teste sur staging si possible)
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
-
-# App
-BASE_URL=http://localhost:3000
-TEST_PASSWORD=123456
-```
-
-### 3. Démarrer l'app
-
-```bash
-npm run dev
-```
-
-### 4. Lancer les tests
-
-```bash
-# Tous les tests
-npx playwright test
-
-# Un seul fichier
-npx playwright test workflows.spec.ts
-
-# Mode debug
-npx playwright test --debug
-
-# Mode UI (visuel)
-npx playwright test --ui
-
-# Reporter HTML
-npx playwright show-report
-```
-
-## 📊 Tests Inclus
-
-### Création de Commande
-- ✅ DTF simple avec 1 client nouveau
-- ✅ Bulk 100 articles (perf test du N+1 fix)
-- ✅ Vérifier autoincrémentation du numéro
-
-### Facturation
-- ✅ Créer facture depuis commande
-- ✅ Ajouter lignes de facture
-- ✅ Vérifier comptabilisation auto
-- ✅ Enregistrer paiement
-- ✅ Vérifier équilibreur de solde
-
-### Stock
-- ✅ Mouvements automatiques
-- ✅ Journal des stocks
-- ✅ Alertes rupture
-
-### Sécurité
-- ✅ RLS: User readonly bloqué
-- ✅ Webhook Twilio: Signature validée
-
-### Performance
-- ✅ Order creation 100 articles < 5s
-
-## 📈 Résultats
-
-Après chaque test run, voir les résultats :
-
-```bash
-# HTML report
-npx playwright show-report
-
-# Terminal output
 npm run test:e2e
-
-# JUnit (CI/CD)
-cat tests/results/junit.xml
 ```
 
-## 🔄 CI/CD Integration
+Le script de comptes s'exécute une fois sur une base locale neuve. Pour repartir de zéro : `supabase db reset --local --no-seed`, puis recréer les comptes. Ne pas charger `supabase/seed.sql` pour cette suite.
 
-Ajouter à `.github/workflows/test.yml` :
+Les rapports sont dans `tests/results/`. Les captures et traces sont dans `test-results/`. Les scénarios n'acceptent pas un HTTP 500 comme preuve de succès.
 
-```yaml
-- name: Run E2E tests
-  run: |
-    npm install
-    npx playwright install --with-deps chromium
-    npm run test:e2e
-  env:
-    BASE_URL: ${{ secrets.BASE_URL }}
-    NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-    SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+## Callback Twilio en production
 
-- name: Upload test results
-  if: always()
-  uses: actions/upload-artifact@v3
-  with:
-    name: playwright-report
-    path: tests/results/
-```
-
-## 🐛 Debugging
-
-```bash
-# Mode debug avec UI
-npx playwright test --debug
-
-# Trace inspection
-npx playwright show-trace tests/results/trace.zip
-
-# Screenshots & videos
-# Auto-sauvegardés dans tests/results/ en cas d'erreur
-```
-
-## 💡 Tips
-
-- Utiliser `test.only()` pour run un seul test
-- Utiliser `test.skip()` pour sauter un test
-- Utiliser `page.pause()` pour debug interactif
-- Utiliser `test.setTimeout()` pour augmenter timeout
-
-## 📝 Ajouter un nouveau test
-
-```typescript
-test('Description du test', async ({ page, login, adminUser }) => {
-  // Authentifier
-  await login(adminUser.email, adminUser.password);
-
-  // Naviguer
-  await page.goto('/path');
-
-  // Interagir
-  await page.click('button');
-  await page.fill('input', 'value');
-
-  // Vérifier
-  await expect(page.locator('text=Success')).toBeVisible();
-});
-```
-
-## 🎯 Avant de mettre en prod
-
-```bash
-# 1. Tous les tests doivent passer
-npm run test:e2e
-
-# 2. Pas de warnings ou errors
-npm run lint
-
-# 3. Performance OK
-npm run test:e2e -- --grep "Performance"
-
-# 4. Sécurité OK
-npm run test:e2e -- --grep "Sécurité"
-```
-
----
-
-**Statut**: ✅ Suite complète prête pour production
-
+Configurer `TWILIO_AUTH_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` et `TWILIO_WEBHOOK_URL` sur le serveur. Cette dernière doit être l'URL HTTPS exacte enregistrée chez Twilio, avec le chemin `/api/webhooks/twilio`. Le callback utilise le validateur officiel du SDK et ne journalise aucune signature. Il écrit avec le client serveur privilégié seulement après validation de la signature, puisqu'un callback fournisseur n'a pas de session utilisateur.
