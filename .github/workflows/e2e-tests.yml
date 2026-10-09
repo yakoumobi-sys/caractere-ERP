@@ -20,20 +20,6 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # hôte:conteneur — Postgres écoute sur 5432 dans le conteneur.
-          - 5432:5432
-
     steps:
       - uses: actions/checkout@v4
 
@@ -51,54 +37,55 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # Sans ces valeurs, le middleware lève « Your project's URL and Key are
-      # required to create a Supabase client » sur chaque requête : l'app ne
-      # répond jamais et « Start app » se contente d'expirer au bout de 60 s,
-      # sans indiquer la cause. On échoue ici, avec le nom de ce qui manque.
-      # Seule la présence est testée, jamais la valeur : rien n'est exposé.
-      - name: Vérifier les secrets requis
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Start isolated Supabase
         run: |
-          manquants=""
-          [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || manquants="$manquants NEXT_PUBLIC_SUPABASE_URL"
-          [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || manquants="$manquants NEXT_PUBLIC_SUPABASE_ANON_KEY"
-          if [ -n "$manquants" ]; then
-            echo "::error title=Secrets manquants::$manquants — à renseigner dans Settings > Secrets and variables > Actions. Sans eux l'application ne démarre pas et les tests ne peuvent pas s'exécuter."
-            exit 1
-          fi
-          echo "Secrets Supabase présents."
+          supabase start -x studio,postgres-meta,edge-runtime,logflare,vector,supavisor,imgproxy
+          supabase status -o json > "$RUNNER_TEMP/supabase-local.json"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const local = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/supabase-local.json`, 'utf8'));
+          const vars = {
+            NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY,
+            SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
+            TWILIO_AUTH_TOKEN: 'local-e2e-twilio-token',
+            TWILIO_WEBHOOK_URL: 'http://localhost:3000/api/webhooks/twilio',
+            SITE_ORDERS_WEBHOOK_SECRET: 'local-e2e-site-secret',
+            TEST_USERNAME: 'E2EAdmin',
+            TEST_PASSWORD: 'CaractereE2E-2026!',
+          };
+          for (const [key, value] of Object.entries(vars)) {
+            if (!value) throw new Error(`Missing local setting: ${key}`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          }
+          JS
+
+      - name: Prepare local test accounts
+        run: node tests/e2e/setup-local.mjs
 
       - name: Build Next.js
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Start app
         run: |
-          npm run start &
-          npx wait-on http://localhost:3000 --timeout 60000
+          npm run start > "$RUNNER_TEMP/caractere-app.log" 2>&1 &
+          npx wait-on http://localhost:3000/login --timeout 60000
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          SITE_ORDERS_WEBHOOK_SECRET: ${{ secrets.SITE_ORDERS_WEBHOOK_SECRET }}
 
       - name: Run E2E tests
         id: e2e
         run: npm run test:e2e
         env:
           BASE_URL: http://localhost:3000
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD || '123456' }}
+
+      - name: App log on failure
+        if: failure()
+        run: cat "$RUNNER_TEMP/caractere-app.log" || true
 
       - name: Upload test results
         if: always()
@@ -109,7 +96,7 @@ jobs:
           retention-days: 30
 
       - name: Upload JUnit results
-        if: always()
+        if: always() && hashFiles('tests/results/junit.xml') != ''
         uses: dorny/test-reporter@v1
         with:
           name: E2E Test Results
@@ -147,3 +134,7 @@ jobs:
                 `- [Voir le rapport détaillé](${run})`,
               ].join('\n'),
             });
+
+      - name: Stop isolated Supabase
+        if: always()
+        run: supabase stop --no-backup

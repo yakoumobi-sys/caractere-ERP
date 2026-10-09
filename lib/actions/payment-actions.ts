@@ -39,6 +39,7 @@ export async function recordOrderPayment(
   });
 
   if (error && error.code !== "23505") throw new Error(error.message);
+  revalidatePath("/sales/invoices", "layout");
   revalidatePath("/cash");
   revalidatePath("/sales");
   revalidatePath("/crm/contacts");

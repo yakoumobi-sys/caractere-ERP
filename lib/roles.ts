@@ -30,3 +30,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   atelier: "Atelier (production)",
   readonly: "Lecture seule",
 };
+
+export const STOCK_ROLES: UserRole[] = ["admin", "manager", "stock", "purchasing"];
+export function canManageStock(role: UserRole | undefined | null) {
+  return !!role && STOCK_ROLES.includes(role);
+}

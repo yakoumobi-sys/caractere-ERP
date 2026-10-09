@@ -9,3 +9,10 @@ build
 next-env.d.ts
 .DS_Store
 npm-debug.log*
+
+supabase/.temp/
+
+supabase/.branches/
+tests/results/
+test-results/
+.e2e.env

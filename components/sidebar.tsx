@@ -18,6 +18,7 @@ const NAV_BUTTONS = [
     items: [
       { href: "/dashboard", label: "Tableau de bord", exact: true, wide: true },
       { href: "/alerts", label: "Alertes" },
+      { href: "/operations", label: "Priorités atelier", wide: true },
       { href: "/sms-notifications", label: "📱 SMS" },
       { href: "/inventory/stock", label: "📦 Stock" },
       { href: "/inventory/movements", label: "Mouvements" },

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { canWrite } from "@/lib/roles";
+import { canManageStock } from "@/lib/roles";
 import type { UserRole } from "@/types/database";
 
 /**
@@ -91,8 +91,8 @@ export async function addStockMove(
 
   const { userId, role } = await activeRole(supabase);
   if (!userId) return { error: "Session expirée — reconnectez-vous.", success: null };
-  if (!canWrite(role ?? undefined)) {
-    return { error: "Votre profil est en lecture seule : mouvement non enregistré.", success: null };
+  if (!canManageStock(role ?? undefined)) {
+    return { error: "Votre rôle ne permet pas de gérer le stock : mouvement non enregistré.", success: null };
   }
 
   const magnitude = Math.abs(parsed.data.quantity);
@@ -144,8 +144,8 @@ export async function transferStock(
   const supabase = createClient();
   const { userId, role } = await activeRole(supabase);
   if (!userId) return { error: "Session expirée — reconnectez-vous.", success: null };
-  if (!canWrite(role ?? undefined)) {
-    return { error: "Votre profil est en lecture seule : transfert non enregistré.", success: null };
+  if (!canManageStock(role ?? undefined)) {
+    return { error: "Votre rôle ne permet pas de gérer le stock : transfert non enregistré.", success: null };
   }
 
   const { error } = await supabase.rpc("stock_transfer", {
@@ -187,8 +187,8 @@ export async function setReorderPoint(
   const supabase = createClient();
   const { userId, role } = await activeRole(supabase);
   if (!userId) return { error: "Session expirée — reconnectez-vous.", success: null };
-  if (!canWrite(role ?? undefined)) {
-    return { error: "Votre profil est en lecture seule : seuil non modifié.", success: null };
+  if (!canManageStock(role ?? undefined)) {
+    return { error: "Votre rôle ne permet pas de gérer le stock : seuil non modifié.", success: null };
   }
 
   const { error } = await supabase

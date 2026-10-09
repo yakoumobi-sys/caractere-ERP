@@ -19,24 +19,22 @@ interface AuthFixture {
  * Fixture: Authentification admin
  */
 export const test = base.extend<AuthFixture>({
-  // Compte utilisé par les tests. « admin@caractere.com » n'existe sur aucun
-  // projet : renseigner TEST_EMAIL / TEST_PASSWORD (secrets Actions) avec un
-  // compte admin réel du projet Supabase ciblé.
+  // Compte fictif créé par setup-local.mjs dans Supabase local.
   adminUser: {
-    email: process.env.TEST_EMAIL || 'admin@caractere.com',
-    password: process.env.TEST_PASSWORD || '123456',
+    email: process.env.TEST_USERNAME || 'E2EAdmin',
+    password: process.env.TEST_PASSWORD || 'CaractereE2E-2026!',
   },
 
   login: async ({ page }, use) => {
     await use(async (email: string, password: string) => {
       await page.goto('/login');
-      await page.fill('input[name="email"]', email);
+      await page.selectOption('select[name="username"]', { label: email });
       await page.fill('input[name="password"]', password);
       await page.click('button[type="submit"]');
 
       // Attendre la redirection vers le dashboard
       await page.waitForURL('/dashboard', { timeout: 10000 });
-      await page.waitForLoadState('networkidle');
+      await expect(page.locator('nav').first()).toBeVisible();
     });
   },
 
@@ -61,10 +59,7 @@ export async function createTestContact(data: {
   email?: string;
   type?: string;
 }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createLocalAdmin();
 
   const { data: contact, error } = await supabase
     .from('contacts')
@@ -93,10 +88,7 @@ export async function createTestOrder(data: {
   technique?: 'dtf' | 'broderie' | 'aucune';
   orderTotal?: number;
 }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createLocalAdmin();
 
   const { data: order, error } = await supabase
     .from('pipeline_orders')
@@ -118,16 +110,34 @@ export async function createTestOrder(data: {
  * Nettoyer les données de test
  */
 export async function cleanupTestData(ids: { contacts?: string[]; orders?: string[] }) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = createLocalAdmin();
 
   if (ids.orders?.length) {
-    await supabase.from('pipeline_orders').delete().in('id', ids.orders);
+    // Follow the real administrator permissions; never bypass evidence guards.
+    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const session = await admin.auth.signInWithPassword({
+      email: 'e2eadmin@example.test', password: process.env.TEST_PASSWORD || 'CaractereE2E-2026!',
+    });
+    if (session.error) throw new Error(session.error.message);
+    const { error } = await admin.from('pipeline_orders').delete().in('id', ids.orders);
+    await admin.auth.signOut();
+    if (error) throw new Error(error.message);
   }
 
   if (ids.contacts?.length) {
-    await supabase.from('contacts').delete().in('id', ids.contacts);
+    const { error } = await supabase.from('contacts').delete().in('id', ids.contacts);
+    if (error) throw new Error(error.message);
   }
+}
+
+export function createLocalAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) {
+    throw new Error('Les écritures E2E sont réservées à Supabase local.');
+  }
+  return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
