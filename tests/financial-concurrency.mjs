@@ -22,7 +22,7 @@ if (!['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname) || proces
   throw new Error('Concurrence : base locale jetable explicitement requise (ERP_DISPOSABLE_DB=1).');
 }
 
-const ADMIN = "10000000-0000-4000-8000-0000000000c1";
+let ADMIN;
 const MARQUEUR = "TEST-CONCURRENCE";
 let reussis = 0;
 
@@ -31,9 +31,7 @@ async function connecter() {
   await client.connect();
   // Les gardes financières lisent auth.uid() : chaque connexion doit porter
   // l'identité de l'utilisateur, sinon current_role() renvoie NULL.
-  await client.query("select set_config('request.jwt.claim.sub',$1,false)", [
-    ADMIN,
-  ]);
+  if (ADMIN) await client.query("select set_config('request.jwt.claim.sub',$1,false)", [ADMIN]);
   return client;
 }
 
@@ -46,18 +44,12 @@ async function test(nom, fn) {
 const db = await connecter();
 
 // --- Préparation ------------------------------------------------------------
+// Reuse the explicitly prepared local administrator; do not self-elevate a user.
+const { rows: admins } = await db.query("select p.id from public.profiles p join auth.users u on u.id=p.id where u.email='e2eadmin@example.test' and p.role='admin' and p.is_active");
+if (admins.length !== 1) throw new Error('Préparez le compte local avec tests/e2e/setup-local.mjs.');
+ADMIN = admins[0].id;
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ADMIN]);
 await db.query("begin");
-await db.query(
-  `insert into auth.users(id,email) values($1,'concurrence@test.local')
-     on conflict (id) do nothing`,
-  [ADMIN],
-);
-await db.query(
-  `insert into public.profiles(id,full_name,role,is_active)
-     values($1,'Test concurrence','admin',true)
-     on conflict (id) do update set role='admin', is_active=true`,
-  [ADMIN],
-);
 // Le plan comptable vient de supabase/seed.sql, pas des migrations : sur une
 // base seulement migrée, la validation de facture échouerait sur « Plan
 // comptable incomplet ». On garantit ici les comptes dont les triggers ont
