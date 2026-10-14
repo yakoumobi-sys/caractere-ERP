@@ -70,6 +70,7 @@ await db.exec(migration("0038_stock_source_unique.sql"));
 await db.exec(migration("0040_journal_immuable.sql"));
 await db.exec(migration("0041_caractere_order_invoice_bridge.sql"));
 await db.exec(migration("0042_caractere_operations_controls.sql"));
+await db.exec(migration("0044_journal_atomic_integrity.sql"));
 await db.exec(`create trigger post_order_payment_journal_trigger after insert on order_payments for each row execute function post_order_payment_journal();
   grant usage on schema public,auth to authenticated; grant select,insert,update,delete on all tables in schema public to authenticated;
   grant execute on function auth.uid() to authenticated; set role authenticated;`);
@@ -178,6 +179,32 @@ await test("Posting creates balanced journal and freezes invoice header/lines", 
     "update invoices set status='payee',amount_paid=total where id=$1",
     [invoice],
   );
+});
+await test("Posted journal rejects adding balanced lines after posting", async () => {
+  const entry = (await one("select id from journal_entries where source_type='invoice' and source_id=$1",[invoice])).id;
+  await assert.rejects(db.query(`insert into journal_lines(entry_id,account_id,debit,credit)
+    select $1::uuid,id,100,0 from chart_of_accounts where code='411'
+    union all select $1::uuid,id,0,100 from chart_of_accounts where code='706'`, [entry]), /contre-écriture/);
+});
+await test("Manual journal is atomic, balanced, idempotent and validates every line", async () => {
+  const cash = (await one("select id from chart_of_accounts where code='606'")).id;
+  const bank = (await one("select id from chart_of_accounts where code='512'")).id;
+  const rows = [{account_id:cash,debit:123.45,credit:0,label:"Caisse"},{account_id:bank,debit:0,credit:123.45,label:"Banque"}];
+  const request = "30000000-0000-4000-8000-000000000001";
+  const post = (lines,token=request) => one("select save_manual_journal(current_date,'TEST-ATOMIQUE',null,$1,$2) id", [JSON.stringify(lines),token]);
+  const result = await post(rows);
+  assert.equal((await post(rows)).id,result.id);
+  assert.equal(Number((await one("select count(*) n from journal_lines where entry_id=$1",[result.id])).n),2);
+  await assert.rejects(post([{...rows[0],debit:5},{...rows[1],credit:5}]),/autre écriture/);
+  const before = Number((await one("select count(*) n from journal_entries")).n);
+  const token = "30000000-0000-4000-8000-000000000002";
+  await assert.rejects(post([rows[0],{...rows[1],account_id:"99999999-9999-4999-8999-999999999999"}],token),/Compte inexistant/);
+  await assert.rejects(post([rows[0],{...rows[1],credit:1}],token),/déséquilibrée/);
+  await assert.rejects(post([{...rows[0],debit:-1},rows[1]],token),/invalide/);
+  assert.equal(Number((await one("select count(*) n from journal_entries")).n),before);
+});
+await test("CRM debt cannot be overwritten directly", async () => {
+  await assert.rejects(db.query("update contacts set balance=999999 where id=$1",[client]),/Solde client calculé/);
 });
 await test("Cash invoice payment debits cash, not bank; overpayment rejected", async () => {
   await db.query(
@@ -470,6 +497,15 @@ await test("Cash counting freezes the period, preserves discrepancies, and rolls
   // Closing cash does not block noncash receipts on the same date.
   await db.query("insert into order_payments(pipeline_order_id,amount,payment_method) values($1,500,'transfer')",[order]);
 });
+await test("A closed cash day rejects the complete manual journal without an orphan header", async () => {
+  const cash=(await one("select id from chart_of_accounts where code='53'")).id;
+  const bank=(await one("select id from chart_of_accounts where code='512'")).id;
+  const before=Number((await one("select count(*) n from journal_entries")).n);
+  await assert.rejects(db.query("select save_manual_journal((now() at time zone 'Africa/Algiers')::date,'CLOSED',null,$1,$2)",[
+    JSON.stringify([{account_id:cash,debit:10,credit:0},{account_id:bank,debit:0,credit:10}]),
+    "30000000-0000-4000-8000-000000000003"]),/Caisse clôturée/);
+  assert.equal(Number((await one("select count(*) n from journal_entries")).n),before);
+});
 await test("Readonly user cannot save, receive money or create a cash movement", async () => {
   await db.exec(
     `reset role; insert into auth.users(id,email) values('10000000-0000-4000-8000-000000000003','reader@test.local'); set role authenticated; select set_config('app.user_id','10000000-0000-4000-8000-000000000003',false);`,
@@ -479,6 +515,7 @@ await test("Readonly user cannot save, receive money or create a cash movement",
     "insert into order_payments(pipeline_order_id,amount,payment_method) values($1,100,'cash')",
     [order],
   );
+  await assert.rejects(db.query("select save_manual_journal(current_date,null,null,'[]',$1)",["30000000-0000-4000-8000-000000000004"]),/Accès réservé/);
   await rejects("select cash_book('2026-01-01','2026-12-31',0)");
   await rejects("select create_pipeline_invoice($1)",[order]);
   await rejects("select close_cash_day(current_date,0,'Non autorisé')");

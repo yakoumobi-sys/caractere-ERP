@@ -18,12 +18,16 @@ if (!url) {
   process.exit(0);
 }
 
+if (!['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname) || process.env.ERP_DISPOSABLE_DB !== '1') {
+  throw new Error('Concurrence : base locale jetable explicitement requise (ERP_DISPOSABLE_DB=1).');
+}
+
 const ADMIN = "10000000-0000-4000-8000-0000000000c1";
 const MARQUEUR = "TEST-CONCURRENCE";
 let reussis = 0;
 
 async function connecter() {
-  const client = new pg.Client({ connectionString: url });
+  const client = new pg.Client({ connectionString: url, statement_timeout: 15000 });
   await client.connect();
   // Les gardes financières lisent auth.uid() : chaque connexion doit porter
   // l'identité de l'utilisateur, sinon current_role() renvoie NULL.
