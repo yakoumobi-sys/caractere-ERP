@@ -8,8 +8,7 @@ import { test, expect, createTestContact, cleanupTestData } from './fixtures';
  * /stock/products, `select[name="contact_id"]`, `input[name="product_name"]`…)
  * et n'avait jamais pu passer.
  *
- * Prérequis : TEST_EMAIL / TEST_PASSWORD = un compte admin réel du projet
- * Supabase ciblé, SUPABASE_SERVICE_ROLE_KEY pour créer/nettoyer les données.
+ * Prérequis : Supabase local avec les comptes fictifs de setup-local.mjs.
  */
 
 const SUFFIX = Date.now().toString(36);

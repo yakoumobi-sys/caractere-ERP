@@ -70,14 +70,14 @@ insert into storage.buckets (id, name, public)
 values ('order-files', 'order-files', true)
 on conflict (id) do nothing;
 
-drop policy if exists "order_files_public_read" on storage;
+drop policy if exists "order_files_public_read" on storage.objects;
 create policy "order_files_public_read" on storage.objects for select
   using (bucket_id = 'order-files');
 
-drop policy if exists "order_files_authenticated_insert" on storage;
+drop policy if exists "order_files_authenticated_insert" on storage.objects;
 create policy "order_files_authenticated_insert" on storage.objects for insert to authenticated
   with check (bucket_id = 'order-files');
 
-drop policy if exists "order_files_authenticated_delete" on storage;
+drop policy if exists "order_files_authenticated_delete" on storage.objects;
 create policy "order_files_authenticated_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'order-files');

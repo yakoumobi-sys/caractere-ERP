@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { crmStages } from "@/lib/crm";
-import { contactsConfig, opportunitiesConfig } from "@/lib/entities";
+import { contactsConfig, opportunitiesConfig, productsConfig, productCategoriesConfig, warehousesConfig, suppliersConfig, employeesConfig, projectsConfig, chartOfAccountsConfig } from "@/lib/entities";
+import { canEditEntity } from "@/lib/entity-permissions";
+const entityConfigs = [contactsConfig, opportunitiesConfig, productsConfig, productCategoriesConfig, warehousesConfig, suppliersConfig, employeesConfig, projectsConfig, chartOfAccountsConfig];
+function trustedEntity(table: string) {
+  const config = entityConfigs.find(c => c.table === table);
+  if (!config) throw new Error("Ressource inconnue.");
+  return config;
+}
 import type { FieldConfig } from "@/lib/entities";
 
 function parseFormData(fields: FieldConfig[], formData: FormData) {
@@ -26,21 +33,11 @@ function parseFormData(fields: FieldConfig[], formData: FormData) {
   return data;
 }
 
-// Rôles autorisés à modifier chaque table
-const TABLE_PERMISSIONS: Record<string, string[]> = {
-  contacts: ["admin", "manager", "sales"],
-  products: ["admin", "manager", "purchasing", "sales"], // Hafid & Abderrahmane (sales) peuvent modifier articles
-  product_categories: ["admin", "manager", "purchasing"],
-  opportunities: ["admin", "manager", "sales"],
-  // Autres tables : admin et manager par défaut
-};
-
 async function checkPermission(table: string) {
   const profile = await getCurrentProfile();
   if (!profile?.id || !profile.is_active) throw new Error("Non authentifié");
 
-  const allowedRoles = TABLE_PERMISSIONS[table] || ["admin", "manager"];
-  if (!allowedRoles.includes(profile.role || "")) {
+  if (!canEditEntity(table, profile.role)) {
     throw new Error(
       `Permission refusée : vous n'avez pas accès à cette ressource.`,
     );
@@ -57,14 +54,9 @@ export async function upsertEntity(
   await checkPermission(table);
 
   const supabase = createClient();
-  const canonical =
-    table === "contacts"
-      ? contactsConfig
-      : table === "opportunities"
-        ? opportunitiesConfig
-        : null;
-  const data = parseFormData(canonical?.fields ?? fields, formData);
-  if (canonical) basePath = canonical.basePath;
+  const canonical = trustedEntity(table);
+  const data = parseFormData(canonical.fields, formData);
+  basePath = canonical.basePath;
   if (table === "contacts" && !String(data.name ?? "").trim())
     throw new Error("Le nom est obligatoire.");
   if (table === "opportunities") {
@@ -110,6 +102,7 @@ export async function deleteEntity(
   id: string,
 ) {
   await checkPermission(table);
+  basePath = trustedEntity(table).basePath;
 
   const supabase = createClient();
   const { error } = await supabase.from(table).delete().eq("id", id);

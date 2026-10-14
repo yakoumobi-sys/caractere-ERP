@@ -1,3 +1,5 @@
+import { getCurrentProfile } from "@/lib/auth";
+import { canRecordPayments } from "@/lib/roles";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui";
@@ -5,8 +7,8 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { whatsappUrl } from "@/lib/crm";
 export async function ContactHistory({ contactId }: { contactId: string }) {
   const db = createClient();
-  const [contact, orders, invoices, opportunities] = await Promise.all([
-    db.from("contacts").select("name,phone").eq("id", contactId).single(),
+  const [contact, orders, invoices, opportunities, profile] = await Promise.all([
+    db.from("contacts").select("name,phone,balance,segment,acquisition_source").eq("id", contactId).single(),
     db
       .from("pipeline_orders")
       .select("id,number,order_total,payment_status,created_at")
@@ -26,10 +28,16 @@ export async function ContactHistory({ contactId }: { contactId: string }) {
       .not("stage", "in", "(gagne,perdu)")
       .order("next_follow_up", { ascending: true, nullsFirst: false })
       .limit(10),
+    getCurrentProfile(),
   ]);
   const url = whatsappUrl(contact.data?.phone);
   return (
     <div className="space-y-4 mb-6">
+      {canRecordPayments(profile?.role) && contact.data && <Card className="p-5">
+        <p className="text-sm text-slate-500">Reste à encaisser · commandes atelier et factures indépendantes</p>
+        <p className="text-2xl font-semibold mt-2">{formatMoney(contact.data.balance)}</p>
+        <p className="text-sm text-slate-500 mt-2">Les factures liées à l’atelier sont incluses une seule fois. Les anciens documents sans liaison doivent être rapprochés.</p>
+      </Card>}
       {url && (
         <a
           href={url}

@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useTransition } from "react";
 import { addManualJournalEntry } from "@/lib/actions/accounting-actions";
 import { Button, Card, Field, inputClass } from "@/components/ui";
-import { formatMoney, todayISO } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
+
+import { businessDate } from "@/lib/finance";
 
 interface Row {
   account_id: string;
@@ -13,6 +15,9 @@ interface Row {
 }
 
 export function JournalEntryForm({ accounts }: { accounts: { id: string; code: string; name: string }[] }) {
+  const requestId = useRef<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState("");
   const [rows, setRows] = useState<Row[]>([
     { account_id: "", debit: 0, credit: 0, label: "" },
     { account_id: "", debit: 0, credit: 0, label: "" },
@@ -35,10 +40,29 @@ export function JournalEntryForm({ accounts }: { accounts: { id: string; code: s
   return (
     <Card className="p-6 mb-6">
       <h2 className="text-sm font-semibold text-slate-900 mb-3">Nouvelle écriture manuelle</h2>
-      <form action={addManualJournalEntry} className="flex flex-col gap-4">
+      <form onSubmit={(event) => {
+        event.preventDefault();
+        if (pending) return;
+        const data = new FormData(event.currentTarget);
+        requestId.current ??= crypto.randomUUID();
+        data.set("request_id", requestId.current);
+        setMessage("");
+        startTransition(async () => {
+          try {
+            await addManualJournalEntry(data);
+            requestId.current = null;
+            setRows([{ account_id: "", debit: 0, credit: 0, label: "" }, { account_id: "", debit: 0, credit: 0, label: "" }]);
+            setMessage("Écriture enregistrée.");
+          } catch {
+            setMessage("Écriture non confirmée. Vérifiez le journal avant de réessayer ; la même requête ne sera pas enregistrée deux fois.");
+          }
+        });
+      }} className="flex flex-col gap-4">
+        {message && <p role="status">{message}</p>}
+        <fieldset disabled={pending} className="contents">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Date" htmlFor="entry_date">
-            <input id="entry_date" name="entry_date" type="date" defaultValue={todayISO()} className={inputClass} />
+            <input id="entry_date" name="entry_date" type="date" defaultValue={businessDate()} className={inputClass} />
           </Field>
           <Field label="Référence" htmlFor="reference">
             <input id="reference" name="reference" type="text" className={inputClass} />
@@ -114,10 +138,11 @@ export function JournalEntryForm({ accounts }: { accounts: { id: string; code: s
 
         <input type="hidden" name="lines_json" value={JSON.stringify(rows)} />
         <div>
-          <Button type="submit" disabled={!balanced}>
+          <Button type="submit" disabled={!balanced || pending}>
             Enregistrer l&apos;écriture
           </Button>
         </div>
+        </fieldset>
       </form>
     </Card>
   );

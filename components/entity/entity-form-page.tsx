@@ -1,3 +1,4 @@
+import { canEditEntity } from "@/lib/entity-permissions";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -5,18 +6,6 @@ import type { EntityConfig } from "@/lib/entities";
 import { PageHeader, Card } from "@/components/ui";
 import { EntityForm } from "@/components/entity/entity-form";
 
-// Rôles autorisés à modifier chaque table
-const TABLE_PERMISSIONS: Record<string, string[]> = {
-  contacts: ["admin", "manager", "sales"],
-  products: ["admin", "manager", "purchasing", "sales"],
-  product_categories: ["admin", "manager", "purchasing"],
-  opportunities: ["admin", "manager", "sales"],
-};
-
-function canEditTable(table: string, role: string | undefined): boolean {
-  const allowedRoles = TABLE_PERMISSIONS[table] || ["admin", "manager"];
-  return allowedRoles.includes(role || "");
-}
 
 export async function EntityFormPage({ config, id }: { config: EntityConfig; id?: string }) {
   const supabase = createClient();
@@ -24,7 +13,7 @@ export async function EntityFormPage({ config, id }: { config: EntityConfig; id?
   const isNew = !id || id === "new";
 
   // Vérifier les permissions
-  if (!canEditTable(config.table, profile?.role)) {
+  if (!profile?.is_active || !canEditEntity(config.table, profile.role)) {
     return (
       <div className="max-w-2xl">
         <PageHeader title="Accès refusé" />

@@ -1,3 +1,6 @@
+import { createPipelineInvoice } from "@/lib/actions/operations-actions";
+import { OrderPreparation } from "@/components/production/order-preparation";
+import { LinkButton } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -36,6 +39,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
     { data: files },
     { data: shipment },
     { data: money },
+    { data: linkedInvoice },
     { data: payments },
     profile,
   ] = await Promise.all([
@@ -62,7 +66,8 @@ export default async function Page({ params, searchParams }: { params: { id: str
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("pipeline_orders").select("order_total, payment_status").eq("id", params.id).maybeSingle(),
+      supabase.from("pipeline_orders").select("order_total, payment_status, due_date, bat_status, blocked_reason, quality_checked, packaging_checked").eq("id", params.id).maybeSingle(),
+      supabase.from("invoices").select("id, number, status").eq("pipeline_order_id", params.id).maybeSingle(),
       supabase
         .from("order_payments")
         .select("id, amount, payment_method, notes, created_at")
@@ -128,13 +133,13 @@ export default async function Page({ params, searchParams }: { params: { id: str
             {order.contact_name} · {statusLabel(order.status)} · {formatSince(order.status_since)}
           </p>
         </div>
-        <form action={remove}>
+        {profile?.is_active && ["admin", "manager"].includes(profile.role) && !linkedInvoice && !(payments?.length) && order.status !== "livree" && <form action={remove}>
           <ConfirmSubmitButton
-            message={`Supprimer définitivement la commande ${order.number ?? ""} ? Ses articles, fichiers et paiements seront perdus.`}
+            message={`Supprimer définitivement la commande ${order.number ?? ""} ? Cette action est réservée aux commandes sans historique financier ni livraison.`}
           >
             Supprimer
           </ConfirmSubmitButton>
-        </form>
+        </form>}
       </div>
 
       <Card
@@ -191,6 +196,15 @@ export default async function Page({ params, searchParams }: { params: { id: str
       <div className="mb-6">
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
       </div>
+
+      <OrderPreparation orderId={order.id} preparation={money ?? {}} canEdit={!!profile?.is_active && ["admin", "manager", "sales", "atelier"].includes(profile.role)} />
+      {canRecordPayments(profile?.role) && <Card className="p-5 mb-6">
+        <h2 className="font-semibold mb-2">Facturation de la commande</h2>
+        {linkedInvoice ? <LinkButton href={`/sales/invoices/${linkedInvoice.id}`} variant="secondary">Ouvrir {linkedInvoice.number}</LinkButton> : <>
+          <p className="text-sm text-slate-500 mb-3">Créez un brouillon lié à cette commande. Vérifiez les lignes et la TVA avant validation. Les versements seront repris à la validation.</p>
+          <form action={createPipelineInvoice.bind(null, order.id)}><Button type="submit" disabled={!money?.order_total || !items?.length}>Créer la facture liée</Button></form>
+        </>}
+      </Card>}
 
       {searchParams.payment_warning === "1" && (
         <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
