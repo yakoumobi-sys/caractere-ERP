@@ -111,6 +111,27 @@ try {
     ),
     2000,
   );
+  const catalog = (await db.query("select * from products where quantity_prices is not null")).rows;
+  assert.equal(catalog.length,12);
+  const premium = catalog.find(p => p.sku === 'CAR-TS-PREMIUM');
+  assert.deepEqual(premium.quantity_prices,[{min:1,price:2100},{min:20,price:1950},{min:50,price:1750}]);
+  assert.equal(catalog.filter(p => p.quote_required).length,2);
+  const events = catalog.find(p => p.sku === 'CAR-TS-EVENTS');
+  assert.equal(events.minimum_quantity,50);
+  const request = '40000000-0000-4000-8000-000000000001';
+  const payload = {client_mode:'new',client_new_name:'Atomic client',technique:'dtf',order_total:2100,initial_payment:500,
+    items:[{product_id:premium.id,product_name:premium.name,quantity:1}],prints:[]};
+  const create = (id,p) => one('select create_pipeline_order_atomic($1,$2) id',[id,JSON.stringify(p)]);
+  const atomic = (await create(request,payload)).id;
+  assert.equal((await create(request,payload)).id,atomic);
+  assert.equal(Number((await one('select count(*) n from order_payments where pipeline_order_id=$1',[atomic])).n),1);
+  await assert.rejects(create(request,{...payload,order_total:2200}),/déjà créé/);
+  const before = Number((await one('select count(*) n from contacts')).n);
+  await assert.rejects(create('40000000-0000-4000-8000-000000000002',{...payload,prints:[{}]}));
+  assert.equal(Number((await one('select count(*) n from contacts')).n),before);
+  await assert.rejects(create('40000000-0000-4000-8000-000000000003',{...payload,items:[{product_id:events.id,product_name:events.name,quantity:49}]}),/Minimum/);
+  await assert.rejects(create('40000000-0000-4000-8000-000000000004',{...payload,items:[{product_id:premium.id,product_name:premium.name,quantity:-1}]}),/quantité/);
+  console.log('PASS 12 catalog articles, tiers, quote-only products, atomic rollback, retry deduplication and minimum quantities.');
   await db.exec(`reset role;
     insert into employees(first_name,last_name,profile_id) values('Directory','Test','10000000-0000-4000-8000-000000000041');
     grant select on employees to anon;

@@ -4,28 +4,17 @@ import { getCurrentProfile } from "@/lib/auth";
 import { canRecordPayments } from "@/lib/roles";
 import { PageHeader } from "@/components/ui";
 
-/** Un seul article par nom : si des doublons de casse réapparaissent au
- *  catalogue, la liste du comptoir reste lisible. */
-function uniqueProducts(rows: { id: string; name: string; sale_price: number | null }[] | null) {
-  const seen = new Map<string, { id: string; name: string; sale_price: number | null }>();
-  for (const row of rows ?? []) {
-    const name = row.name?.trim();
-    if (name && !seen.has(name.toLowerCase()))
-      seen.set(name.toLowerCase(), { id: row.id, name, sale_price: row.sale_price });
-  }
-  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
-}
-
 export default async function Page() {
   const supabase = createClient();
-  const [{ data: contacts, error }, { data: products }, { data: colors }, { data: sizes }, profile] = await Promise.all([
+  const [{ data: contacts, error }, { data: products, error: productError }, { data: colors, error: colorError }, { data: sizes, error: sizeError }, profile] = await Promise.all([
     supabase.from("contacts").select("id, name").order("name"),
-    supabase.from("products").select("id, name, sale_price").eq("is_active", true),
+    supabase.from("products").select("id, name, sale_price, quantity_prices, minimum_quantity, quote_required").eq("is_active", true),
     supabase.from("product_colors").select("color").order("color"),
     supabase.from("product_sizes").select("size").order("size"),
     getCurrentProfile(),
   ]);
 
+  if (productError || colorError || sizeError) throw new Error("Catalogue indisponible : vérifiez les migrations avant de saisir une commande.");
   if (error) {
     console.error("Erreur lors du chargement des contacts:", error);
     throw new Error(`Impossible de charger les contacts: ${error.message}`);
@@ -36,7 +25,7 @@ export default async function Page() {
       <PageHeader title="Nouvelle commande" description="Configurateur — Client, Article, Impression" />
       <NewOrderForm
         contacts={(contacts as { id: string; name: string }[]) ?? []}
-        products={uniqueProducts(products)}
+        products={products ?? []}
         colors={(colors ?? []).map((c: { color: string }) => c.color)}
         sizes={(sizes ?? []).map((s: { size: string }) => s.size)}
         canRecordPayments={canRecordPayments(profile?.role)}

@@ -308,6 +308,19 @@ await test(
   },
 );
 
+await test("Deux créations simultanées ne produisent qu’une commande et un acompte", async () => {
+  const a = await connecter(), b = await connecter();
+  const request = '50000000-0000-4000-8000-000000000023';
+  const payload = JSON.stringify({client_mode:'existing',contact_id:contact,technique:'aucune',order_total:1000,initial_payment:200,items:[{product_name:'TEST-CONCURRENCE service',quantity:1}],prints:[]});
+  try {
+    await a.query('set role authenticated'); await b.query('set role authenticated');
+    const results = await Promise.all([a.query('select create_pipeline_order_atomic($1,$2) id',[request,payload]),b.query('select create_pipeline_order_atomic($1,$2) id',[request,payload])]);
+    assert.equal(results[0].rows[0].id,results[1].rows[0].id);
+    const count = await db.query('select count(*) n from order_payments where pipeline_order_id=$1',[results[0].rows[0].id]);
+    assert.equal(Number(count.rows[0].n),1);
+  } finally { await a.end(); await b.end(); }
+});
+
 // The journal is immutable: retain evidence on this disposable test database.
 // Never try to delete posted financial data to clean up a test run.
 console.log(`${reussis} vérification(s) de concurrence passée(s).`);

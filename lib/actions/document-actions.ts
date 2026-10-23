@@ -55,6 +55,18 @@ export async function saveDocument(
     JSON.parse(String(formData.get("lines_json") ?? "[]")),
   );
   if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+  if (config.priceField !== "unit_cost") {
+    const ids = [...new Set(parsed.data.map(l => l.product_id).filter(Boolean))];
+    if (ids.length) {
+      const {data: products,error} = await createClient().from("products").select("id,name,minimum_quantity,quote_required").in("id",ids);
+      if (error) throw new Error(error.message);
+      for (const product of products ?? []) {
+        const lines = parsed.data.filter(l => l.product_id === product.id);
+        if (lines.reduce((n,l) => n+l.quantity,0) < product.minimum_quantity) throw new Error(`${product.name} : minimum ${product.minimum_quantity} pièces.`);
+        if (product.quote_required && lines.some(l => l.price <= 0)) throw new Error(`${product.name} : renseignez le prix convenu sur devis.`);
+      }
+    }
+  }
   const header: Record<string, unknown> = {
     [config.contactField]: formData.get(config.contactField),
     status: formData.get("status") || "brouillon",

@@ -17,7 +17,6 @@ import {
 import { PipelineControls } from "@/components/production/pipeline-controls";
 import { OrderComments } from "@/components/production/order-comments";
 import { OrderTasks } from "@/components/production/order-tasks";
-import { YalidineShipmentPanel } from "@/components/production/yalidine-shipment-panel";
 import { OrderColorBadge, OrderColorCard } from "@/components/production/order-color-badge";
 import { SMSSender } from "@/components/production/sms-sender";
 import { OrderPaymentPanel } from "@/components/production/order-payment-panel";
@@ -28,7 +27,7 @@ import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/compo
 import { formatDate, formatSince } from "@/lib/utils";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
 
-export default async function Page({ params, searchParams }: { params: { id: string }; searchParams: { payment_warning?: string } }) {
+export default async function Page({ params, searchParams }: { params: { id: string }; searchParams: { file_warning?: string; payment_warning?: string } }) {
   const supabase = createClient();
   const [
     { data: order, error },
@@ -37,7 +36,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
     { data: items },
     { data: prints },
     { data: files },
-    { data: shipment },
     { data: money },
     { data: linkedInvoice },
     { data: payments },
@@ -59,13 +57,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
       supabase.from("pipeline_order_items").select("*").eq("pipeline_order_id", params.id).order("position"),
       supabase.from("pipeline_order_prints").select("*").eq("pipeline_order_id", params.id).order("position"),
       supabase.from("pipeline_order_files").select("*").eq("pipeline_order_id", params.id).order("created_at", { ascending: false }),
-      supabase
-        .from("yalidine_shipments")
-        .select("*")
-        .eq("order_id", params.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
       supabase.from("pipeline_orders").select("order_total, payment_status, due_date, bat_status, blocked_reason, quality_checked, packaging_checked").eq("id", params.id).maybeSingle(),
       supabase.from("invoices").select("id, number, status").eq("pipeline_order_id", params.id).maybeSingle(),
       supabase
@@ -206,6 +197,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
         </>}
       </Card>}
 
+      {searchParams.file_warning === "1" && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">Commande et paiement enregistrés. Le fichier du logo n’a pas été envoyé : ajoutez-le depuis cette fiche avant production.</p>}
       {searchParams.payment_warning === "1" && (
         <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
           Commande créée, mais le versement initial n’a pas pu être confirmé.
@@ -218,17 +210,6 @@ export default async function Page({ params, searchParams }: { params: { id: str
         payments={(payments as any) ?? []}
         canRecord={canRecordPayments(profile?.role)}
       />
-
-      {/* Le colis Yalidine est en général créé dès la commande (choix fait au
-          configurateur) — ce panneau affiche alors juste son statut, quel
-          que soit l'avancement en production. S'il n'a pas été créé (échec,
-          ou "livraison manuelle" choisie au départ), il sert de repli une
-          fois la commande prête à livrer. */}
-      {(shipment || order.status === "prete") && (
-        <div className="mb-6">
-          <YalidineShipmentPanel orderId={order.id} shipment={(shipment as any) ?? null} />
-        </div>
-      )}
 
       {/* SMS Notifications */}
       <div className="mb-6">

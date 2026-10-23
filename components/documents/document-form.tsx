@@ -1,5 +1,6 @@
 "use client";
 
+import { catalogPrice, type CatalogPricing } from "@/lib/catalog-pricing";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { DocumentConfig } from "@/lib/documents";
@@ -8,7 +9,7 @@ import { Button, Card, Field, inputClass } from "@/components/ui";
 import { businessDate } from "@/lib/finance";
 import { formatMoney } from "@/lib/utils";
 
-interface ProductOption {
+interface ProductOption extends CatalogPricing {
   id: string;
   sku: string;
   name: string;
@@ -17,6 +18,7 @@ interface ProductOption {
 }
 
 interface LineRow {
+  manualPrice?: boolean;
   product_id: string;
   description: string;
   quantity: number;
@@ -45,6 +47,7 @@ export function DocumentForm({
   const [rows, setRows] = useState<LineRow[]>(
     existingLines.length > 0
       ? existingLines.map((l) => ({
+          manualPrice: true,
           product_id: l.product_id ?? "",
           description: l.description ?? "",
           quantity: Number(l.quantity),
@@ -76,19 +79,22 @@ export function DocumentForm({
   }, [rows]);
 
   function updateRow(index: number, patch: Partial<LineRow>) {
-    setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
-    );
+    setRows(prev => {
+      const changed = prev.map((r,i) => i === index ? {...r,...patch} : r);
+      if (config.priceField === "unit_cost" || !("quantity" in patch || "product_id" in patch)) return changed;
+      const affected = new Set([prev[index].product_id,changed[index].product_id]);
+      return changed.map(r => {
+        const p = products.find(p => p.id === r.product_id);
+        if (!p || !affected.has(r.product_id) || r.manualPrice) return r;
+        const quantity = changed.filter(x => x.product_id === r.product_id).reduce((n,x) => n+x.quantity,0);
+        return {...r,price: catalogPrice({...p,sale_price:p.price},quantity) ?? 0};
+      });
+    });
   }
 
   function onProductChange(index: number, productId: string) {
-    const product = products.find((p) => p.id === productId);
-    updateRow(index, {
-      product_id: productId,
-      description: product ? product.name : "",
-      price: product ? product.price : 0,
-      tax_rate: product ? product.tax_rate : 0,
-    });
+    const product = products.find(p => p.id === productId);
+    updateRow(index, {product_id: productId,description: product?.name ?? "",price: product?.price ?? 0,tax_rate: product?.tax_rate ?? 0,manualPrice:false});
   }
 
   function addRow() {
@@ -99,7 +105,15 @@ export function DocumentForm({
   }
 
   function removeRow(index: number) {
-    setRows((prev) => prev.filter((_, i) => i !== index));
+    setRows(prev => {
+      const remaining = prev.filter((_,i) => i !== index);
+      return remaining.map(r => {
+        const p = products.find(p => p.id === r.product_id);
+        if (!p || r.manualPrice || config.priceField === "unit_cost") return r;
+        const quantity = remaining.filter(x => x.product_id === r.product_id).reduce((n,x) => n+x.quantity,0);
+        return {...r,price:catalogPrice({...p,sale_price:p.price},quantity) ?? 0};
+      });
+    });
   }
 
   const action = saveDocument.bind(
@@ -289,7 +303,7 @@ export function DocumentForm({
                       aria-label={`Prix ligne ${i + 1}`}
                       value={row.price}
                       onChange={(e) =>
-                        updateRow(i, { price: Number(e.target.value) })
+                        updateRow(i, { price: Number(e.target.value), manualPrice: true })
                       }
                       disabled={locked}
                       className={inputClass}

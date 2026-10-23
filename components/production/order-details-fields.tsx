@@ -1,9 +1,9 @@
 "use client";
 
+import { catalogPrice } from "@/lib/catalog-pricing";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
-import { fetchYalidineWilayas } from "@/lib/actions/yalidine-actions";
 import { ArticlePicker, type ArticleRow } from "./article-picker";
 import type { CatalogProduct } from "@/lib/actions/catalog-actions";
 import { SmartClientSelector } from "./smart-client-selector";
@@ -64,8 +64,6 @@ export function OrderDetailsFields({
   const [technique, setTechnique] = useState<Technique>("dtf");
   const [logoPlacement, setLogoPlacement] = useState("coeur");
   const [logoSource, setLogoSource] = useState("whatsapp");
-  const [useYalidine, setUseYalidine] = useState(false);
-  const [wilayas, setWilayas] = useState<{ id: number; name: string }[]>([]);
   const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
   const [orderTotal, setOrderTotal] = useState("");
   const [initialPayment, setInitialPayment] = useState("");
@@ -74,21 +72,14 @@ export function OrderDetailsFields({
   useEffect(() => {
     const total = items.reduce((sum, item) => {
       const product = products.find((p) => p.id === item.product_id);
-      const unitPrice = product?.sale_price ?? 0;
+      const quantity = items.filter(i => i.product_id === item.product_id).reduce((n,i) => n + Number(i.quantity), 0);
+      const unitPrice = product ? catalogPrice(product, quantity) ?? 0 : 0;
       return sum + unitPrice * item.quantity;
     }, 0);
 
-    if (total > 0) {
-      setOrderTotal(String(total));
-    }
+    const needsQuote = items.some(i => products.find(p => p.id === i.product_id)?.quote_required);
+    setOrderTotal(needsQuote ? "" : String(total));
   }, [items, products]);
-
-  useEffect(() => {
-    if (!useYalidine || wilayas.length > 0) return;
-    fetchYalidineWilayas()
-      .then(setWilayas)
-      .catch(() => setWilayas([]));
-  }, [useYalidine, wilayas.length]);
 
   function updateItem(i: number, patch: Partial<ArticleRow>) {
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -112,9 +103,14 @@ export function OrderDetailsFields({
     const m: string[] = [];
     if (clientMode === "existing" ? !selectedContactId : !newClientName.trim()) m.push("un client");
     if (filledItems.length === 0) m.push("au moins un article");
+    for (const product of products) {
+      const qty = items.filter(i => i.product_id === product.id).reduce((n,i) => n + Number(i.quantity),0);
+      if (qty > 0 && qty < (product.minimum_quantity ?? 1)) m.push(`${product.minimum_quantity} pièces minimum pour ${product.name}`);
+    }
+    if (filledItems.length && totalValue <= 0) m.push("un montant convenu avec le client (articles sur devis)");
     if (paymentExceedsTotal) m.push("un versement inférieur ou égal au total");
     return m;
-  }, [clientMode, selectedContactId, newClientName, filledItems.length, paymentExceedsTotal]);
+  }, [clientMode, selectedContactId, newClientName, filledItems.length, paymentExceedsTotal, products, items, totalValue]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => onMissingChange?.(missing), [missing.join("|")]);
@@ -185,52 +181,7 @@ export function OrderDetailsFields({
           </div>
         )}
 
-        <div className="mt-5 pt-5 border-t border-slate-200">
-          <p className="text-sm font-medium text-slate-700 mb-2">Livraison</p>
-          <div className="flex gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => setUseYalidine(false)}
-              className={`rounded-md px-3.5 py-2 text-sm font-medium border ${!useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
-            >
-              Livraison manuelle
-            </button>
-            <button
-              type="button"
-              onClick={() => setUseYalidine(true)}
-              className={`rounded-md px-3.5 py-2 text-sm font-medium border ${useYalidine ? "bg-brand-500 text-white border-brand-500" : "bg-white text-slate-600 border-slate-300"}`}
-            >
-              Envoyer par Yalidine
-            </button>
-          </div>
-          <input type="hidden" name="use_yalidine" value={useYalidine ? "on" : ""} />
-
-          {useYalidine && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Wilaya" htmlFor="yalidine_wilaya" required>
-                <select id="yalidine_wilaya" name="yalidine_wilaya" required={useYalidine} className={inputClass}>
-                  <option value="">{wilayas.length === 0 ? "Chargement…" : "— Sélectionner —"}</option>
-                  {wilayas.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Commune" htmlFor="yalidine_commune" required>
-                <input id="yalidine_commune" name="yalidine_commune" required={useYalidine} className={inputClass} />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field label="Adresse" htmlFor="yalidine_address" required>
-                  <input id="yalidine_address" name="yalidine_address" required={useYalidine} className={inputClass} />
-                </Field>
-              </div>
-              <Field label="Montant à collecter (DA)" htmlFor="yalidine_price" required>
-                <input id="yalidine_price" name="yalidine_price" type="number" step="1" min="0" required={useYalidine} className={inputClass} />
-              </Field>
-            </div>
-          )}
-        </div>
+        <p className="mt-4 text-sm text-slate-500">Livraison organisée manuellement avec le client.</p>
       </Card>
 
       {/* 2. Article */}
