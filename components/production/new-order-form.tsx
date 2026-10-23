@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // React 18 / Next 14 : l'équivalent de useActionState s'appelle encore
 // useFormState et vit dans react-dom.
 import { useFormState, useFormStatus } from "react-dom";
@@ -34,10 +34,13 @@ export function NewOrderForm({
   canRecordPayments: boolean;
 }) {
   const [state, formAction] = useFormState(createPipelineOrder, initialState);
+  const [requestId, setRequestId] = useState("");
+  useEffect(() => setRequestId(crypto.randomUUID()), []);
   const [missing, setMissing] = useState<string[]>([]);
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      <input type="hidden" name="request_id" value={requestId} />
       {state.error && (
         <div
           role="alert"
@@ -62,7 +65,7 @@ export function NewOrderForm({
         </Field>
       </Card>
 
-      <SubmitButton missing={missing} />
+      <SubmitButton missing={requestId ? missing : ["chargement du formulaire"]} />
     </form>
   );
 }

@@ -15,25 +15,9 @@ export default async function LoginPage({
   let users: Array<{ id: string; full_name: string }> = [];
   if (!isSignup) {
     const supabase = createClient();
-    // Charger tous les employés (peu importe le statut pour le login)
-    const { data: employeeData, error: empError } = await supabase
-      .from("employees")
-      .select("id, first_name, last_name")
-      .order("first_name");
-
-    if (!empError && employeeData && employeeData.length > 0) {
-      users = employeeData.map((emp: any) => ({
-        id: emp.id,
-        full_name: emp.last_name ? `${emp.first_name} ${emp.last_name}` : emp.first_name,
-      }));
-    } else {
-      // Fallback: charger depuis profiles (pour les nouveaux comptes)
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .order("full_name");
-      users = profileData?.filter((p: any) => p.full_name) || [];
-    }
+    // Minimal public directory: names only, independent of private HR RLS.
+    const { data } = await supabase.rpc("get_login_users");
+    users = data || [];
   }
 
   return (

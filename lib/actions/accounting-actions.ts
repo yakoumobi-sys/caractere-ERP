@@ -2,50 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-interface LineInput {
-  account_id: string;
-  debit: number;
-  credit: number;
-  label: string;
-}
+import { getCurrentProfile } from "@/lib/auth";
+import { businessDate } from "@/lib/finance";
+import { z } from "zod";
 
 export async function addManualJournalEntry(formData: FormData) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const entry_date = String(formData.get("entry_date") ?? new Date().toISOString().slice(0, 10));
-  const reference = (formData.get("reference") as string) || null;
-  const description = (formData.get("description") as string) || null;
-  const lines = JSON.parse(String(formData.get("lines_json") ?? "[]")) as LineInput[];
-  const validLines = lines.filter((l) => l.account_id && (l.debit || l.credit));
-
-  if (validLines.length < 2) {
-    throw new Error("Une écriture doit comporter au moins deux lignes (débit et crédit).");
-  }
-
-  const { data: entry, error: entryError } = await supabase
-    .from("journal_entries")
-    .insert({ entry_date, reference, description, source_type: "manual", created_by: user?.id ?? null })
-    .select("id")
-    .single();
-  if (entryError || !entry) throw new Error(entryError?.message ?? "Erreur de création de l'écriture");
-
-  const rows = validLines.map((l) => ({
-    entry_id: entry.id,
-    account_id: l.account_id,
-    debit: Number(l.debit) || 0,
-    credit: Number(l.credit) || 0,
-    label: l.label || null,
-  }));
-
-  const { error: linesError } = await supabase.from("journal_lines").insert(rows);
-  if (linesError) {
-    await supabase.from("journal_entries").delete().eq("id", entry.id);
-    throw new Error(linesError.message);
-  }
-
+  const profile = await getCurrentProfile();
+  if (!profile?.is_active || !["admin", "accounting"].includes(profile.role))
+    throw new Error("Accès refusé.");
+  const lines = z.array(z.object({
+    account_id: z.string().uuid(),
+    debit: z.number().finite().nonnegative(),
+    credit: z.number().finite().nonnegative(),
+    label: z.string().max(2000),
+  })).min(2).max(500).parse(JSON.parse(String(formData.get("lines_json") ?? "[]")));
+  const { error } = await createClient().rpc("save_manual_journal", {
+    p_date: String(formData.get("entry_date") || businessDate()),
+    p_reference: String(formData.get("reference") || "") || null,
+    p_description: String(formData.get("description") || "") || null,
+    p_lines: lines,
+    p_request_id: z.string().uuid().parse(formData.get("request_id")),
+  });
+  if (error) throw new Error(error.message);
   revalidatePath("/accounting/journal");
+  revalidatePath("/accounting/reports");
+  revalidatePath("/cash");
 }

@@ -1,5 +1,8 @@
 # Caractère ERP
 
+> Évolution octobre 2026 : factures liées aux commandes atelier, avances imputées sans double encaissement, priorités atelier, segments CRM et clôture de caisse. Voir [l’audit et le guide de mise en service](docs/AUDIT_CARACTERE_ERP_2026-10.md) pour les changements, tests et limites.
+
+
 ERP interne pour **Caractère** — CRM, ventes & facturation, achats, stock et comptabilité de base,
 construit avec Next.js 14 (App Router), TypeScript, Tailwind CSS et Supabase (Postgres + Auth + RLS).
 

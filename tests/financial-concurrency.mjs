@@ -18,18 +18,20 @@ if (!url) {
   process.exit(0);
 }
 
-const ADMIN = "10000000-0000-4000-8000-0000000000c1";
+if (!['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname) || process.env.ERP_DISPOSABLE_DB !== '1') {
+  throw new Error('Concurrence : base locale jetable explicitement requise (ERP_DISPOSABLE_DB=1).');
+}
+
+let ADMIN;
 const MARQUEUR = "TEST-CONCURRENCE";
 let reussis = 0;
 
 async function connecter() {
-  const client = new pg.Client({ connectionString: url });
+  const client = new pg.Client({ connectionString: url, statement_timeout: 15000 });
   await client.connect();
   // Les gardes financières lisent auth.uid() : chaque connexion doit porter
   // l'identité de l'utilisateur, sinon current_role() renvoie NULL.
-  await client.query("select set_config('request.jwt.claim.sub',$1,false)", [
-    ADMIN,
-  ]);
+  if (ADMIN) await client.query("select set_config('request.jwt.claim.sub',$1,false)", [ADMIN]);
   return client;
 }
 
@@ -42,18 +44,12 @@ async function test(nom, fn) {
 const db = await connecter();
 
 // --- Préparation ------------------------------------------------------------
+// Reuse the explicitly prepared local administrator; do not self-elevate a user.
+const { rows: admins } = await db.query("select p.id from public.profiles p join auth.users u on u.id=p.id where u.email='e2eadmin@example.test' and p.role='admin' and p.is_active");
+if (admins.length !== 1) throw new Error('Préparez le compte local avec tests/e2e/setup-local.mjs.');
+ADMIN = admins[0].id;
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[ADMIN]);
 await db.query("begin");
-await db.query(
-  `insert into auth.users(id,email) values($1,'concurrence@test.local')
-     on conflict (id) do nothing`,
-  [ADMIN],
-);
-await db.query(
-  `insert into public.profiles(id,full_name,role,is_active)
-     values($1,'Test concurrence','admin',true)
-     on conflict (id) do update set role='admin', is_active=true`,
-  [ADMIN],
-);
 // Le plan comptable vient de supabase/seed.sql, pas des migrations : sur une
 // base seulement migrée, la validation de facture échouerait sur « Plan
 // comptable incomplet ». On garantit ici les comptes dont les triggers ont
@@ -194,7 +190,7 @@ await test(
 // livraison et de la facturation d'une même vente. » Ce test constate le
 // comportement réel plutôt que de le supposer.
 await test(
-  "Livraison atelier puis facturation du même article : la sortie de stock est comptée deux fois",
+  "Livraison atelier puis facture liée : une seule sortie de stock",
   async () => {
     const { rows: p } = await db.query(
       `insert into public.products(sku,name,purchase_cost,sale_price,track_inventory)
@@ -230,8 +226,8 @@ await test(
 
     // a) Livraison d'une commande atelier portant 10 unités.
     const { rows: o } = await db.query(
-      `insert into public.pipeline_orders(number,contact_id,status,technique)
-         values($1,$2,'prete','dtf') returning id`,
+      `insert into public.pipeline_orders(number,contact_id,status,technique,order_total)
+         values($1,$2,'prete','dtf',2000) returning id`,
       [`${MARQUEUR}-CMD`, contact],
     );
     const commande = o[0].id;
@@ -246,22 +242,8 @@ await test(
     const apresLivraison = await stock();
     assert.equal(apresLivraison, 90, "La livraison sort 10 unités");
 
-    // b) Facturation des mêmes 10 unités par le circuit commercial.
-    const { rows: f } = await db.query(
-      "select public.save_commercial_document('invoices',null,$1,$2) id",
-      [
-        JSON.stringify({ contact_id: contact, status: "brouillon" }),
-        JSON.stringify([
-          {
-            product_id: produit,
-            description: `${MARQUEUR} article`,
-            quantity: 10,
-            price: 200,
-            tax_rate: 0,
-          },
-        ]),
-      ],
-    );
+    // b) Invoice created from the explicit atelier relationship.
+    const { rows: f } = await db.query("select public.create_pipeline_invoice($1) id",[commande]);
     await db.query("update public.invoices set status='validee' where id=$1", [
       f[0].id,
     ]);
@@ -269,9 +251,8 @@ await test(
     const apresFacture = await stock();
     assert.equal(
       apresFacture,
-      80,
-      "Constat : la validation de facture sort 10 unités de plus — " +
-        "les deux circuits ne sont pas reliés (chantier de la section 4 du dossier).",
+      90,
+      "La facture liée ne sort pas le stock déjà livré.",
     );
   },
 );
@@ -327,14 +308,21 @@ await test(
   },
 );
 
-// --- Nettoyage --------------------------------------------------------------
-await db.query("begin");
-await db.query(
-  "delete from public.journal_lines where entry_id in (select id from public.journal_entries where reference like $1 or description like $1)",
-  [`%${MARQUEUR}%`],
-);
-await db.query("commit");
+await test("Deux créations simultanées ne produisent qu’une commande et un acompte", async () => {
+  const a = await connecter(), b = await connecter();
+  const request = '50000000-0000-4000-8000-000000000023';
+  const payload = JSON.stringify({client_mode:'existing',contact_id:contact,technique:'aucune',order_total:1000,initial_payment:200,items:[{product_name:'TEST-CONCURRENCE service',quantity:1}],prints:[]});
+  try {
+    await a.query('set role authenticated'); await b.query('set role authenticated');
+    const results = await Promise.all([a.query('select create_pipeline_order_atomic($1,$2) id',[request,payload]),b.query('select create_pipeline_order_atomic($1,$2) id',[request,payload])]);
+    assert.equal(results[0].rows[0].id,results[1].rows[0].id);
+    const count = await db.query('select count(*) n from order_payments where pipeline_order_id=$1',[results[0].rows[0].id]);
+    assert.equal(Number(count.rows[0].n),1);
+  } finally { await a.end(); await b.end(); }
+});
 
+// The journal is immutable: retain evidence on this disposable test database.
+// Never try to delete posted financial data to clean up a test run.
 console.log(`${reussis} vérification(s) de concurrence passée(s).`);
 console.log(
   "Note : les données de test portent le marqueur " +

@@ -1,3 +1,4 @@
+import { canEditEntity } from "@/lib/entity-permissions";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -9,18 +10,6 @@ import { formatDate } from "@/lib/utils";
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
-// Rôles autorisés à modifier chaque table (copie depuis entity-actions.ts)
-const TABLE_PERMISSIONS: Record<string, string[]> = {
-  contacts: ["admin", "manager", "sales"],
-  products: ["admin", "manager", "purchasing", "sales"],
-  product_categories: ["admin", "manager", "purchasing"],
-  opportunities: ["admin", "manager", "sales"],
-};
-
-function canEditTable(table: string, role: string | undefined): boolean {
-  const allowedRoles = TABLE_PERMISSIONS[table] || ["admin", "manager"];
-  return allowedRoles.includes(role || "");
-}
 
 function renderCell(value: unknown) {
   if (typeof value === "boolean") return value ? "Oui" : "Non";
@@ -47,7 +36,7 @@ export async function EntityListPage({
 }) {
   const supabase = createClient();
   const profile = await getCurrentProfile();
-  const canEdit = canEditTable(config.table, profile?.role);
+  const canEdit = !!profile?.is_active && canEditEntity(config.table, profile.role);
 
   let query = supabase.from(config.table).select("*");
   if (config.orderBy) query = query.order(config.orderBy, { ascending: config.ascending ?? true });
@@ -58,7 +47,7 @@ export async function EntityListPage({
       <PageHeader
         title={config.titlePlural}
         action={
-          <LinkButton href={`${config.basePath}/new`}>+ Nouveau {config.titleSingular.toLowerCase()}</LinkButton>
+          canEdit ? <LinkButton href={`${config.basePath}/new`}>+ Nouveau {config.titleSingular.toLowerCase()}</LinkButton> : undefined
         }
       />
       {errorMessage && (

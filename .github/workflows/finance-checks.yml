@@ -16,5 +16,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run test:migrations
       - run: npm run test:finance
       - run: npm run build

@@ -1,5 +1,6 @@
 "use server";
 
+import type { CatalogPricing } from "@/lib/catalog-pricing";
 import { createClient } from "@/lib/supabase/server";
 
 export interface CatalogResult {
@@ -7,7 +8,7 @@ export interface CatalogResult {
   error?: string;
 }
 
-export interface CatalogProduct {
+export interface CatalogProduct extends CatalogPricing {
   id: string;
   name: string;
   sale_price?: number | null;
@@ -61,7 +62,7 @@ export async function createCatalogProduct(rawName: string): Promise<ProductResu
       unit: "unité",
       sale_price: 0,
       purchase_cost: 0,
-      tax_rate: 20,
+      tax_rate: 0,
       track_inventory: true,
       is_active: true,
     })
