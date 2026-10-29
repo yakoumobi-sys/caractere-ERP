@@ -2,7 +2,7 @@ import { DocumentForm } from "@/components/documents/document-form";
 import { getDocumentFormData } from "@/lib/documents-data";
 import { ordersConfig } from "@/lib/documents";
 import { convertOrderToInvoice, deleteDocument } from "@/lib/actions/document-actions";
-import { Button, PageHeader } from "@/components/ui";
+import { Button, LinkButton, PageHeader } from "@/components/ui";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const { record, lines, contacts, products } = await getDocumentFormData(ordersConfig, params.id);
@@ -22,6 +22,9 @@ export default async function Page({ params }: { params: { id: string } }) {
         title={`Commande ${record?.number ?? ""}`}
         action={
           <div className="flex gap-2">
+            <LinkButton href={`/sales/orders/${params.id}/print`} variant="secondary">
+              🖨️ Imprimer le bon
+            </LinkButton>
             {(record?.status === "confirmee" || record?.status === "livree") && (
               <form action={invoice}>
                 <Button type="submit" variant="secondary">

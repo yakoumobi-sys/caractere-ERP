@@ -2,7 +2,7 @@ import { DocumentForm } from "@/components/documents/document-form";
 import { getDocumentFormData } from "@/lib/documents-data";
 import { quotesConfig } from "@/lib/documents";
 import { convertQuoteToOrder, deleteDocument } from "@/lib/actions/document-actions";
-import { Button, PageHeader } from "@/components/ui";
+import { Button, LinkButton, PageHeader } from "@/components/ui";
 
 export default async function Page({ params }: { params: { id: string } }) {
   const { record, lines, contacts, products } = await getDocumentFormData(quotesConfig, params.id);
@@ -22,6 +22,9 @@ export default async function Page({ params }: { params: { id: string } }) {
         title={`Devis ${record?.number ?? ""}`}
         action={
           <div className="flex gap-2">
+            <LinkButton href={`/sales/quotes/${params.id}/print`} variant="secondary">
+              🖨️ Imprimer le devis
+            </LinkButton>
             {record?.status === "accepte" && (
               <form action={convert}>
                 <Button type="submit" variant="secondary">
