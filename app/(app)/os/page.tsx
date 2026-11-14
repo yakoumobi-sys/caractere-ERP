@@ -118,7 +118,7 @@ export default async function CaractereOsPage({
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 px-5 py-6 text-white sm:px-8 sm:py-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold tracking-[0.2em] text-indigo-300">LE SYSTÈME D'EXPLOITATION DE CARACTÈRE</p>
+            <p className="text-xs font-bold tracking-[0.2em] text-indigo-300">LE SYSTÈME D&apos;EXPLOITATION DE CARACTÈRE</p>
             <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">CARACTÈRE <span className="text-indigo-300">OS 5/5</span></h1>
             <p className="mt-2 text-sm text-slate-300">Diriger par des résultats, pas par des messages. Date métier : {today}</p>
           </div>
@@ -134,11 +134,11 @@ export default async function CaractereOsPage({
       </div>
 
       {searchParams?.ok && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Modification enregistrée.</p>}
-      {searchParams?.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">Impossible d'enregistrer. Vérifie les champs et la migration 0043 de l'ERP.</p>}
+      {searchParams?.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">Impossible d&apos;enregistrer. Vérifie les champs et la migration 0043 de l&apos;ERP.</p>}
 
       {!osReady && (
         <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          <strong>Module à activer :</strong> les nouveaux tableaux de suivi ne sont pas encore disponibles sur cette base. Faire appliquer et vérifier la migration <code>0043_caractere_os.sql</code> sur l'environnement de recette avant toute mise en production. Les indicateurs historiques ci-dessous restent consultables.
+          <strong>Module à activer :</strong> les nouveaux tableaux de suivi ne sont pas encore disponibles sur cette base. Faire appliquer et vérifier la migration <code>0043_caractere_os.sql</code> sur l&apos;environnement de recette avant toute mise en production. Les indicateurs historiques ci-dessous restent consultables.
         </div>
       )}
 
@@ -320,12 +320,12 @@ export default async function CaractereOsPage({
               </form>
             ))}
           </div>
-          <p className="mt-4 text-xs text-slate-500">Confidentialité : les candidats ne sont visibles que par l'administrateur dans ce module. Aucun message envoyé.</p>
+          <p className="mt-4 text-xs text-slate-500">Confidentialité : les candidats ne sont visibles que par l&apos;administrateur dans ce module. Aucun message envoyé.</p>
         </Card>
       </section>
 
       <div className="rounded-xl border border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-800">
-        <strong>Méthodologie :</strong> le chiffre d'affaires affiché est fondé sur les factures validées/payées du mois, pas sur les commandes reçues. Les impayés viennent des factures validées non soldées. Si une requête échoue ou dépasse 1 000 lignes, le montant est masqué (—) pour éviter un faux total. Les performances marketing sont saisies manuellement ; ne pas les additionner au CA comptable.
+        <strong>Méthodologie :</strong> le chiffre d&apos;affaires affiché est fondé sur les factures validées/payées du mois, pas sur les commandes reçues. Les impayés viennent des factures validées non soldées. Si une requête échoue ou dépasse 1 000 lignes, le montant est masqué (—) pour éviter un faux total. Les performances marketing sont saisies manuellement ; ne pas les additionner au CA comptable.
       </div>
     </div>
   );
