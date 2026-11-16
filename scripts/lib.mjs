@@ -19,14 +19,25 @@ export function loadEnv() {
   }
 }
 
-export function databaseUrl() {
+// Retire sslmode/supa des chaînes fournies par l'intégration Vercel ↔ Supabase : le paramètre ssl explicite s'applique.
+export function cleanUrl(url) {
+  return url.replace(/([?&])(sslmode|supa)=[^&]*/g, "$1").replace(/[?&]+$/, "").replace(/\?&/, "?");
+}
+
+// DATABASE_URL, ou les variables posées par l'intégration Supabase de Vercel (POSTGRES_URL_NON_POOLING / POSTGRES_URL)
+export function configuredUrl() {
   loadEnv();
-  return process.env.DATABASE_URL || LOCAL_URL;
+  const u = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+  return u ? cleanUrl(u) : null;
+}
+
+export function databaseUrl() {
+  return configuredUrl() || LOCAL_URL;
 }
 
 export async function connect(url = databaseUrl()) {
   const ssl = /supabase\.(co|com)|pooler/.test(url) ? { rejectUnauthorized: false } : undefined;
-  const client = new pg.Client({ connectionString: url, ssl });
+  const client = new pg.Client({ connectionString: cleanUrl(url), ssl });
   await client.connect();
   return client;
 }

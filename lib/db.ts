@@ -5,7 +5,11 @@ types.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));
 types.setTypeParser(20, (v) => (v === null ? null : parseInt(v, 10)));
 types.setTypeParser(1082, (v) => v);
 
-const url = process.env.DATABASE_URL || "postgresql://postgres@127.0.0.1:54329/caractere";
+// DATABASE_URL, ou les variables posées par l'intégration Supabase de Vercel
+const url = (process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || "postgresql://postgres@127.0.0.1:54329/caractere")
+  .replace(/([?&])(sslmode|supa)=[^&]*/g, "$1")
+  .replace(/[?&]+$/, "")
+  .replace(/\?&/, "?");
 const g = globalThis as unknown as { __erpPool?: Pool };
 export const pool: Pool =
   g.__erpPool ??
