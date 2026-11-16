@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="T-shirt caractérisé">
+  <path d="M78 30 L52 40 L18 70 L40 104 L60 92 L60 214 L180 214 L180 92 L200 104 L222 70 L188 40 L162 30 C156 46 140 56 120 56 C100 56 84 46 78 30 Z" fill="#ffffff" stroke="#1e1b4b" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M78 30 C84 46 100 56 120 56 C140 56 156 46 162 30" fill="none" stroke="#1e1b4b" stroke-width="4"/>
+  <rect x="86" y="84" width="68" height="62" rx="8" fill="#6d28d9"/>
+  <text x="120" y="122" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle">C</text>
+  <text x="120" y="190" font-family="Arial, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">impression ≤ 30 cm · col et manches unis</text>
+</svg>

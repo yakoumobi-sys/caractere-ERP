@@ -210,7 +210,7 @@ begin
 end $$;
 
 -- ============================ LIVRAISONS ============================
-create or replace function erp.line_remaining(p_line uuid, p_size text) returns int language sql stable as $$
+create or replace function erp.line_remaining(p_line uuid, p_size text) returns int language sql stable security definer set search_path = erp, pg_temp as $$
   select coalesce((l.sizes->>p_size)::int, 0) - coalesce((l.delivered->>p_size)::int, 0)
     - coalesce((select sum(sl.qty) from erp.shipment_lines sl join erp.shipments s on s.id = sl.shipment_id
                 where sl.line_id = l.id and sl.size = p_size and s.status in ('preparation','expedie','en_transit','echec')), 0)

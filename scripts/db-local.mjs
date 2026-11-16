@@ -1,7 +1,8 @@
 // Base PostgreSQL locale pour la démo et les tests (aucun compte Supabase requis).
 // Usage : node scripts/db-local.mjs start | stop | reset | status
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { ROOT, LOCAL_PORT, LOCAL_URL, connect, migrate, SUPABASE_STUBS } from "./lib.mjs";
 
@@ -41,6 +42,11 @@ async function start() {
   if (!exists) await admin.query("create database caractere");
   await admin.end();
   console.log(`PostgreSQL local prêt : ${LOCAL_URL}`);
+  const envFile = path.join(ROOT, ".env.local");
+  if (!existsSync(envFile)) {
+    writeFileSync(envFile, `# Généré par npm run db:local — démo locale\nDATABASE_URL=${LOCAL_URL}\nAUTH_MODE=demo\nSESSION_SECRET=${randomBytes(24).toString("hex")}\n`);
+    console.log("  .env.local créé (mode démo).");
+  }
 }
 async function reset({ seed = true } = {}) {
   await start();
