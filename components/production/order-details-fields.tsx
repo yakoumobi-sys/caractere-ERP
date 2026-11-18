@@ -65,11 +65,11 @@ export function OrderDetailsFields({
   const [logoPlacement, setLogoPlacement] = useState("coeur");
   const [logoSource, setLogoSource] = useState("whatsapp");
   const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
-  const [orderTotal, setOrderTotal] = useState("");
+  const [negotiatedTotal, setNegotiatedTotal] = useState<string | null>(null);
   const [initialPayment, setInitialPayment] = useState("");
 
   // Recalcule automatiquement le prix total quand les articles ou leur quantité changent
-  useEffect(() => {
+  const catalogTotal = useMemo(() => {
     const total = items.reduce((sum, item) => {
       const product = products.find((p) => p.id === item.product_id);
       const quantity = items.filter(i => i.product_id === item.product_id).reduce((n,i) => n + Number(i.quantity), 0);
@@ -78,10 +78,13 @@ export function OrderDetailsFields({
     }, 0);
 
     const needsQuote = items.some(i => products.find(p => p.id === i.product_id)?.quote_required);
-    setOrderTotal(needsQuote ? "" : String(total));
+    return needsQuote ? "" : String(total);
   }, [items, products]);
 
+  const orderTotal = negotiatedTotal ?? catalogTotal;
+
   function updateItem(i: number, patch: Partial<ArticleRow>) {
+    if ("product_id" in patch || "quantity" in patch) setNegotiatedTotal(null);
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
@@ -193,7 +196,10 @@ export function OrderDetailsFields({
               colors={colors}
               sizes={sizes}
               onChange={(patch) => updateItem(i, patch)}
-              onRemove={items.length > 1 ? () => setItems((prev) => prev.filter((_, idx) => idx !== i)) : undefined}
+              onRemove={items.length > 1 ? () => {
+                if (row.product_name) setNegotiatedTotal(null);
+                setItems(prev => prev.filter((_, idx) => idx !== i));
+              } : undefined}
               onProductCreated={(product) => setProducts((prev) => addProductOnce(prev, product))}
               onColorCreated={(color) => setColors((prev) => addOnce(prev, color))}
               onSizeCreated={(size) => setSizes((prev) => addOnce(prev, size))}
@@ -322,11 +328,11 @@ export function OrderDetailsFields({
               id="order_total"
               name="order_total"
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
               min={0}
-              step={1}
+              step="0.01"
               value={orderTotal}
-              onChange={(e) => setOrderTotal(e.target.value)}
+              onChange={(e) => setNegotiatedTotal(e.target.value)}
               placeholder="0"
               className={inputClass}
             />
@@ -342,9 +348,9 @@ export function OrderDetailsFields({
                 id="initial_payment"
                 name="initial_payment"
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min={0}
-                step={1}
+                step="0.01"
                 value={initialPayment}
                 onChange={(e) => setInitialPayment(e.target.value)}
                 placeholder="0"

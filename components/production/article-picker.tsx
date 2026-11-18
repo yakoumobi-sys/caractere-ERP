@@ -318,33 +318,41 @@ export function ArticlePicker({
           onCreated={onProductCreated}
         />
 
-        <ChipGroup
-          label="Couleur"
-          options={colors}
-          selected={value.color}
-          placeholder="Ex. Bordeaux"
-          onSelect={(color) => onChange({ color })}
-          onCreate={async (color) => {
-            const result = await createCatalogColor(color);
-            if (result.error || !result.value) return result.error ?? "Ajout impossible.";
-            onColorCreated(result.value);
-            return null;
-          }}
-        />
+        <details>
+          <summary className="cursor-pointer text-sm font-semibold text-brand-700 dark:text-brand-300">
+            Couleur et taille{[value.color, value.size].filter(Boolean).map(label => ` · ${label}`).join("")}
+          </summary>
+          <div className="mt-3 grid gap-4">
+            <ChipGroup
+              label="Couleur"
+              options={colors}
+              selected={value.color}
+              placeholder="Ex. Bordeaux"
+              onSelect={(color) => onChange({ color })}
+              onCreate={async (color) => {
+                const result = await createCatalogColor(color);
+                if (result.error || !result.value) return result.error ?? "Ajout impossible.";
+                onColorCreated(result.value);
+                return null;
+              }}
+            />
 
-        <ChipGroup
-          label="Taille"
-          options={sizes}
-          selected={value.size}
-          placeholder="Ex. 3XL"
-          onSelect={(size) => onChange({ size })}
-          onCreate={async (size) => {
-            const result = await createCatalogSize(size);
-            if (result.error || !result.value) return result.error ?? "Ajout impossible.";
-            onSizeCreated(result.value);
-            return null;
-          }}
-        />
+            <ChipGroup
+              label="Taille"
+              options={sizes}
+              selected={value.size}
+              placeholder="Ex. 3XL"
+              onSelect={(size) => onChange({ size })}
+              onCreate={async (size) => {
+                const result = await createCatalogSize(size);
+                if (result.error || !result.value) return result.error ?? "Ajout impossible.";
+                onSizeCreated(result.value);
+                return null;
+              }}
+            />
+
+          </div>
+        </details>
 
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Quantité</p>

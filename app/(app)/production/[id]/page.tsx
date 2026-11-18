@@ -220,7 +220,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
         orderTotal={money?.order_total === null || money?.order_total === undefined ? null : Number(money.order_total)}
         payments={(payments as any) ?? []}
         canRecord={canRecordPayments(profile?.role)}
-        totalLocked={!!linkedInvoice || !!invoiceError || order.status === "livree"}
+        totalLocked={!!invoiceError || (!!linkedInvoice && linkedInvoice.status !== "brouillon")}
       />}
 
       {/* SMS Notifications */}
