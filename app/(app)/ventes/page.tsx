@@ -3,15 +3,36 @@ import { requireMe } from "@/lib/auth";
 import { q } from "@/lib/erp";
 import { Badge, Card, Empty, LinkButton, PageHeader, Tabs, inputCls } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/forms";
+import { OrderCard } from "@/components/cards";
 import { moveDeal } from "@/app/actions/sales";
 import { DEAL_STAGES, dzd, fdate, todayAlgiers } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function Ventes({ searchParams }: { searchParams: { vue?: string } }) {
+export default async function Ventes({ searchParams }: { searchParams: { vue?: string; q?: string; page?: string } }) {
   const me = await requireMe("sales");
-  const vue = searchParams.vue || "pipeline";
-  const tabs = [{ key: "pipeline", label: "Pipeline", href: "/ventes" }, { key: "devis", label: "Devis", href: "/ventes?vue=devis" }, { key: "documents", label: "Factures et BL", href: "/ventes?vue=documents" }];
+  const vue = searchParams.vue || "commandes";
+  const tabs = [{ key: "commandes", label: "Commandes", href: "/ventes" }, { key: "pipeline", label: "Prospection", href: "/ventes?vue=pipeline" }, { key: "devis", label: "Devis", href: "/ventes?vue=devis" }, { key: "documents", label: "Factures et BL", href: "/ventes?vue=documents" }];
+  if (vue === "commandes") {
+    const term = searchParams.q?.trim() || "";
+    const page = Math.max(1, Math.min(1000000, Math.trunc(Number(searchParams.page)) || 1));
+    const orders = await q(me, `select * from erp.v_orders where $1 = '' or ref ilike $2 or client_name ilike $2
+      order by created_at desc, id desc limit 26 offset $3`, [term, `%${term}%`, (page - 1) * 25]);
+    const pageHref = (n: number) => `/ventes?q=${encodeURIComponent(term)}&page=${n}`;
+    return (
+      <div>
+        <PageHeader title="Ventes" actions={<LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton>} />
+        <Tabs items={tabs} current={vue} />
+        <form className="mb-3 flex gap-2"><input className={inputCls} name="q" aria-label="Client ou référence" placeholder="Client ou référence" defaultValue={term} /><button className="text-sm text-brand-700">Rechercher</button></form>
+        <div className="grid gap-2">{orders.slice(0, 25).map(o => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div>
+        {!orders.length && <Empty>Aucune commande trouvée.</Empty>}
+        <nav className="mt-4 flex justify-between text-sm text-brand-700" aria-label="Pages des ventes">
+          {page > 1 && <Link href={pageHref(page - 1)}>Précédent</Link>}
+          {orders.length > 25 && <Link href={pageHref(page + 1)} className="ml-auto">Suivant</Link>}
+        </nav>
+      </div>
+    );
+  }
   if (vue === "devis") {
     const quotes = await q(me, "select * from erp.v_quotes order by created_at desc limit 200");
     return (

@@ -33,12 +33,17 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
       <Tabs items={tabs} current={mode} />
       <ActionForm action={createOrder} className="space-y-4">
         <Card>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Field label="Client *" className="sm:col-span-2"><ClientPicker initial={client} /></Field>
-            <Field label="Date promise"><input type="date" name="promised_date" className={inputCls} /></Field>
-            <Field label="Acompte (%)"><input name="deposit_pct" defaultValue={dep ?? 50} className={inputCls} /></Field>
-            <Field label="Remise"><select name="delivery_mode" className={inputCls}><option value="retrait">Retrait à l'atelier</option><option value="yalidine">Expédition Yalidine</option></select></Field>
-            <Field label="Notes" className="sm:col-span-3"><input name="notes" className={inputCls} /></Field>
+          <div className="grid gap-3">
+            <Field label="Client *"><ClientPicker initial={client} /></Field>
+            <details>
+              <summary className="cursor-pointer py-1 text-sm font-medium text-brand-700">Délai, acompte et livraison</summary>
+              <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                <Field label="Date promise"><input type="date" name="promised_date" className={inputCls} /></Field>
+                <Field label="Acompte (%)"><input name="deposit_pct" defaultValue={dep ?? 50} className={inputCls} /></Field>
+                <Field label="Livraison"><select name="delivery_mode" className={inputCls}><option value="retrait">Retrait à l'atelier</option><option value="yalidine">Expédition Yalidine</option></select></Field>
+                <Field label="Notes" className="sm:col-span-3"><input name="notes" className={inputCls} /></Field>
+              </div>
+            </details>
           </div>
         </Card>
         <Card title="Articles et prestations"><LineEditor products={products} tva={tva} /></Card>

@@ -355,3 +355,18 @@ test("reprise non destructive des contacts de l'ancien ERP", async () => {
   assert.deepEqual(rows.map((r) => r.name), ["Ancien client", "Sans tel"]);
   assert.equal((await system(pool, (c) => c.query("select count(*)::int n from public.contacts"))).rows[0].n, 4, "anciennes données intactes");
 });
+
+test("transactions manuelles : solde, rejeu, droits et session fermée", async () => {
+  const session = await caisse.rpc("open_cash", 0);
+  const balance = async () => Number((await caisse.one("select current_expected from erp.v_cash_sessions where id=$1", [session])).current_expected);
+  const opening = await balance();
+  const move = (kind, amount, key) => caisse.rpc("manual_cash_move", session, kind, amount, "Mouvement de test", key);
+  const [first, retry] = await Promise.all([move("entree", 1500, "test-in"), move("entree", 1500, "test-in")]);
+  assert.equal(first, retry);
+  await move("depense", 400, "test-out");
+  assert.equal(await balance(), opening + 1100);
+  await assert.rejects(move("entree", -5, "bad-amount"), /montant positif/i);
+  await assert.rejects(flo.rpc("manual_cash_move", session, "entree", 10, "Test", "forbidden"), /refusé/i);
+  await caisse.rpc("close_cash", opening + 1100, "");
+  await assert.rejects(move("entree", 10, "closed"), /fermée/i);
+});

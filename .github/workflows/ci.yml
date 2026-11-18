@@ -38,4 +38,4 @@ jobs:
             if curl -fsS http://localhost:3000/login -o /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test -g "commande directe DTF"
+          npx playwright test -g "commande directe DTF|vente directe :|transaction de caisse :"
