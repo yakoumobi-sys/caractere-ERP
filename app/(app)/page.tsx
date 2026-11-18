@@ -47,6 +47,13 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
   let currentOrders;
   if (me.can("orders_edit")) {
     const orders = await q(me, `select * from erp.v_orders where ($1 or owner_id = $2) and status not in ('livree','retiree','annulee','retournee') order by is_late desc, promised_date nulls last, created_at limit 8`, [manager, me.staffId]);
+    const incidents = await q(me, `select id, ref, status, refund_due from erp.v_orders where ($1 or owner_id = $2)
+      and (status = 'retournee' or (status = 'annulee' and refund_due > 0)) order by created_at desc limit 5`, [manager, me.staffId]);
+    if (incidents.length) blocks.unshift(
+      <Card key="retours" title="Retours et remboursements" actions={<Link href="/commandes?vue=bloquees" className="text-xs text-brand-700">Tout voir</Link>}>
+        <ul className="grid gap-2 text-sm">{incidents.map(o => <li key={o.id}><Link href={`/commandes/${o.id}`} className="font-medium">{o.ref}</Link> · {o.refund_due > 0 ? `${dzd(o.refund_due)} à rembourser` : "Retour à traiter"}</li>)}</ul>
+      </Card>
+    );
     currentOrders = (
       <Card key="o" title="Commandes en cours" actions={<Link href="/commandes" className="text-xs text-brand-700">Toutes</Link>}>
         {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div> : <Empty>Aucune commande en cours.</Empty>}

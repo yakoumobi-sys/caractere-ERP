@@ -217,7 +217,7 @@ test("vente directe : nouveau client et commande depuis le tableau de bord", asy
 test("transaction de caisse : entrée puis sortie avec motif", async ({ page }, info) => {
   await login(page, "Nadia Cherif");
   await page.goto("/caisse");
-  for (const [kind, amount] of [["entree", "1250"], ["depense", "250"]]) {
+  for (const [kind, amount] of [["entree", "1250.50"], ["depense", "250"]]) {
     const reason = `Test ${kind} ${info.project.name} ${Date.now()}`;
     await page.getByRole("link", { name: "Nouvelle transaction" }).click();
     await page.getByLabel("Type de transaction").selectOption(kind);
@@ -227,6 +227,6 @@ test("transaction de caisse : entrée puis sortie avec motif", async ({ page }, 
     await expect(page.getByText("Transaction enregistrée.")).toBeVisible();
     const row = page.getByRole("row").filter({ hasText: reason });
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText(kind === "entree" ? /1\s?250 DA/ : /[-−]250 DA/);
+    await expect(row).toContainText(kind === "entree" ? /1\s?250,5 DA/ : /[-−]250 DA/);
   }
 });
