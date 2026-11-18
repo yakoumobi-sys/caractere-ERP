@@ -4,13 +4,13 @@ import { q, one } from "@/lib/erp";
 import { Badge, Card, Empty, Field, LinkButton, PageHeader, Stat, Table, Td, inputCls } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { CashTabs } from "@/components/cash-nav";
-import { cashOut, closeCash, openCash } from "@/app/actions/cash";
+import { recordCashMove, closeCash, openCash } from "@/app/actions/cash";
 import { dzd, fdate, PAY_METHOD, PAY_STATUS, todayAlgiers } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-const MOVE: Record<string, string> = { fond: "Fond de caisse", encaissement: "Encaissement", depense: "Dépense", remboursement: "Remboursement", correction: "Correction", retrait: "Retrait / dépôt banque" };
+const MOVE: Record<string, string> = { entree: "Entrée", fond: "Fond de caisse", encaissement: "Encaissement", depense: "Dépense", remboursement: "Remboursement", correction: "Correction", retrait: "Retrait / dépôt banque" };
 
-export default async function Cash({ searchParams }: { searchParams: { vue?: string } }) {
+export default async function Cash({ searchParams }: { searchParams: { vue?: string; transaction?: string } }) {
   const me = await requireMe("cash");
   if (searchParams.vue === "reglements") {
     const [sum, byMethod, toCollect] = await Promise.all([
@@ -29,14 +29,35 @@ export default async function Cash({ searchParams }: { searchParams: { vue?: str
     );
   }
   const sess = await one(me, "select * from erp.v_cash_sessions where closed_at is null");
+  if (searchParams.transaction === "nouvelle" && sess) {
+    return (
+      <div className="max-w-lg">
+        <PageHeader title="Nouvelle transaction" />
+        <Card>
+          <ActionForm action={recordCashMove} idempotent className="grid gap-4">
+            <input type="hidden" name="session_id" value={sess.id} />
+            <Field label="Type de transaction"><select required name="kind" defaultValue="" className={inputCls}>
+              <option value="" disabled>Choisir une entrée ou une sortie</option>
+              <option value="entree">Entrée</option><option value="depense">Sortie · dépense</option><option value="retrait">Sortie · retrait en banque</option>
+            </select></Field>
+            <Field label="Montant (DA)"><input type="number" inputMode="decimal" min="0.01" step="0.01" required name="amount" className={inputCls} /></Field>
+            <Field label="Motif"><input required name="label" placeholder="Ex. apport en caisse, achat de film DTF" className={inputCls} /></Field>
+            <div className="flex flex-wrap gap-2"><SubmitButton>Enregistrer la transaction</SubmitButton><LinkButton href="/caisse" variant="secondary">Annuler</LinkButton></div>
+          </ActionForm>
+        </Card>
+      </div>
+    );
+  }
   const [moves, payToday] = await Promise.all([
     sess ? q(me, "select * from erp.v_cash_moves where session_id = $1 order by at desc", [sess.id]) : [],
     q(me, "select * from erp.v_payments where (at at time zone 'Africa/Algiers')::date = $1 order by at desc", [todayAlgiers()]),
   ]);
   return (
     <div>
-      <PageHeader title="Caisse" subtitle="Ce qui a réellement été encaissé" actions={<LinkButton href="/commandes/nouvelle?mode=comptoir">Vente comptoir</LinkButton>} />
+      <PageHeader title="Caisse" actions={<><LinkButton href="/commandes/nouvelle?mode=comptoir" variant="secondary">Vente comptoir</LinkButton><LinkButton href="/caisse?transaction=nouvelle">Nouvelle transaction</LinkButton></>} />
       <CashTabs current="jour" />
+      {searchParams.transaction === "enregistree" && <p role="status" className="mb-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">Transaction enregistrée.</p>}
+      {searchParams.transaction === "nouvelle" && !sess && <p className="mb-3 text-sm">Ouvrez la caisse pour enregistrer votre transaction.</p>}
       {!sess ? (
         <Card title="Ouvrir la caisse"><ActionForm action={openCash} className="flex flex-wrap items-end gap-2"><Field label="Fond de caisse (DA)"><input name="float" inputMode="decimal" defaultValue={0} className={inputCls} /></Field><SubmitButton>Ouvrir</SubmitButton></ActionForm></Card>
       ) : (
@@ -47,15 +68,7 @@ export default async function Cash({ searchParams }: { searchParams: { vue?: str
             <Stat label="Espèces attendues" value={dzd(sess.current_expected)} />
             <Stat label="Mouvements" value={moves.length} />
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="Dépense ou retrait">
-              <ActionForm action={cashOut} className="grid gap-2" resetOnSuccess>
-                <select name="kind" className={inputCls}><option value="depense">Dépense</option><option value="retrait">Retrait / dépôt en banque</option></select>
-                <input name="amount" required inputMode="decimal" placeholder="Montant (DA)" className={inputCls} />
-                <input name="label" required placeholder="Libellé (ex. achat scotch, transport)" className={inputCls} />
-                <SubmitButton variant="secondary">Enregistrer la sortie</SubmitButton>
-              </ActionForm>
-            </Card>
+          <details className="rounded-xl border bg-white p-3"><summary className="cursor-pointer text-sm font-medium">Clôturer la session</summary>
             <Card title="Clôture">
               <ActionForm action={closeCash} className="grid gap-2">
                 <p className="text-sm text-slate-600">Espèces attendues : <strong>{dzd(sess.current_expected)}</strong></p>
@@ -64,7 +77,7 @@ export default async function Cash({ searchParams }: { searchParams: { vue?: str
                 <SubmitButton confirm="Clôturer la caisse ?">Clôturer la caisse</SubmitButton>
               </ActionForm>
             </Card>
-          </div>
+          </details>
           <Card title="Mouvements de la session">
             <Table head={["Heure", "Type", "Libellé", "Montant", "Par"]}>{moves.map((m: any) => <tr key={m.id}><Td className="text-xs">{fdate(m.at, true)}</Td><Td>{MOVE[m.kind]}</Td><Td>{m.label}</Td><Td className={m.amount >= 0 ? "text-emerald-700" : "text-red-700"}>{dzd(m.amount)}</Td><Td className="text-xs">{m.staff_name}</Td></tr>)}</Table>
           </Card>

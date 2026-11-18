@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { saveWithClient } from "@/lib/document-client";
 import { redirect } from "next/navigation";
 import { guard, s, n, json } from "@/lib/action";
 import { rpc } from "@/lib/erp";
@@ -24,12 +25,14 @@ export async function moveDeal(_: ActionResult, fd: FormData): Promise<ActionRes
 export async function saveQuote(_: ActionResult, fd: FormData): Promise<ActionResult> {
   let id = "";
   const r = await guard(async (me) => {
-    id = await rpc(me, "save_quote", {
-      id: s(fd, "id") || null, client_id: s(fd, "client_id"), deal_id: s(fd, "deal_id") || null, title: s(fd, "title"),
+    id = await saveWithClient(me, "save_quote", fd, {
+      id: s(fd, "id") || null, deal_id: s(fd, "deal_id") || null, title: s(fd, "title"),
       promised_days: s(fd, "promised_days"), deposit_pct: s(fd, "deposit_pct"), notes: s(fd, "notes"), lines: json(fd, "lines") || [],
     });
   });
   if (r?.error) return r;
+  revalidatePath("/clients");
+  revalidatePath("/ventes");
   if (fd.get("send") === "1") {
     const r2 = await guard(async (me) => void (await rpc(me, "send_quote", id)));
     if (r2?.error) return r2;

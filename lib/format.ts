@@ -1,8 +1,8 @@
 export const TZ = "Africa/Algiers";
-const nf = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+const nf = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 export function dzd(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
-  return nf.format(Math.round(Number(v))).replace(/ | /g, " ") + " DA";
+  return nf.format(Number(v)).replace(/ | /g, " ") + " DA";
 }
 export function fdate(v: string | Date | null | undefined, withTime = false): string {
   if (!v) return "—";

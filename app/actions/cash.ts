@@ -1,4 +1,5 @@
 "use server";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { guard, s, n } from "@/lib/action";
 import { rpc } from "@/lib/erp";
@@ -11,12 +12,14 @@ export async function openCash(_: ActionResult, fd: FormData): Promise<ActionRes
     return "Caisse ouverte.";
   });
 }
-export async function cashOut(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  return guard(async (me) => {
-    await rpc(me, "cash_out", s(fd, "kind") || "depense", n(fd, "amount"), s(fd, "label"));
+export async function recordCashMove(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  const result = await guard(async (me) => {
+    await rpc(me, "manual_cash_move", s(fd, "session_id"), s(fd, "kind"), n(fd, "amount"), s(fd, "label"), s(fd, "idempotency_key"));
     revalidatePath("/caisse");
-    return "Sortie de caisse enregistrée.";
+    revalidatePath("/");
   });
+  if (result?.error) return result;
+  redirect("/caisse?transaction=enregistree");
 }
 export async function closeCash(_: ActionResult, fd: FormData): Promise<ActionResult> {
   return guard(async (me) => {

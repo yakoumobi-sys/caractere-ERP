@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { saveWithClient } from "@/lib/document-client";
 import { redirect } from "next/navigation";
 import { guard, s, n, json } from "@/lib/action";
 import { rpc } from "@/lib/erp";
@@ -17,12 +18,14 @@ const refresh = (id: string) => {
 export async function createOrder(_: ActionResult, fd: FormData): Promise<ActionResult> {
   let id = "";
   const r = await guard(async (me) => {
-    id = await rpc(me, "create_order", {
-      client_id: s(fd, "client_id"), lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
+    id = await saveWithClient(me, "create_order", fd, {
+      lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
       delivery_mode: s(fd, "delivery_mode") || "retrait", notes: s(fd, "notes"),
     });
   });
   if (r?.error) return r;
+  revalidatePath("/clients");
+  revalidatePath("/ventes");
   redirect(`/commandes/${id}`);
 }
 

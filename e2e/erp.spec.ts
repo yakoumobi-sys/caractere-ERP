@@ -170,3 +170,63 @@ test("remise au retrait → carte Privilège, et vente comptoir", async ({ page 
   await expect(page.getByText(/Vente enregistrée/)).toBeVisible();
   await expect(page.getByText("Retirée").first()).toBeVisible();
 });
+
+test("commande directe DTF et flocage : sélectionner le client en conservant la saisie", async ({ page }) => {
+  await login(page, "Sara Benali");
+  await page.goto("/commandes/nouvelle");
+  await page.getByLabel("Libellé").fill("Polo fourni");
+  await page.getByLabel("M", { exact: true }).fill("2");
+  await page.getByLabel("Prix vêtement HT").fill("2750");
+  await page.getByRole("checkbox", { name: "DTF", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Flocage", exact: true }).check();
+  const submit = page.getByRole("button", { name: "Créer la commande (brouillon)" });
+  const search = page.getByPlaceholder("Nom du client ou téléphone");
+  await submit.click();
+  await expect(search).toBeFocused();
+  await search.fill("Corniche");
+  const client = page.getByRole("button", { name: /Restaurant La Corniche/ });
+  await expect(client).toBeVisible();
+  await expect(page.getByLabel("Prix vêtement HT")).toHaveValue("2750");
+  await client.click();
+  await submit.click();
+  await expect(page.getByRole("heading", { name: /Commande CAR-/ })).toBeVisible();
+  await expect(page.getByText("Polo fourni").first()).toBeVisible();
+  await expect(page.getByText(/6\s?545 DA/).first()).toBeVisible();
+});
+
+test("vente directe : nouveau client et commande depuis le tableau de bord", async ({ page }, info) => {
+  await login(page, "Sara Benali");
+  const name = `Atelier Test ${info.project.name} ${Date.now()}`;
+  await page.getByRole("link", { name: "Nouvelle commande", exact: true }).click();
+  await page.getByPlaceholder("Nom du client ou téléphone").fill(name);
+  await page.getByLabel("Libellé").fill("Polo personnalisé");
+  await page.getByLabel("M", { exact: true }).fill("2");
+  await page.getByLabel("Prix vêtement HT").fill("2750");
+  await page.getByRole("button", { name: "Créer la commande (brouillon)" }).click();
+  await expect(page.getByRole("heading", { name: /Commande CAR-/ })).toBeVisible();
+  const orderPath = new URL(page.url()).pathname;
+  await page.goto("/ventes");
+  const sale = page.getByRole("link", { name: new RegExp(name) });
+  await expect(sale).toHaveCount(1);
+  await expect(sale).toHaveAttribute("href", orderPath);
+  await sale.click();
+  await page.getByRole("link", { name, exact: true }).click();
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+});
+
+test("transaction de caisse : entrée puis sortie avec motif", async ({ page }, info) => {
+  await login(page, "Nadia Cherif");
+  await page.goto("/caisse");
+  for (const [kind, amount] of [["entree", "1250.50"], ["depense", "250"]]) {
+    const reason = `Test ${kind} ${info.project.name} ${Date.now()}`;
+    await page.getByRole("link", { name: "Nouvelle transaction" }).click();
+    await page.getByLabel("Type de transaction").selectOption(kind);
+    await page.getByLabel("Montant (DA)").fill(amount);
+    await page.getByLabel("Motif").fill(reason);
+    await page.getByRole("button", { name: "Enregistrer la transaction" }).click();
+    await expect(page.getByText("Transaction enregistrée.")).toBeVisible();
+    const row = page.getByRole("row").filter({ hasText: reason });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(kind === "entree" ? /1\s?250,5 DA/ : /[-−]250 DA/);
+  }
+});
