@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { guard, s, n, json } from "@/lib/action";
+import { guard, s, n, json, selectedClientId } from "@/lib/action";
 import { rpc } from "@/lib/erp";
 import type { ActionResult } from "@/components/forms";
 
@@ -25,7 +25,7 @@ export async function saveQuote(_: ActionResult, fd: FormData): Promise<ActionRe
   let id = "";
   const r = await guard(async (me) => {
     id = await rpc(me, "save_quote", {
-      id: s(fd, "id") || null, client_id: s(fd, "client_id"), deal_id: s(fd, "deal_id") || null, title: s(fd, "title"),
+      id: s(fd, "id") || null, client_id: selectedClientId(fd), deal_id: s(fd, "deal_id") || null, title: s(fd, "title"),
       promised_days: s(fd, "promised_days"), deposit_pct: s(fd, "deposit_pct"), notes: s(fd, "notes"), lines: json(fd, "lines") || [],
     });
   });

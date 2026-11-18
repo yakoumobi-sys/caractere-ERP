@@ -170,3 +170,28 @@ test("remise au retrait → carte Privilège, et vente comptoir", async ({ page 
   await expect(page.getByText(/Vente enregistrée/)).toBeVisible();
   await expect(page.getByText("Retirée").first()).toBeVisible();
 });
+
+test("commande directe DTF et flocage : sélectionner le client en conservant la saisie", async ({ page }) => {
+  await login(page, "Sara Benali");
+  await page.goto("/commandes/nouvelle");
+  await page.getByLabel("Libellé").fill("Polo fourni");
+  await page.getByLabel("M", { exact: true }).fill("2");
+  await page.getByLabel("Prix vêtement HT").fill("2750");
+  await page.getByRole("checkbox", { name: "DTF", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Flocage", exact: true }).check();
+  const submit = page.getByRole("button", { name: "Créer la commande (brouillon)" });
+  const search = page.getByPlaceholder("Rechercher un client (nom ou téléphone)…");
+  await submit.click();
+  await expect(search).toBeFocused();
+  await search.fill("Corniche");
+  const client = page.getByRole("button", { name: /Restaurant La Corniche/ });
+  await expect(client).toBeVisible();
+  await submit.click();
+  await expect(search).toBeFocused();
+  await expect(page.getByLabel("Prix vêtement HT")).toHaveValue("2750");
+  await client.click();
+  await submit.click();
+  await expect(page.getByRole("heading", { name: /Commande CAR-/ })).toBeVisible();
+  await expect(page.getByText("Polo fourni").first()).toBeVisible();
+  await expect(page.getByText(/6\s?545 DA/).first()).toBeVisible();
+});

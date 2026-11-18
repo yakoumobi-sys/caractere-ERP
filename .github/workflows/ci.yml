@@ -22,3 +22,20 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      - name: Vérifier la saisie d'une commande directe sur mobile et ordinateur
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caractere_ui
+          AUTH_MODE: demo
+          SESSION_SECRET: commande-test-local-uniquement
+          PGPASSWORD: postgres
+        run: |
+          createdb --host=localhost --username=postgres caractere_ui
+          npm run db:migrate
+          npm run db:seed
+          npx playwright install --with-deps chromium
+          npm start > "$RUNNER_TEMP/erp-ui.log" 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/login -o /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test -g "commande directe DTF"

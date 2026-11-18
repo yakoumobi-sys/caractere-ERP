@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { guard, s, n, json } from "@/lib/action";
+import { guard, s, n, json, selectedClientId } from "@/lib/action";
 import { rpc } from "@/lib/erp";
 import { saveFile } from "@/lib/storage";
 import { createParcel, yalidineConfigured } from "@/lib/yalidine";
@@ -18,7 +18,7 @@ export async function createOrder(_: ActionResult, fd: FormData): Promise<Action
   let id = "";
   const r = await guard(async (me) => {
     id = await rpc(me, "create_order", {
-      client_id: s(fd, "client_id"), lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
+      client_id: selectedClientId(fd), lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
       delivery_mode: s(fd, "delivery_mode") || "retrait", notes: s(fd, "notes"),
     });
   });

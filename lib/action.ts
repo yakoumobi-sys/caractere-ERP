@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { getMe, type Me } from "./auth";
 import { errorMessage } from "./erp";
 import type { ActionResult } from "@/components/forms";
@@ -33,3 +34,11 @@ export const json = (fd: FormData, k: string) => {
   const v = s(fd, k);
   return v ? JSON.parse(v) : null;
 };
+
+export function selectedClientId(fd: FormData) {
+  const id = s(fd, "client_id");
+  if (!z.string().uuid().safeParse(id).success) {
+    throw new Error("Sélectionnez un client dans les résultats de recherche.");
+  }
+  return id;
+}
