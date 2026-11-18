@@ -71,38 +71,20 @@ test("commande de 20 polos de bout en bout", async () => {
   const events = await com.q("select * from erp.v_order_events where order_id = $1 and kind = 'confirmation'", [orderId]);
   assert.equal(events.length, 1);
   const tasks = await com.q("select step from erp.v_tasks where order_id = $1 order by seq", [orderId]);
-  assert.deepEqual(tasks.map((t) => t.step), ["preparation_fichier", "impression_dtf", "flocage", "controle", "emballage"]);
+  assert.deepEqual(tasks.map((t) => t.step), ["impression_dtf"], "une seule file : DTF");
   const m = await item(pool, "POLO-PIQ", "Noir", "M");
   assert.equal(m.reserved, 10);
   assert.equal(m.physical, 15);
 
-  // 6. Atelier : file de l'infographiste, première pièce, contrôle croisé
+  // 6. Atelier : file DTF, puis commande prête
   const myQueue = await info.q("select * from erp.v_tasks where assignee_id = $1 and order_id = $2", [IDS.infographiste, orderId]);
-  assert.equal(myQueue.length, 2, "préparation fichier + impression DTF dans la file de l'infographiste");
+  assert.equal(myQueue.length, 1, "la commande est dans la file DTF");
   const t = Object.fromEntries((await com.q("select id, step from erp.v_tasks where order_id = $1", [orderId])).map((x) => [x.step, x.id]));
-  await expectError(info.rpc("start_task", t.impression_dtf), /Étape précédente/);
-  await info.rpc("start_task", t.preparation_fichier);
-  await info.rpc("finish_task", t.preparation_fichier);
   await info.rpc("start_task", t.impression_dtf);
-  await info.rpc("finish_task", t.impression_dtf);
-  await flo.rpc("start_task", t.flocage);
-  assert.equal((await flo.one("select * from erp.v_tasks where id = $1", [t.flocage])).next_action, "Contrôler la première pièce");
-  assert.equal((await item(pool, "POLO-PIQ", "Noir", "M")).physical, 5, "sortie du stock à la remise à l'atelier");
-  await expectError(flo.rpc("finish_task", t.flocage), /Première pièce non validée/);
-  await expectError(flo.rpc("validate_first_piece", t.flocage, true, null), /habilitée/);
-  await ctrl.rpc("validate_first_piece", t.flocage, true, null);
-  assert.equal((await flo.one("select * from erp.v_tasks where id = $1", [t.flocage])).next_action, "Produire la série");
-  const started = await flo.one("select started_by_name, started_at from erp.v_tasks where id = $1", [t.flocage]);
-  assert.equal(started.started_by_name, "Amine Floqueur");
+  assert.equal((await item(pool, "POLO-PIQ", "Noir", "M")).physical, 5, "sortie du stock au démarrage de la file DTF");
+  const started = await info.one("select started_by_name, started_at from erp.v_tasks where id = $1", [t.impression_dtf]);
   assert.ok(started.started_at);
-  await flo.rpc("finish_task", t.flocage);
-  // le floqueur ne peut pas contrôler sa propre série
-  await system(pool, (cl) => cl.query("update erp.staff set roles = array['floqueur','controleur'] where id = $1", [IDS.floqueur]));
-  await flo.rpc("start_task", t.controle);
-  await expectError(flo.rpc("finish_task", t.controle), /Contrôle croisé/);
-  await ctrl.rpc("finish_task", t.controle);
-  await ctrl.rpc("start_task", t.emballage);
-  await ctrl.rpc("finish_task", t.emballage);
+  await info.rpc("finish_task", t.impression_dtf);
   o = await com.one("select * from erp.v_orders where id = $1", [orderId]);
   assert.equal(o.status, "prete");
   assert.equal(o.next_action, "Prévenir le client : commande prête au retrait");
@@ -169,5 +151,5 @@ test("commande de 20 polos de bout en bout", async () => {
   assert.equal((await flo.q("select * from erp.v_cash_sessions")).length, 0, "atelier ne voit pas la caisse");
   assert.equal((await flo.q("select cost from erp.v_stock where cost is not null")).length, 0, "atelier ne voit pas les coûts");
   assert.ok((await caisse.q("select * from erp.v_payments where order_id = $1", [orderId])).length >= 2, "caisse");
-  assert.equal((await mag.q("select * from erp.v_tasks where order_id = $1", [orderId])).length, 5);
+  assert.equal((await mag.q("select * from erp.v_tasks where order_id = $1", [orderId])).length, 1);
 });

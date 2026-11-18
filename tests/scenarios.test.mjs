@@ -112,8 +112,6 @@ test("rupture : manque affiché, production bloquée, achat à valider puis réc
   await expectError(mag.rpc("decide_purchase", pr[0].id, true), /Accès refusé/);
   await g.rpc("decide_purchase", pr[0].id, true);
   const tasks = Object.fromEntries((await com.q("select id, step from erp.v_tasks where order_id = $1", [id])).map((x) => [x.step, x.id]));
-  await info.rpc("start_task", tasks.preparation_fichier);
-  await info.rpc("finish_task", tasks.preparation_fichier);
   await expectError(info.rpc("start_task", tasks.impression_dtf), /Rupture/);
   const it = await item(pool, "TS-180", "Blanc", "L");
   await expectError(info.rpc("stock_move", it.id, "reception", 10, "Livraison fournisseur"), /Accès refusé/);
@@ -128,8 +126,7 @@ test("défaut atelier : perte remplacée et tracée, reprise", async () => {
   const { id } = await draftOrder([{ product_id: fx.polo, color: "Noir", sizes: { L: 3 }, unit_price: 1200, services: ["flocage"], service_price: 400 }]);
   await com.rpc("confirm_order", id, null);
   const tasks = Object.fromEntries((await com.q("select id, step from erp.v_tasks where order_id = $1", [id])).map((x) => [x.step, x.id]));
-  await info.rpc("start_task", tasks.preparation_fichier);
-  await info.rpc("finish_task", tasks.preparation_fichier);
+  assert.deepEqual(Object.keys(tasks), ["flocage"], "une seule file : flocage");
   await flo.rpc("start_task", tasks.flocage);
   await ctrl.rpc("validate_first_piece", tasks.flocage, false, "Flex décollé");
   assert.equal((await flo.one("select next_action from erp.v_tasks where id = $1", [tasks.flocage])).next_action, "Refaire la première pièce");
@@ -144,15 +141,14 @@ test("défaut atelier : perte remplacée et tracée, reprise", async () => {
   assert.deepEqual(d.map((x) => [x.outcome, x.qty, x.staff_name]), [["perte", 1, "Amine Floqueur"], ["reprise", 1, "Amine Floqueur"]]);
   await flo.rpc("resubmit_first_piece", tasks.flocage);
   await ctrl.rpc("validate_first_piece", tasks.flocage, true, null);
-  await flo.rpc("finish_task", tasks.flocage);
   // blocage avec motif et personne à prévenir
-  await ctrl.rpc("block_task", tasks.controle, "Encre manquante pour retouche", IDS.gerant);
-  const b = await g.one("select * from erp.v_tasks where id = $1", [tasks.controle]);
+  await flo.rpc("block_task", tasks.flocage, "Encre manquante pour retouche", IDS.gerant);
+  const b = await g.one("select * from erp.v_tasks where id = $1", [tasks.flocage]);
   assert.equal(b.notify_name, "Karim Gérant");
   assert.equal((await com.one("select is_blocked from erp.v_orders where id = $1", [id])).is_blocked, true);
-  await expectError(ctrl.rpc("start_task", tasks.controle), /bloquée/);
-  await ctrl.rpc("unblock_task", tasks.controle, "Encre reçue");
-  await runWorkshop(pool, id);
+  await expectError(flo.rpc("finish_task", tasks.flocage), /Démarrez/);
+  await flo.rpc("unblock_task", tasks.flocage, "Encre reçue");
+  await flo.rpc("finish_task", tasks.flocage);
   assert.equal((await com.one("select status from erp.v_orders where id = $1", [id])).status, "prete");
 });
 
