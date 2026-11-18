@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 html { -webkit-tap-highlight-color: transparent; }
-body { @apply bg-slate-50 text-slate-800 antialiased; }
+body { @apply bg-[#f5f4fb] text-slate-800 antialiased; }
 @media print {
   .no-print { display: none !important; }
   body { background: white; }

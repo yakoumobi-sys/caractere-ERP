@@ -16,14 +16,14 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export function Card({ title, actions, children, className, id }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={clsx("rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    <section id={id} className={clsx("rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)]", className)}>
       {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+        <header className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-1">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
           {actions}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className="px-5 pb-5 pt-3">{children}</div>
     </section>
   );
 }
@@ -83,7 +83,7 @@ export function Field({ label, children, hint, className }: { label: string; chi
 
 export function Stat({ label, value, href, tone }: { label: string; value: ReactNode; href?: string; tone?: string }) {
   const inner = (
-    <div className={clsx("rounded-xl border bg-white p-3 shadow-sm", tone === "red" ? "border-red-200" : tone === "amber" ? "border-amber-200" : "border-slate-200")}>
+    <div className={clsx("rounded-2xl border bg-white p-3 shadow-[0_1px_3px_rgba(30,20,80,0.06)]", tone === "red" ? "border-red-200" : tone === "amber" ? "border-amber-200" : "border-slate-200")}>
       <div className="text-xs text-slate-500">{label}</div>
       <div className={clsx("mt-1 text-xl font-semibold", tone === "red" ? "text-red-700" : tone === "amber" ? "text-amber-700" : "text-slate-900")}>{value}</div>
     </div>
