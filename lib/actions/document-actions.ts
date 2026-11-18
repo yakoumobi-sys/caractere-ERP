@@ -76,6 +76,16 @@ export async function saveDocument(
     header[field.name] =
       formData.get(field.name) ||
       (field.name === config.dateField ? businessDate() : null);
+  if (config.dateField === "order_date") {
+    if (id) {
+      const { data: existing, error } = await createClient().from(config.headerTable)
+        .select("order_date").eq("id", id).single();
+      if (error || !existing) throw new Error("Date de commande indisponible.");
+      header.order_date = existing.order_date;
+    } else {
+      header.order_date = businessDate();
+    }
+  }
   const { data, error } = await createClient().rpc("save_commercial_document", {
     p_kind: config.headerTable,
     p_id: id,

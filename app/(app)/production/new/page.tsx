@@ -22,7 +22,7 @@ export default async function Page() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Nouvelle commande" description="Configurateur — Client, Article, Impression" />
+      <PageHeader title="Nouvelle commande" />
       <NewOrderForm
         contacts={(contacts as { id: string; name: string }[]) ?? []}
         products={products ?? []}

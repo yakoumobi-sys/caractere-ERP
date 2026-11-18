@@ -20,11 +20,12 @@ export default async function Page() {
   const queueData = await Promise.all(
     QUEUES.map(async (q) => {
       const statuses = statusesForQueue(q.name) as OrderStatus[];
-      const { data: orders } = await supabase
+      const { data: orders, error } = await supabase
         .from("pipeline_orders_view")
         .select("*, pipeline_order_items(product_name,color,size,quantity), pipeline_order_prints(placement,size_cm,text_content)")
         .in("status", statuses)
         .order("created_at", { ascending: true });
+      if (error) throw new Error("Impossible de charger les commandes de la file " + QUEUE_TITLES[q.name]);
       return { queue: q, orders: orders ?? [] };
     })
   );

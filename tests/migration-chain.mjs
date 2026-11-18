@@ -132,6 +132,17 @@ try {
   await assert.rejects(create('40000000-0000-4000-8000-000000000003',{...payload,items:[{product_id:events.id,product_name:events.name,quantity:49}]}),/Minimum/);
   await assert.rejects(create('40000000-0000-4000-8000-000000000004',{...payload,items:[{product_id:premium.id,product_name:premium.name,quantity:-1}]}),/quantité/);
   console.log('PASS 12 catalog articles, tiers, quote-only products, atomic rollback, retry deduplication and minimum quantities.');
+  const dated = await one("select created_at between now() - interval '1 minute' and now() as automatic from pipeline_orders where id=$1", [atomic]);
+  assert.equal(dated.automatic, true);
+  await db.query("update pipeline_orders set created_at=now()-interval '3 days' where id=$1", [atomic]);
+  await db.query("select sync_stale_order_alerts()");
+  await db.query("select sync_stale_order_alerts()");
+  const staleAlert = () => one("select count(*)::int n from supply_alerts where pipeline_order_id=$1 and alert_type='retard_commande' and status <> 'resolue'", [atomic]);
+  assert.equal((await staleAlert()).n, 1);
+  await db.query("update pipeline_orders set status='prete' where id=$1", [atomic]);
+  await db.query("select sync_stale_order_alerts()");
+  assert.equal((await staleAlert()).n, 0);
+  console.log("PASS automatic creation timestamp and stale alert lifecycle.");
   await db.exec(`reset role;
     insert into employees(first_name,last_name,profile_id) values('Directory','Test','10000000-0000-4000-8000-000000000041');
     grant select on employees to anon;

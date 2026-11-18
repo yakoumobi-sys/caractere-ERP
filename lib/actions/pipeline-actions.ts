@@ -90,10 +90,15 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
     if (employeeId) payload.assigned_to = employeeId;
   }
 
-  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
+  const { data: updated, error } = await supabase.from("pipeline_orders").update(payload)
+    .eq("id", orderId).eq("status", fromStatus).select("id").maybeSingle();
   if (error) {
     throw new Error(`Erreur lors de la mise à jour du statut: ${error.message}`);
   }
+
+  if (!updated) throw new Error("La commande a déjà changé d’étape. Actualisez la file.");
+  revalidatePath("/production");
+  revalidatePath("/operations");
 
   // Invalider les caches de toutes les files pour que la commande disparaisse
   // de la file actuelle et réapparaisse dans la prochaine, sans redirection.
@@ -109,10 +114,9 @@ export async function advancePipelineOrder(orderId: string, fromStatus: OrderSta
 /** Changement manuel de statut / assignation depuis la fiche détail (admin/commercial) */
 export async function setPipelineStatus(orderId: string, status: string, assignedTo?: string | null) {
   const supabase = createClient();
-  const payload: Record<string, unknown> = { status };
-  if (assignedTo !== undefined) payload.assigned_to = assignedTo || null;
+  const payload = assignedTo === undefined ? { status } : { assigned_to: assignedTo || null };
 
-  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId);
+  const { error } = await supabase.from("pipeline_orders").update(payload).eq("id", orderId).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/production", "layout");
   revalidatePath("/dashboard", "layout");

@@ -2,10 +2,18 @@ import { DocumentForm } from "@/components/documents/document-form";
 import { getDocumentFormData } from "@/lib/documents-data";
 import { quotesConfig } from "@/lib/documents";
 import { convertQuoteToOrder, deleteDocument } from "@/lib/actions/document-actions";
-import { Button, PageHeader } from "@/components/ui";
+import { createClient } from "@/lib/supabase/server";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button, PageHeader, LinkButton } from "@/components/ui";
 
 export default async function Page({ params }: { params: { id: string } }) {
-  const { record, lines, contacts, products } = await getDocumentFormData(quotesConfig, params.id);
+  const [{ record, lines, contacts, products }, linked] = await Promise.all([
+    getDocumentFormData(quotesConfig, params.id),
+    createClient().from("sales_orders").select("id,number").eq("quote_id", params.id)
+      .order("created_at").limit(1).maybeSingle(),
+  ]);
+  if (linked.error) throw new Error("Impossible de charger le document lié.");
+  const locked = !!linked.data;
 
   async function convert() {
     "use server";
@@ -21,23 +29,24 @@ export default async function Page({ params }: { params: { id: string } }) {
       <PageHeader
         title={`Devis ${record?.number ?? ""}`}
         action={
-          <div className="flex gap-2">
-            {record?.status === "accepte" && (
+          <div className="flex flex-wrap gap-2">
+            {linked.data && <LinkButton href={`/sales/orders/${linked.data.id}`} variant="secondary">Commande {linked.data.number}</LinkButton>}
+            {!locked && record?.status === "accepte" && (
               <form action={convert}>
                 <Button type="submit" variant="secondary">
                   Convertir en commande
                 </Button>
               </form>
             )}
-            <form action={remove}>
-              <Button type="submit" variant="danger">
+            {!locked && record?.status === "brouillon" && <form action={remove}>
+              <ConfirmSubmitButton message="Supprimer ce brouillon ?" variant="danger">
                 Supprimer
-              </Button>
-            </form>
+              </ConfirmSubmitButton>
+            </form>}
           </div>
         }
       />
-      <DocumentForm config={quotesConfig} record={record} existingLines={lines} contacts={contacts} products={products} />
+      <DocumentForm config={quotesConfig} record={record} existingLines={lines} contacts={contacts} products={products} locked={locked} lockedMessage="Ce document a déjà été converti." />
     </div>
   );
 }

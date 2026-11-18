@@ -48,7 +48,7 @@ export default async function Page({ params }: { params: { id: string } }) {
             <h2 className="text-2xl font-semibold">FACTURE</h2>
             <p className="mt-2">{doc.number}</p>
             <p>Émise le {formatDate(doc.issue_date)}</p>
-            <p>Échéance : {formatDate(doc.due_date)}</p>
+            {doc.due_date && <p>Échéance le {formatDate(doc.due_date)}</p>}
             {doc.status === "brouillon" && (
               <p className="font-bold mt-2">BROUILLON — NON VALIDÉ</p>
             )}
@@ -80,7 +80,7 @@ export default async function Page({ params }: { params: { id: string } }) {
           <tbody>
             {lines.data?.map((l) => (
               <tr key={l.id} className="border-b border-slate-100">
-                <td className="py-3 pr-3">{l.description}</td>
+                <td className="whitespace-pre-line py-3 pr-3">{l.description}</td>
                 <td>{l.quantity}</td>
                 <td>{formatMoney(l.unit_price)}</td>
                 <td>{l.tax_rate}%</td>
@@ -96,8 +96,10 @@ export default async function Page({ params }: { params: { id: string } }) {
             ["Total HT", doc.subtotal],
             ["TVA", doc.tax_total],
             ["Total TTC", doc.total],
-            ["Déjà réglé", doc.amount_paid],
-            ["Reste à payer", Number(doc.total) - Number(doc.amount_paid)],
+            ...(["validee", "payee"].includes(doc.status) ? [
+              ["Déjà réglé", doc.amount_paid],
+              ["Reste à payer", Number(doc.total) - Number(doc.amount_paid)],
+            ] : []),
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between gap-5">
               <span>{label}</span>

@@ -55,6 +55,7 @@ export async function saveOrderPreparation(
   if (error) throw new Error(error.message);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/operations");
+  revalidatePath("/dashboard");
 }
 
 export async function closeCashDay(formData: FormData) {

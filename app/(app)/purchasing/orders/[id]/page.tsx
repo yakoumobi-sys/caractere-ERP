@@ -29,11 +29,11 @@ export default async function Page({ params }: { params: { id: string } }) {
                 </Button>
               </form>
             )}
-            <form action={remove}>
+            {record?.status === "brouillon" && <form action={remove}>
               <Button type="submit" variant="danger">
                 Supprimer
               </Button>
-            </form>
+            </form>}
           </div>
         }
       />
@@ -43,6 +43,8 @@ export default async function Page({ params }: { params: { id: string } }) {
         existingLines={lines}
         contacts={contacts}
         products={products}
+        locked={record?.status === "recue"}
+        lockedMessage="La réception a été enregistrée dans le stock."
       />
     </div>
   );

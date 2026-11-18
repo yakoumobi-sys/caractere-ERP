@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function syncAutoAlerts() {
   const supabase = createClient();
-  await supabase.rpc("sync_stale_order_alerts");
+  const { error } = await supabase.rpc("sync_stale_order_alerts");
+  return !error;
 }
 
 export async function createAlert(formData: FormData) {
@@ -39,6 +40,7 @@ export async function createAlert(formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
+  revalidatePath("/dashboard");
   revalidatePath("/alerts");
   redirect("/alerts");
 }
@@ -47,6 +49,7 @@ export async function reviewAlert(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("supply_alerts").update({ status: "en_cours" }).eq("id", id).eq("status", "ouverte");
   if (error) throw new Error(error.message);
+  revalidatePath("/dashboard");
   revalidatePath("/alerts");
   revalidatePath(`/alerts/${id}`);
 }
@@ -65,6 +68,7 @@ export async function buyForAlert(id: string, formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
+  revalidatePath("/dashboard");
   revalidatePath("/alerts");
   revalidatePath(`/alerts/${id}`);
   revalidatePath("/purchasing/orders");
@@ -74,6 +78,7 @@ export async function completeAlert(id: string) {
   const supabase = createClient();
   const { error } = await supabase.rpc("supply_alert_complete", { p_alert_id: id });
   if (error) throw new Error(error.message);
+  revalidatePath("/dashboard");
   revalidatePath("/alerts");
   revalidatePath(`/alerts/${id}`);
 }

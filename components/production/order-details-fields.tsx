@@ -2,7 +2,7 @@
 
 import { catalogPrice } from "@/lib/catalog-pricing";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Field, inputClass } from "@/components/ui";
+import { Card, Field, inputClass } from "@/components/ui";
 import { LOGO_PLACEMENTS, LOGO_SOURCES, TECHNIQUES, type Technique } from "@/lib/pipeline";
 import { ArticlePicker, type ArticleRow } from "./article-picker";
 import type { CatalogProduct } from "@/lib/actions/catalog-actions";
@@ -19,7 +19,7 @@ function StepLabel({ n, title }: { n: number; title: string }) {
       <span className="h-6 w-6 rounded-full bg-brand-500 text-white text-xs font-semibold flex items-center justify-center shrink-0">
         {n}
       </span>
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+      <h2 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
     </div>
   );
 }
@@ -65,11 +65,11 @@ export function OrderDetailsFields({
   const [logoPlacement, setLogoPlacement] = useState("coeur");
   const [logoSource, setLogoSource] = useState("whatsapp");
   const [requiresFlocage, setRequiresFlocage] = useState(true); // Par défaut: flocage activé
-  const [orderTotal, setOrderTotal] = useState("");
+  const [negotiatedTotal, setNegotiatedTotal] = useState<string | null>(null);
   const [initialPayment, setInitialPayment] = useState("");
 
   // Recalcule automatiquement le prix total quand les articles ou leur quantité changent
-  useEffect(() => {
+  const catalogTotal = useMemo(() => {
     const total = items.reduce((sum, item) => {
       const product = products.find((p) => p.id === item.product_id);
       const quantity = items.filter(i => i.product_id === item.product_id).reduce((n,i) => n + Number(i.quantity), 0);
@@ -78,10 +78,13 @@ export function OrderDetailsFields({
     }, 0);
 
     const needsQuote = items.some(i => products.find(p => p.id === i.product_id)?.quote_required);
-    setOrderTotal(needsQuote ? "" : String(total));
+    return needsQuote ? "" : String(total);
   }, [items, products]);
 
+  const orderTotal = negotiatedTotal ?? catalogTotal;
+
   function updateItem(i: number, patch: Partial<ArticleRow>) {
+    if ("product_id" in patch || "quantity" in patch) setNegotiatedTotal(null);
     setItems((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
@@ -122,7 +125,7 @@ export function OrderDetailsFields({
     <div
       className="contents"
       onKeyDown={(e) => {
-        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement && ["text", "tel", "number", "email"].includes(e.target.type)) {
           e.preventDefault();
         }
       }}
@@ -158,7 +161,7 @@ export function OrderDetailsFields({
             <input type="hidden" name="contact_id" value={selectedContactId} required={clientMode === "existing"} />
           </>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Nom" htmlFor="client_new_name" required>
               <input
                 id="client_new_name"
@@ -172,16 +175,11 @@ export function OrderDetailsFields({
             <Field label="Téléphone" htmlFor="client_new_phone">
               <input id="client_new_phone" name="client_new_phone" type="tel" className={inputClass} />
             </Field>
-            <Field label="Type" htmlFor="client_new_type">
-              <select id="client_new_type" name="client_new_type" defaultValue="client" className={inputClass}>
-                <option value="client">Client</option>
-                <option value="prospect">Prospect</option>
-              </select>
-            </Field>
+
           </div>
         )}
 
-        <p className="mt-4 text-sm text-slate-500">Livraison organisée manuellement avec le client.</p>
+
       </Card>
 
       {/* 2. Article */}
@@ -198,7 +196,10 @@ export function OrderDetailsFields({
               colors={colors}
               sizes={sizes}
               onChange={(patch) => updateItem(i, patch)}
-              onRemove={items.length > 1 ? () => setItems((prev) => prev.filter((_, idx) => idx !== i)) : undefined}
+              onRemove={items.length > 1 ? () => {
+                if (row.product_name) setNegotiatedTotal(null);
+                setItems(prev => prev.filter((_, idx) => idx !== i));
+              } : undefined}
               onProductCreated={(product) => setProducts((prev) => addProductOnce(prev, product))}
               onColorCreated={(color) => setColors((prev) => addOnce(prev, color))}
               onSizeCreated={(size) => setSizes((prev) => addOnce(prev, size))}
@@ -215,12 +216,6 @@ export function OrderDetailsFields({
         >
           + Ajouter un article
         </button>
-
-        {filledItems.length === 0 && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-            Choisissez au moins un article pour pouvoir créer la commande.
-          </p>
-        )}
 
         {/* Seules les lignes réellement remplies partent au serveur. */}
         <input type="hidden" name="items_json" value={JSON.stringify(filledItems)} />
@@ -250,6 +245,11 @@ export function OrderDetailsFields({
           ))}
         </div>
 
+        {technique !== "aucune" && <details>
+          <summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
+            Réglages · {LOGO_PLACEMENTS.find(p => p.value === logoPlacement)?.label} · {LOGO_SOURCES.find(s => s.value === logoSource)?.label}
+            {technique === "dtf" && (requiresFlocage ? " · Avec flocage" : " · Sans flocage")}
+          </summary>
         {technique === "dtf" && (
           <label className="flex items-center gap-2 mb-4 text-sm text-slate-700 cursor-pointer">
             <input
@@ -259,18 +259,13 @@ export function OrderDetailsFields({
               onChange={(e) => setRequiresFlocage(!e.target.checked)}
               className="h-4 w-4 rounded border-slate-300"
             />
-            <span>
-              Pas de flocage après impression
-              <br />
-              <span className="text-xs text-slate-500">(Par défaut: envoyé en flocage)</span>
-            </span>
+            <span>Impression seule, sans flocage</span>
           </label>
         )}
         {technique === "dtf" && (
           <input type="hidden" name="requires_flocage" value={requiresFlocage ? "on" : ""} />
         )}
 
-        {technique !== "aucune" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Emplacement du logo" htmlFor="logo_placement" required>
               <select
@@ -320,9 +315,7 @@ export function OrderDetailsFields({
               </Field>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-slate-400">Vêtements bruts, sans personnalisation — la commande part directement en préparation.</p>
-        )}
+        </details>}
       </Card>
 
       {/* 4. Prix & paiement — le montant se calcule automatiquement à partir
@@ -335,11 +328,11 @@ export function OrderDetailsFields({
               id="order_total"
               name="order_total"
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
               min={0}
-              step={1}
+              step="0.01"
               value={orderTotal}
-              onChange={(e) => setOrderTotal(e.target.value)}
+              onChange={(e) => setNegotiatedTotal(e.target.value)}
               placeholder="0"
               className={inputClass}
             />
@@ -348,20 +341,23 @@ export function OrderDetailsFields({
             </p>
           </Field>
           {canRecordPayments && (
-            <Field label="Versement encaissé maintenant (DA)" htmlFor="initial_payment">
+            <details className="self-start">
+              <summary className="cursor-pointer py-2 text-sm font-semibold text-brand-700 dark:text-brand-300">Acompte{paymentValue > 0 ? ` · ${paymentValue.toLocaleString("fr-DZ")} DA` : " (facultatif)"}</summary>
+              <Field label="Versement encaissé maintenant (DA)" htmlFor="initial_payment">
               <input
                 id="initial_payment"
                 name="initial_payment"
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min={0}
-                step={1}
+                step="0.01"
                 value={initialPayment}
                 onChange={(e) => setInitialPayment(e.target.value)}
                 placeholder="0"
                 className={inputClass}
               />
-            </Field>
+              </Field>
+            </details>
           )}
         </div>
         {paymentExceedsTotal && (

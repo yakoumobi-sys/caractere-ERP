@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { createPipelineOrder, type OrderFormState } from "@/lib/actions/pipeline-actions";
 import { OrderDetailsFields } from "@/components/production/order-details-fields";
-import { Button, Card, Field, inputClass } from "@/components/ui";
+import { Button, Field, inputClass } from "@/components/ui";
 import type { CatalogProduct } from "@/lib/actions/catalog-actions";
 
 const initialState: OrderFormState = { error: null };
@@ -59,11 +59,12 @@ export function NewOrderForm({
         canRecordPayments={canRecordPayments}
       />
 
-      <Card className="p-6">
-        <Field label="Note (optionnel)" htmlFor="description">
+      <details className="rounded-xl border border-slate-200 px-5 py-3 dark:border-slate-700">
+        <summary className="cursor-pointer font-medium">Note pour l’atelier (facultatif)</summary>
+        <Field label="Consigne" htmlFor="description">
           <textarea id="description" name="description" rows={2} className={inputClass} />
         </Field>
-      </Card>
+      </details>
 
       <SubmitButton missing={requestId ? missing : ["chargement du formulaire"]} />
     </form>
