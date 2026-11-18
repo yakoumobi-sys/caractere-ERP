@@ -6,7 +6,7 @@ export function formatMoney(value: number | null | undefined) {
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeZone: "Africa/Algiers" }).format(new Date(value));
 }
 
 export function formatDateTime(value: string | null | undefined) {

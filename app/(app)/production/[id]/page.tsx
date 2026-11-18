@@ -4,6 +4,7 @@ import { LinkButton } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  advancePipelineOrder,
   addPipelineFault,
   addPipelineItem,
   addPipelineNote,
@@ -25,7 +26,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { canRecordPayments } from "@/lib/roles";
 import { Button, Card, EmptyState, PageHeader, inputClass, Badge } from "@/components/ui";
 import { formatDate, formatSince } from "@/lib/utils";
-import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, TECHNIQUES } from "@/lib/pipeline";
+import { LOGO_PLACEMENTS, LOGO_SOURCES, statusLabel, STATUS_DEFS, type OrderStatus, TECHNIQUES } from "@/lib/pipeline";
 
 export default async function Page({ params, searchParams }: { params: { id: string }; searchParams: { file_warning?: string; payment_warning?: string } }) {
   const supabase = createClient();
@@ -36,9 +37,9 @@ export default async function Page({ params, searchParams }: { params: { id: str
     { data: items },
     { data: prints },
     { data: files },
-    { data: money },
-    { data: linkedInvoice },
-    { data: payments },
+    { data: money, error: moneyError },
+    { data: linkedInvoice, error: invoiceError },
+    { data: payments, error: paymentsError },
     profile,
   ] = await Promise.all([
       supabase
@@ -77,6 +78,12 @@ export default async function Page({ params, searchParams }: { params: { id: str
     notFound();
   }
 
+  const nextStep = STATUS_DEFS[order.status as OrderStatus];
+  const canAdvance = !!profile?.is_active && profile.role !== "readonly";
+  async function advance() {
+    "use server";
+    await advancePipelineOrder(params.id, order!.status, order!.assigned_to);
+  }
   async function submitNote(formData: FormData) {
     "use server";
     await addPipelineNote(params.id, order!.status, formData);
@@ -121,10 +128,10 @@ export default async function Page({ params, searchParams }: { params: { id: str
             )}
           </h1>
           <p className="text-slate-600 dark:text-slate-300 mt-2">
-            {order.contact_name} · {statusLabel(order.status)} · {formatSince(order.status_since)}
+            {order.contact_name} · Créée le {formatDate(order.created_at)} · {statusLabel(order.status)} {formatSince(order.status_since)}
           </p>
         </div>
-        {profile?.is_active && ["admin", "manager"].includes(profile.role) && !linkedInvoice && !(payments?.length) && order.status !== "livree" && <form action={remove}>
+        {profile?.is_active && ["admin", "manager"].includes(profile.role) && !invoiceError && !paymentsError && !linkedInvoice && !(payments?.length) && order.status !== "livree" && <form action={remove}>
           <ConfirmSubmitButton
             message={`Supprimer définitivement la commande ${order.number ?? ""} ? Cette action est réservée aux commandes sans historique financier ni livraison.`}
           >
@@ -167,9 +174,9 @@ export default async function Page({ params, searchParams }: { params: { id: str
         </div>
         <div>
           <p className="text-slate-400 text-xs">Assigné à</p>
-          {order.assigned_to && order.assignee_color ? (
+          {order.assigned_to ? (
             <p className="text-slate-900 font-medium flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: order.assignee_color }} />
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: order.assignee_color ?? undefined }} />
               {order.assignee_first_name} {order.assignee_last_name}
             </p>
           ) : (
@@ -184,14 +191,18 @@ export default async function Page({ params, searchParams }: { params: { id: str
         </Card>
       )}
 
-      <div className="mb-6">
+      {canAdvance && nextStep?.action && <form action={advance} className="mb-4">
+        <Button type="submit">{nextStep.action}</Button>
+      </form>}
+      {canAdvance && <details className="mb-6">
+        <summary className="cursor-pointer py-2 text-sm font-semibold">Affectation et correction manuelle</summary>
         <PipelineControls orderId={order.id} status={order.status} assignedTo={order.assigned_to} employees={(employees as any) ?? []} />
-      </div>
+      </details>}
 
-      <OrderPreparation orderId={order.id} preparation={money ?? {}} canEdit={!!profile?.is_active && ["admin", "manager", "sales", "atelier"].includes(profile.role)} />
+      {moneyError ? <p role="alert">Préparation indisponible.</p> : <OrderPreparation orderId={order.id} preparation={money ?? {}} canEdit={!!profile?.is_active && ["admin", "manager", "sales", "atelier"].includes(profile.role)} />}
       {canRecordPayments(profile?.role) && <Card className="p-5 mb-6">
         <h2 className="font-semibold mb-2">Facturation de la commande</h2>
-        {linkedInvoice ? <LinkButton href={`/sales/invoices/${linkedInvoice.id}`} variant="secondary">Ouvrir {linkedInvoice.number}</LinkButton> : <>
+        {invoiceError ? <p role="alert">Facture liée indisponible.</p> : linkedInvoice ? <LinkButton href={`/sales/invoices/${linkedInvoice.id}`} variant="secondary">Ouvrir {linkedInvoice.number}</LinkButton> : <>
           <p className="text-sm text-slate-500 mb-3">Créez un brouillon lié à cette commande. Vérifiez les lignes et la TVA avant validation. Les versements seront repris à la validation.</p>
           <form action={createPipelineInvoice.bind(null, order.id)}><Button type="submit" disabled={!money?.order_total || !items?.length}>Créer la facture liée</Button></form>
         </>}
@@ -204,12 +215,13 @@ export default async function Page({ params, searchParams }: { params: { id: str
           Vérifiez l’historique des paiements ci-dessous avant de saisir le règlement.
         </p>
       )}
-      <OrderPaymentPanel
+      {paymentsError || moneyError ? <p role="alert">Encaissements indisponibles.</p> : <OrderPaymentPanel
         orderId={order.id}
         orderTotal={money?.order_total === null || money?.order_total === undefined ? null : Number(money.order_total)}
         payments={(payments as any) ?? []}
         canRecord={canRecordPayments(profile?.role)}
-      />
+        totalLocked={!!linkedInvoice || !!invoiceError || order.status === "livree"}
+      />}
 
       {/* SMS Notifications */}
       <div className="mb-6">

@@ -59,14 +59,14 @@ export default async function Page({ params }: { params: { id: string } }) {
             >
               Imprimer / PDF
             </LinkButton>
-            {record?.status === "brouillon" && (
+            {canPay && record?.status === "brouillon" && (
               <form action={validate}>
                 <Button type="submit" variant="secondary">
                   Valider la facture
                 </Button>
               </form>
             )}
-            {record?.status === "brouillon" && (
+            {canPay && record?.status === "brouillon" && (
               <form action={remove}>
                 <ConfirmSubmitButton
                   message="Supprimer définitivement ce brouillon ?"
@@ -80,6 +80,9 @@ export default async function Page({ params }: { params: { id: string } }) {
         }
       />
 
+      {record?.order_id && <div className="mb-5">
+        <LinkButton href={`/sales/orders/${record.order_id}`} variant="secondary">Commande d’origine</LinkButton>
+      </div>}
       {linkedOrder && <Card className="p-5 mb-5">
         <p className="text-sm mb-3">Facture liée à une commande atelier. Les versements sont enregistrés sur cette commande et repris ici après validation. Le stock sort à la livraison.</p>
         <LinkButton href={`/production/${linkedOrder}`} variant="secondary">Commande & encaissements</LinkButton>
@@ -90,8 +93,8 @@ export default async function Page({ params }: { params: { id: string } }) {
         existingLines={lines}
         contacts={contacts}
         products={products}
-        locked={!!record && record.status !== "brouillon"}
-        lockedMessage="Facture validée : contenu figé. Une correction nécessite une contre-écriture comptable ; la suppression et la modification directe sont bloquées."
+        locked={!canPay || (!!record && record.status !== "brouillon")}
+        lockedMessage={canPay ? "Le contenu de cette facture est figé." : "Consultation de la facture en lecture seule."}
       />
 
       {record && ["validee", "payee"].includes(record.status) && (

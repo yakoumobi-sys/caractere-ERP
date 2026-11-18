@@ -30,6 +30,10 @@ test.describe('🎯 Création de commande', () => {
     const submit = page.getByRole('button', { name: 'Créer la commande' });
     await expect(submit).toBeDisabled();
 
+    await expect(page.locator('input[type="date"]')).toHaveCount(0);
+    await expect(page.locator('[name="logo_placement"]')).toBeHidden();
+    await expect(page.locator('[name="initial_payment"]')).toBeHidden();
+
     // 1. Client : nouveau
     await page.getByRole('button', { name: '+ Nouveau client' }).click();
     await page.fill('input[name="client_new_name"]', `Client E2E ${SUFFIX}`);
@@ -57,6 +61,25 @@ test.describe('🎯 Création de commande', () => {
     await expect(page.getByText(productName).first()).toBeVisible();
     // toLocaleString("fr-DZ") sépare les milliers par une espace insécable.
     await expect(page.getByText(/5\s?000 DA/).first()).toBeVisible();
+
+    await page.goto('/dashboard');
+    const table = page.getByRole('table', { name: 'Commandes en cours' });
+    const link = table.locator(`a[href="/production/${orderId}"]`);
+    await expect(link).toBeVisible();
+    const stock = page.getByRole('heading', { name: 'À acheter' });
+    const alerts = page.getByRole('heading', { name: 'Alertes en cours' });
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 850 });
+      const tableTop = (await table.boundingBox())!.y;
+      expect((await stock.boundingBox())!.y).toBeLessThan(tableTop);
+      expect((await alerts.boundingBox())!.y).toBeLessThan(tableTop);
+      expect((await link.boundingBox())!.x).toBeLessThan(width);
+    }
+    await link.click();
+    await page.getByRole('button', { name: 'Prendre la commande' }).click();
+    await expect(page.getByRole('button', { name: 'Marquer terminée' })).toBeVisible();
+    await page.getByRole('button', { name: 'Marquer terminée' }).click();
+    await expect(page.getByText(/En attente \(Flocage\)/).first()).toBeVisible();
   });
 
   test('Client existant tapé mais non sélectionné → bouton inactif, aucune commande', async ({

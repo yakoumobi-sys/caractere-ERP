@@ -23,7 +23,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 function formatDA(n: number) {
-  return `${Math.round(n).toLocaleString("fr-DZ")} DA`;
+  return `${n.toLocaleString("fr-DZ", { maximumFractionDigits: 2 })} DA`;
 }
 
 /**
@@ -43,12 +43,14 @@ export function OrderPaymentPanel({
   orderTotal,
   payments,
   canRecord,
+  totalLocked = false,
 }: {
   orderId: string;
   orderTotal: number | null;
   payments: Payment[];
   /** Rôle autorisé à encaisser (admin / manager / ventes). */
   canRecord: boolean;
+  totalLocked?: boolean;
 }) {
   const router = useRouter();
   const paymentToken = useRef<string | null>(null);
@@ -125,13 +127,13 @@ export function OrderPaymentPanel({
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total</p>
-          {editingTotal ? (
+          {canRecord && !totalLocked && editingTotal ? (
             <div className="flex gap-2">
               <input
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min={0}
-                step={1}
+                step="0.01"
                 value={totalDraft}
                 onChange={(e) => setTotalDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -151,14 +153,14 @@ export function OrderPaymentPanel({
             </div>
           ) : (
             <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-baseline gap-2">
-              {formatDA(orderTotal ?? 0)}
-              <button
+              {orderTotal === null ? "—" : formatDA(orderTotal)}
+              {canRecord && !totalLocked && <button
                 type="button"
                 onClick={() => setEditingTotal(true)}
                 className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
               >
                 Modifier
-              </button>
+              </button>}
             </p>
           )}
         </div>
@@ -202,13 +204,13 @@ export function OrderPaymentPanel({
               <input
                 id="payment_amount"
                 type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 disabled={pending}
-                placeholder={remaining !== null && remaining > 0 ? String(Math.round(remaining)) : "0"}
+                placeholder={remaining !== null && remaining > 0 ? String(Number(remaining.toFixed(2))) : "0"}
                 className={`${inputClass} w-32`}
               />
             </Field>

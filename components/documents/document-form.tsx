@@ -7,7 +7,7 @@ import type { DocumentConfig } from "@/lib/documents";
 import { saveDocument } from "@/lib/actions/document-actions";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { businessDate } from "@/lib/finance";
-import { formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 
 interface ProductOption extends CatalogPricing {
   id: string;
@@ -188,8 +188,8 @@ export function DocumentForm({
             {config.statusOptions
               .filter(
                 (s) =>
-                  config.headerTable !== "invoices" ||
-                  s.value === (record?.status ?? "brouillon"),
+                  (config.headerTable !== "invoices" || s.value === (record?.status ?? "brouillon")) &&
+                  (config.headerTable !== "sales_orders" || s.value !== "facturee" || record?.status === "facturee"),
               )
               .map((s) => (
                 <option key={s.value} value={s.value}>
@@ -198,7 +198,10 @@ export function DocumentForm({
               ))}
           </select>
         </Field>
-        {config.extraHeaderFields.map((f) => (
+        {config.dateField === "order_date" && record && (
+          <p className="text-sm text-slate-500">Créée le {formatDate(record.order_date)}</p>
+        )}
+        {config.extraHeaderFields.filter(f => f.name !== "order_date").map((f) => (
           <Field key={f.name} label={f.label} htmlFor={f.name}>
             <input
               id={f.name}

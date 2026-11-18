@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Card, Badge, LinkButton, CardSkeleton } from "@/components/ui";
+import { Card, Badge, CardSkeleton } from "@/components/ui";
 import { KpiCard } from "@/components/kpi-card";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { OrdersChart } from "@/components/dashboard/orders-chart";
@@ -11,8 +11,8 @@ import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { CapacityByWorkshop } from "@/components/dashboard/capacity-by-workshop";
 import { EmployeeKpi } from "@/components/dashboard/employee-kpi";
-import { OrdersSummary } from "@/components/dashboard/orders-summary";
-import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { StockAlerts } from "@/components/dashboard/stock-alerts";
+import { ActiveOrders } from "@/components/dashboard/active-orders";
 import { EmployeesSummary } from "@/components/dashboard/employees-summary";
 import { MyTasks } from "@/components/dashboard/my-tasks";
 import { AbsentColleaguesTasks } from "@/components/dashboard/absent-colleagues-tasks";
@@ -23,6 +23,7 @@ import { IconWallet, IconAlert, IconTrend, IconFactory, IconBox, IconCart, IconB
 
 const QUEUES: { name: QueueName; href: string; color: string }[] = [
   { name: "dtf", href: "/production/dtf", color: "#2563eb" },
+  { name: "flocage", href: "/production/flocage", color: "#0e7490" },
   { name: "broderie", href: "/production/broderie", color: "#7c3aed" },
   { name: "gros", href: "/production/gros", color: "#f59e0b" },
   { name: "ready", href: "/production/ready", color: "#10b981" },
@@ -50,12 +51,30 @@ function shortDay(iso: string) {
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" }).format(new Date(iso));
 }
 
-export default async function DashboardPage() {
-  const supabase = createClient();
+export default async function DashboardPage({ searchParams }: { searchParams: { page?: string } }) {
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
-  const firstName = (profile?.full_name ?? "").trim().split(" ")[0] || "là";
+  if (!profile?.is_active) return <p>Session inactive.</p>;
+  const requestedPage = Number(searchParams.page);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage < 1_000_000 ? requestedPage : 1;
+  const canCreate = ["admin", "manager", "sales", "accounting", "atelier"].includes(profile.role);
 
+  return (
+    <div className="space-y-6">
+      <h1 className="sr-only">Tableau de bord</h1>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Suspense fallback={<CardSkeleton height="h-24" />}><AlertsPanel /></Suspense>
+        <Suspense fallback={<CardSkeleton height="h-24" />}><StockAlerts /></Suspense>
+      </div>
+      <Suspense fallback={<CardSkeleton height="h-64" />}>
+        <ActiveOrders page={page} canCreate={canCreate} />
+      </Suspense>
+      <Suspense fallback={<CardSkeleton />}><DashboardDetails isAdmin={profile.role === "admin"} /></Suspense>
+    </div>
+  );
+}
+
+async function DashboardDetails({ isAdmin }: { isAdmin: boolean }) {
+  const supabase = createClient();
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -79,10 +98,8 @@ export default async function DashboardPage() {
     return { count: 0, error: result.reason };
   });
 
-  const [{ data: orderRows }, , { data: stockLevels }, { data: allOrders }, { data: employees }, { data: dailySales }] = await Promise.all([
+  const [{ data: orderRows }, { data: allOrders }, { data: employees }, { data: dailySales }] = await Promise.all([
     supabase.from("pipeline_orders").select("created_at,technique").gte("created_at", since14),
-    Promise.resolve(queueCounts),
-    supabase.from("product_stock_summary").select("product_id, stock_status").eq("is_active", true),
     supabase.from("pipeline_orders").select("id,assigned_to,status").not("status", "in", "(prete,livree)"),
     supabase.from("employees").select("id,first_name,last_name,department").eq("status", "actif"),
     supabase
@@ -158,13 +175,6 @@ export default async function DashboardPage() {
     revenueData = Array.from(revenueByDay.entries()).map(([day, total]) => ({ day: shortDay(day), total }));
   }
 
-  // product_stock_summary donne une ligne par article suivi et son état au
-  // regard du seuil (migration 0038). L'ancien décompte lisait
-  // product_stock_levels, un CROSS JOIN produits × entrepôts : chaque couple
-  // sans le moindre mouvement y apparaissait à 0 et gonflait le compteur de
-  // ruptures d'articles qui n'ont jamais été stockés dans cet entrepôt.
-  const lowStockProducts = (stockLevels ?? []).filter((row: any) => row.stock_status !== "ok");
-
   const ordersByDay = new Map(lastNDays(14).map((d) => [d, { dtf: 0, broderie: 0, gros: 0 }]));
   for (const o of orderRows ?? []) {
     const day = String((o as any).created_at).slice(0, 10);
@@ -206,37 +216,12 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      {/* 0. ALERTES EN PREMIER — POUR TOUS LES COMPTES */}
-      <div className="mb-6">
-        <Suspense fallback={<CardSkeleton height="h-24" />}>
-          <AlertsPanel />
-        </Suspense>
-      </div>
-
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Bonjour, {firstName} 👋</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Voici un aperçu de l&apos;activité Caractère aujourd&apos;hui.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm text-slate-600 dark:text-slate-300">
-            {new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(now)}
-          </span>
-          <LinkButton href="/production/new">+ Nouvelle commande</LinkButton>
-        </div>
-      </div>
-
       {/* 1. KPI PERSONNALISÉ */}
       <div className="mb-6">
         <Suspense fallback={<CardSkeleton height="h-24" />}>
           <EmployeeKpi />
         </Suspense>
       </div>
-
-      {/* 2. RÉSUMÉ DES COMMANDES */}
-      <Suspense fallback={<CardSkeleton height="h-24" className="mb-6" />}>
-        <OrdersSummary />
-      </Suspense>
 
       {/* 2.5. VENTES DU JOUR */}
       <div className="mb-6">
@@ -260,11 +245,6 @@ export default async function DashboardPage() {
           <AbsentColleaguesTasks />
         </Suspense>
       </div>
-
-      {/* 4. COMMANDES RÉCENTES */}
-      <Suspense fallback={<CardSkeleton height="h-64" className="mb-6" />}>
-        <RecentOrders limit={8} />
-      </Suspense>
 
       {/* Accès rapide aux modules */}
       <Card className="p-4 my-6">
@@ -307,7 +287,7 @@ export default async function DashboardPage() {
           <Card className="lg:col-span-3">
             <div className="p-5">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">Chiffre d&apos;affaires (mois)</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                 <KpiCard
                   label="Chiffre d'affaires (mois)"
                   value={formatMoney(revenueThisMonth)}
@@ -323,7 +303,6 @@ export default async function DashboardPage() {
                   icon={<IconTrend />}
                   hint={`${openOpportunitiesCount} opportunité(s) ouverte(s)`}
                 />
-                <KpiCard label="Stock à réapprovisionner" value={String(lowStockProducts.length)} tone="amber" icon={<IconBox />} hint="articles en rupture ou sous leur seuil" />
               </div>
             </div>
           </Card>
