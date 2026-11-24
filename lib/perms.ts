@@ -29,6 +29,7 @@ export const NAV: { href: string; label: string; cap: Cap; icon: string }[] = [
   { href: "/clients", label: "Clients", cap: "clients_view", icon: "users" },
   { href: "/ventes", label: "Ventes", cap: "sales", icon: "tag" },
   { href: "/commandes", label: "Commandes", cap: "orders_view", icon: "box" },
+  { href: "/booking", label: "Booking", cap: "orders_view", icon: "clipboard" },
   { href: "/atelier", label: "Atelier", cap: "workshop_view", icon: "tool" },
   { href: "/stock", label: "Stock", cap: "stock_view", icon: "layers" },
   { href: "/caisse", label: "Caisse", cap: "cash", icon: "cash" },
