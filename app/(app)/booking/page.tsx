@@ -2,7 +2,7 @@ import { requireMe } from "@/lib/auth";
 import { q } from "@/lib/erp";
 import { todayAlgiers } from "@/lib/format";
 import { LinkButton, PageHeader } from "@/components/ui";
-import { BookingBoard, type Booking } from "@/components/booking-board";
+import { BookingBoard, type Booking, type BookingOrder } from "@/components/booking-board";
 
 export const dynamic = "force-dynamic";
 
@@ -28,18 +28,28 @@ export default async function BookingPage({ searchParams }: { searchParams: { se
     return { name, date: toISO(d), label: fmt.format(d), isToday: toISO(d) === today };
   });
 
-  const rows = await q<Booking>(
-    me,
-    `select id, booking_date, client_name, phone, description, quantity, amount, status, notes
-       from erp.v_bookings where booking_date between $1 and $2 order by created_at`,
-    [days[0].date, days[6].date]
-  );
+  // Le planning affiche les vraies commandes, rangées par date promise.
+  const [orders, legacy] = await Promise.all([
+    q<BookingOrder>(
+      me,
+      `select id, ref, status, promised_date, client_name, client_phone, qty_total, total_ttc, balance, is_late, next_action
+         from erp.v_orders where promised_date between $1 and $2 order by created_at`,
+      [days[0].date, days[6].date]
+    ),
+    // Réservations saisies avant que Booking crée de vraies commandes.
+    q<Booking>(
+      me,
+      `select id, booking_date, client_name, phone, description, quantity, amount, status, notes
+         from erp.v_bookings where booking_date between $1 and $2 order by created_at`,
+      [days[0].date, days[6].date]
+    ),
+  ]);
 
   return (
     <div>
       <PageHeader
         title="Booking commandes"
-        subtitle={`Semaine du ${days[0].label} au ${days[6].label}`}
+        subtitle={`Commandes par date promise — semaine du ${days[0].label} au ${days[6].label}`}
         actions={
           <>
             <LinkButton href={`/booking?semaine=${toISO(addDays(start, -7))}`} variant="secondary">← Préc.</LinkButton>
@@ -48,7 +58,7 @@ export default async function BookingPage({ searchParams }: { searchParams: { se
           </>
         }
       />
-      <BookingBoard days={days} bookings={rows} canEdit={me.can("orders_edit")} showMoney={me.can("money_view")} />
+      <BookingBoard days={days} orders={orders} legacy={legacy} canEdit={me.can("orders_edit")} showMoney={me.can("money_view")} />
     </div>
   );
 }
