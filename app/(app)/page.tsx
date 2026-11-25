@@ -58,7 +58,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
     );
     currentOrders = (
       <Card key="o" title="Commandes en cours" actions={<Link href="/commandes" className="text-xs text-brand-700">Toutes</Link>}>
-        {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} />)}</div> : <Empty>Aucune commande en cours.</Empty>}
+        {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div> : <Empty>Aucune commande en cours.</Empty>}
       </Card>
     );
   }

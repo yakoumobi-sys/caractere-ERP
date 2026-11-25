@@ -34,7 +34,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
       <PageHeader title="Commandes" subtitle="De la confirmation à la livraison" actions={me.can("orders_edit") || me.can("payment_record") ? <><LinkButton href="/commandes/livraisons" variant="secondary">Livraisons</LinkButton><LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton></> : <LinkButton href="/commandes/livraisons" variant="secondary">Livraisons</LinkButton>} />
       <Tabs current={vue} items={Object.entries(VIEWS).map(([k, v]) => ({ key: k, label: v.label, href: `/commandes?vue=${k}`, count: counts[0]?.[k] }))} />
       <form className="mb-3"><input type="hidden" name="vue" value={vue} /><input name="q" defaultValue={term} placeholder="Client, téléphone, référence ou tracking" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
-      <div className="grid gap-2">{rows.map((o: any) => <OrderCard key={o.id} o={o} extra={x_rows[o.id]} showMoney={me.can("money_view")} />)}</div>
+      <div className="grid gap-2">{rows.map((o: any) => <OrderCard key={o.id} o={o} extra={x_rows[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div>
       {!rows.length && <Empty>Aucune commande dans cette vue.</Empty>}
     </div>
   );

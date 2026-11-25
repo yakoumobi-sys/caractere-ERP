@@ -49,27 +49,38 @@ export function OrderWorkButtons({ o, canWork, big }: { o: any; canWork: boolean
   );
 }
 
-export function OrderCard({ o, showMoney, extra }: { o: any; showMoney?: boolean; extra?: OrderExtra }) {
+export function OrderCard({ o, showMoney, extra, canWork }: { o: any; showMoney?: boolean; extra?: OrderExtra; canWork?: boolean }) {
+  const canFinish = canWork && ["confirmee", "en_production"].includes(o.status);
   return (
-    <Link href={`/commandes/${o.id}`} className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_1px_3px_rgba(30,20,80,0.06)] transition hover:border-brand-200 hover:shadow-md">
-      <Thumbs ids={extra?.photos} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate text-base font-semibold text-slate-900">{o.client_name}</span>
-          <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS[o.status]}</Badge>
-          {o.is_late && <Badge tone="red">En retard</Badge>}
-          {o.is_blocked && <Badge tone="red">Bloquée</Badge>}
-          {o.kind === "comptoir" && <Badge>Comptoir</Badge>}
+    <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)] transition hover:border-brand-200 hover:shadow-md">
+      <Link href={`/commandes/${o.id}`} className="flex gap-3 p-3">
+        <Thumbs ids={extra?.photos} size="h-24 w-24" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-lg font-bold leading-tight text-slate-900 sm:text-xl">{o.client_name}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS[o.status]}</Badge>
+            {o.is_late && <Badge tone="red">En retard</Badge>}
+            {o.is_blocked && <Badge tone="red">Bloquée</Badge>}
+            {o.kind === "comptoir" && <Badge>Comptoir</Badge>}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-slate-500">
+            <span className="font-mono">{o.ref}</span><span>· {o.qty_total} pièce(s)</span><span>· promis le {fdate(o.promised_date)}</span>
+            {showMoney && o.total_ttc !== null && <span>· {dzd(o.total_ttc)}{o.balance > 0 ? ` (reste ${dzd(o.balance)})` : ""}</span>}
+          </div>
+          <ArticlesList lines={extra?.lines} className="mt-1.5" />
+          {(o.blocked_reason || o.task_block_reasons || o.cancel_reason) && <div className="mt-1 text-xs text-red-700">Motif : {o.blocked_reason || o.task_block_reasons || o.cancel_reason}</div>}
+          <div className="mt-2"><NextAction>{o.next_action}</NextAction></div>
         </div>
-        <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-slate-500">
-          <span className="font-mono">{o.ref}</span><span>· {o.qty_total} pièce(s)</span><span>· promis le {fdate(o.promised_date)}</span>
-          {showMoney && o.total_ttc !== null && <span>· {dzd(o.total_ttc)}{o.balance > 0 ? ` (reste ${dzd(o.balance)})` : ""}</span>}
+      </Link>
+      {canFinish && (
+        <div className="border-t border-slate-100 px-3 py-2">
+          <ActionForm action={orderWorkAction} className="flex justify-end">
+            <input type="hidden" name="order_id" value={o.id} /><input type="hidden" name="do" value="finish" />
+            <SubmitButton className="!bg-emerald-600 hover:!bg-emerald-700" confirm={`Commande ${o.ref} (${o.client_name}) terminée ?`}>✓ Commande terminée</SubmitButton>
+          </ActionForm>
         </div>
-        <ArticlesList lines={extra?.lines} className="mt-1.5" />
-        {(o.blocked_reason || o.task_block_reasons || o.cancel_reason) && <div className="mt-1 text-xs text-red-700">Motif : {o.blocked_reason || o.task_block_reasons || o.cancel_reason}</div>}
-        <div className="mt-2"><NextAction>{o.next_action}</NextAction></div>
-      </div>
-    </Link>
+      )}
+    </div>
   );
 }
 

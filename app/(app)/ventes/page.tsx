@@ -26,7 +26,7 @@ export default async function Ventes({ searchParams }: { searchParams: { vue?: s
         <PageHeader title="Ventes" actions={<LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton>} />
         <Tabs items={tabs} current={vue} />
         <form className="mb-3 flex gap-2"><input className={inputCls} name="q" aria-label="Client ou référence" placeholder="Client ou référence" defaultValue={term} /><button className="text-sm text-brand-700">Rechercher</button></form>
-        <div className="grid gap-2">{orders.slice(0, 25).map(o => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} />)}</div>
+        <div className="grid gap-2">{orders.slice(0, 25).map(o => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div>
         {!orders.length && <Empty>Aucune commande trouvée.</Empty>}
         <nav className="mt-4 flex justify-between text-sm text-brand-700" aria-label="Pages des ventes">
           {page > 1 && <Link href={pageHref(page - 1)}>Précédent</Link>}
