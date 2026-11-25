@@ -8,7 +8,7 @@ import { LineEditor } from "@/components/line-editor";
 import { CounterSale } from "@/components/counter-sale";
 import { counterSale, createOrder } from "@/app/actions/orders";
 
-export default async function NewOrder({ searchParams }: { searchParams: { client?: string; mode?: string } }) {
+export default async function NewOrder({ searchParams }: { searchParams: { client?: string; mode?: string; date?: string } }) {
   const me = await requireMe("orders_view");
   const mode = searchParams.mode === "comptoir" || !me.can("orders_edit") ? "comptoir" : "commande";
   const tabs = [
@@ -27,6 +27,7 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
     catalog(me), setting(me, "default_deposit_pct"),
     searchParams.client ? one(me, "select id, name, phone from erp.v_clients where id = $1", [searchParams.client]) : null,
   ]);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date || "") ? searchParams.date : undefined;
   return (
     <div className="max-w-5xl">
       <PageHeader title="Nouvelle commande" subtitle="Commande directe au comptoir, sans devis préalable." />
@@ -35,10 +36,10 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
         <Card>
           <div className="grid gap-3">
             <Field label="Client *"><ClientPicker initial={client} /></Field>
-            <details>
+            <details open={!!date}>
               <summary className="cursor-pointer py-1 text-sm font-medium text-brand-700">Délai, acompte et livraison</summary>
               <div className="mt-2 grid gap-3 sm:grid-cols-3">
-                <Field label="Date promise"><input type="date" name="promised_date" className={inputCls} /></Field>
+                <Field label="Date promise"><input type="date" name="promised_date" defaultValue={date} className={inputCls} /></Field>
                 <Field label="Acompte (%)"><input name="deposit_pct" defaultValue={dep ?? 50} className={inputCls} /></Field>
                 <Field label="Livraison"><select name="delivery_mode" className={inputCls}><option value="retrait">Retrait à l'atelier</option><option value="yalidine">Expédition Yalidine</option></select></Field>
                 <Field label="Notes" className="sm:col-span-3"><input name="notes" className={inputCls} /></Field>
