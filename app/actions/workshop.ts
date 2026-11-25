@@ -67,6 +67,7 @@ export async function orderWorkAction(_: ActionResult, fd: FormData): Promise<Ac
     const a = s(fd, "do");
     if (a === "start") await rpc(me, "start_order", id);
     else if (a === "finish") await rpc(me, "finish_order", id);
+    else if (a === "complete") await rpc(me, "complete_order", id);
     else throw new Error("Action inconnue");
     refresh(fd);
     revalidatePath("/commandes");

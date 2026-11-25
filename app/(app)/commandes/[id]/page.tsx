@@ -90,8 +90,8 @@ export default async function OrderPage({ params, searchParams }: { params: { id
               </ul>
             </div>
             {o.notes && <p className="whitespace-pre-line rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{o.notes}</p>}
-            <OrderWorkButtons o={o} canWork={me.can("workshop_work")} big />
-            {o.status === "brouillon" && <p className="text-sm text-slate-500">Pour la lancer à l'atelier, confirmez d'abord la commande (plus bas).</p>}
+            <OrderWorkButtons o={o} canWork={me.can("workshop_work")} isManager={me.can("waive_deposit")} big />
+            {o.status === "brouillon" && !me.can("waive_deposit") && <p className="text-sm text-slate-500">Pour la lancer à l'atelier, confirmez d'abord la commande (plus bas).</p>}
             {o.status === "prete" && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-700">✓ Commande terminée : elle est prête.</p>}
           </div>
         </div>

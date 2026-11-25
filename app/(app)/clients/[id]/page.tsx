@@ -72,7 +72,7 @@ export default async function ClientPage({ params }: { params: { id: string } })
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title={`Commandes (${orders.length})`}>
-          {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div> : <Empty>Aucune commande.</Empty>}
+          {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} isManager={me.can("waive_deposit")} />)}</div> : <Empty>Aucune commande.</Empty>}
         </Card>
         <Card title="Relances" actions={null}>
           {followups.filter((f: any) => f.status === "a_faire").map((f: any) => <FollowupItem key={f.id} f={f} templates={tpl?.value || {}} me={me.fullName} />)}

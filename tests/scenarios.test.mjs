@@ -380,3 +380,13 @@ test("photos de commande et boutons Commencer / Terminer la commande", async () 
   await com.rpc("remove_order_photo", photo);
   assert.equal((await com.q("select * from erp.v_files where id = $1", [photo])).length, 0);
 });
+
+test("« Commande terminée » sur un brouillon : gérant seulement, sans paiement créé", async () => {
+  const { id } = await draftOrder([{ product_id: fx.polo, color: "Noir", sizes: { L: 1 }, unit_price: 1200 }], { deposit_pct: 50 });
+  await expectError(flo.rpc("complete_order", id), /seul le gérant/);
+  assert.equal(await g.rpc("complete_order", id), "prete");
+  const o = await g.one("select status, paid from erp.v_orders where id = $1", [id]);
+  assert.equal(o.status, "prete");
+  assert.equal(Number(o.paid), 0, "aucun paiement inventé");
+  assert.equal(await g.rpc("complete_order", id), "prete", "deuxième clic sans effet");
+});
