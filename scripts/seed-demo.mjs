@@ -124,9 +124,9 @@ const qs = await com("save_quote", { client_id: startup, title: "T-shirts évén
 await com("send_quote", qs);
 await sys("update erp.quotes set sent_at = now() - interval '5 days' where id = $1", [qs]);
 
-// 3. Commande 20 polos DTF+flocage en production : première pièce à valider
+// 3. Commande 20 polos en flocage, en production
 const club = await client(com, "Club Sportif Aïn Benian", "0555 12 34 56", { company: "CSAB", source: "instagram", wilaya: "Alger", commune: "Aïn Benian" });
-const o1 = await personalizedOrder(com, club, [{ product_id: pids["POLO-PIQ"], color: "Noir", sizes: { M: 10, L: 10 }, unit_price: 1200, services: ["dtf", "flocage"], service_price: 600, placement: "coeur", print_width_cm: 10 }]);
+const o1 = await personalizedOrder(com, club, [{ product_id: pids["POLO-PIQ"], color: "Noir", sizes: { M: 10, L: 10 }, unit_price: 1200, services: ["flocage"], service_price: 600, placement: "coeur", print_width_cm: 10 }]);
 const t1 = await runAll(o1, "flocage");
 await flo("start_task", t1.id);
 

@@ -128,8 +128,6 @@ test("défaut atelier : perte remplacée et tracée, reprise", async () => {
   const tasks = Object.fromEntries((await com.q("select id, step from erp.v_tasks where order_id = $1", [id])).map((x) => [x.step, x.id]));
   assert.deepEqual(Object.keys(tasks), ["flocage"], "une seule file : flocage");
   await flo.rpc("start_task", tasks.flocage);
-  await ctrl.rpc("validate_first_piece", tasks.flocage, false, "Flex décollé");
-  assert.equal((await flo.one("select next_action from erp.v_tasks where id = $1", [tasks.flocage])).next_action, "Refaire la première pièce");
   const before_ = await item(pool, "POLO-PIQ", "Noir", "L");
   await flo.rpc("report_defect", tasks.flocage, "L", 1, "Flex décollé", "perte");
   const after_ = await item(pool, "POLO-PIQ", "Noir", "L");
@@ -139,8 +137,6 @@ test("défaut atelier : perte remplacée et tracée, reprise", async () => {
   await flo.rpc("report_defect", tasks.flocage, "L", 1, "Placement décalé", "reprise");
   const d = await flo.q("select * from erp.v_defects where order_id = $1 order by at", [id]);
   assert.deepEqual(d.map((x) => [x.outcome, x.qty, x.staff_name]), [["perte", 1, "Amine Floqueur"], ["reprise", 1, "Amine Floqueur"]]);
-  await flo.rpc("resubmit_first_piece", tasks.flocage);
-  await ctrl.rpc("validate_first_piece", tasks.flocage, true, null);
   // blocage avec motif et personne à prévenir
   await flo.rpc("block_task", tasks.flocage, "Encre manquante pour retouche", IDS.gerant);
   const b = await g.one("select * from erp.v_tasks where id = $1", [tasks.flocage]);
@@ -365,4 +361,22 @@ test("transactions manuelles : solde, rejeu, droits et session fermée", async (
   await assert.rejects(flo.rpc("manual_cash_move", session, "entree", 10, "Test", "forbidden"), /refusé/i);
   await caisse.rpc("close_cash", opening + 1100, "");
   await assert.rejects(move("entree", 10, "closed"), /fermée/i);
+});
+
+test("photos de commande et boutons Commencer / Terminer la commande", async () => {
+  const { id } = await draftOrder([{ product_id: fx.polo, color: "Noir", sizes: { L: 1 }, unit_price: 1200, services: ["flocage"], service_price: 400 }]);
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const photo = await com.rpc("add_order_photo", id, "maquette.png", "image/png", png);
+  await expectError(com.rpc("add_order_photo", id, "x.pdf", "application/pdf", png), /images/);
+  const f = await flo.one("select * from erp.v_files where id = $1", [photo]);
+  assert.equal(f.kind, "photo");
+  assert.equal(f.storage, "db");
+  const d = await flo.one("select erp.file_data($1) d", [photo]);
+  assert.ok(d.d.length > 10, "l'atelier voit la photo");
+  await expectError(flo.rpc("start_order", id), /Confirmez/);
+  await com.rpc("confirm_order", id, null);
+  assert.equal(await flo.rpc("start_order", id), "en_production");
+  assert.equal(await flo.rpc("finish_order", id), "prete");
+  await com.rpc("remove_order_photo", photo);
+  assert.equal((await com.q("select * from erp.v_files where id = $1", [photo])).length, 0);
 });

@@ -59,3 +59,17 @@ export async function issueStock(_: ActionResult, fd: FormData): Promise<ActionR
     return q ? `${q} article(s) remis à l'atelier.` : "Rien à remettre (déjà remis ou en rupture).";
   });
 }
+
+// Commande entière : Commencer → en cours, Terminer → prête
+export async function orderWorkAction(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  return guard(async (me) => {
+    const id = s(fd, "order_id");
+    const a = s(fd, "do");
+    if (a === "start") await rpc(me, "start_order", id);
+    else if (a === "finish") await rpc(me, "finish_order", id);
+    else throw new Error("Action inconnue");
+    refresh(fd);
+    revalidatePath("/commandes");
+    return a === "start" ? "Commande en cours." : "Commande terminée : elle est prête.";
+  });
+}

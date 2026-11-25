@@ -1,3 +1,4 @@
+import { orderExtras } from "@/lib/order-extras";
 import Link from "next/link";
 import { requireMe } from "@/lib/auth";
 import { q } from "@/lib/erp";
@@ -18,13 +19,14 @@ export default async function Ventes({ searchParams }: { searchParams: { vue?: s
     const page = Math.max(1, Math.min(1000000, Math.trunc(Number(searchParams.page)) || 1));
     const orders = await q(me, `select * from erp.v_orders where $1 = '' or ref ilike $2 or client_name ilike $2
       order by created_at desc, id desc limit 26 offset $3`, [term, `%${term}%`, (page - 1) * 25]);
+    const x_orders = await orderExtras(me, orders.slice(0, 25).map((o: any) => o.id));
     const pageHref = (n: number) => `/ventes?q=${encodeURIComponent(term)}&page=${n}`;
     return (
       <div>
         <PageHeader title="Ventes" actions={<LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton>} />
         <Tabs items={tabs} current={vue} />
         <form className="mb-3 flex gap-2"><input className={inputCls} name="q" aria-label="Client ou référence" placeholder="Client ou référence" defaultValue={term} /><button className="text-sm text-brand-700">Rechercher</button></form>
-        <div className="grid gap-2">{orders.slice(0, 25).map(o => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div>
+        <div className="grid gap-2">{orders.slice(0, 25).map(o => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} />)}</div>
         {!orders.length && <Empty>Aucune commande trouvée.</Empty>}
         <nav className="mt-4 flex justify-between text-sm text-brand-700" aria-label="Pages des ventes">
           {page > 1 && <Link href={pageHref(page - 1)}>Précédent</Link>}

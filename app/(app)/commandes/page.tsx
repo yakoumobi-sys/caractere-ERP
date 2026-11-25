@@ -2,6 +2,7 @@ import { requireMe } from "@/lib/auth";
 import { q } from "@/lib/erp";
 import { Empty, LinkButton, PageHeader, Tabs } from "@/components/ui";
 import { OrderCard } from "@/components/cards";
+import { orderExtras } from "@/lib/order-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +28,13 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
   }
   const rows = await q(me, `select * from erp.v_orders where (${VIEWS[vue].where})${search} order by is_late desc, promised_date nulls last, created_at desc limit 200`, args);
   const counts = await q(me, `select ${Object.entries(VIEWS).map(([k, v]) => `count(*) filter (where ${v.where})::int as ${k}`).join(", ")} from erp.v_orders`);
+  const x_rows = await orderExtras(me, rows.map((o: any) => o.id));
   return (
     <div>
       <PageHeader title="Commandes" subtitle="De la confirmation à la livraison" actions={me.can("orders_edit") || me.can("payment_record") ? <><LinkButton href="/commandes/livraisons" variant="secondary">Livraisons</LinkButton><LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton></> : <LinkButton href="/commandes/livraisons" variant="secondary">Livraisons</LinkButton>} />
       <Tabs current={vue} items={Object.entries(VIEWS).map(([k, v]) => ({ key: k, label: v.label, href: `/commandes?vue=${k}`, count: counts[0]?.[k] }))} />
       <form className="mb-3"><input type="hidden" name="vue" value={vue} /><input name="q" defaultValue={term} placeholder="Client, téléphone, référence ou tracking" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
-      <div className="grid gap-2">{rows.map((o: any) => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div>
+      <div className="grid gap-2">{rows.map((o: any) => <OrderCard key={o.id} o={o} extra={x_rows[o.id]} showMoney={me.can("money_view")} />)}</div>
       {!rows.length && <Empty>Aucune commande dans cette vue.</Empty>}
     </div>
   );
