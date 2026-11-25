@@ -11,12 +11,17 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   const f = await one(me, "select * from erp.v_files where id = $1", [params.id]);
   if (!f) return new NextResponse("Introuvable ou non autorisé", { status: 404 });
   try {
-    const buf = await readStoredFile(f.storage, f.path);
+    let buf: Buffer;
+    if (f.storage === "db") {
+      const r = await one<{ d: Buffer | null }>(me, "select erp.file_data($1) d", [f.id]);
+      if (!r?.d) throw new Error("vide");
+      buf = r.d;
+    } else buf = await readStoredFile(f.storage, f.path);
     return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": f.mime || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(f.filename)}"`,
-        "Cache-Control": "private, no-store",
+        "Cache-Control": f.storage === "db" ? "private, max-age=86400, immutable" : "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
       },

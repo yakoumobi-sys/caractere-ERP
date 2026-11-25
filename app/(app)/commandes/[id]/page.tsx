@@ -10,13 +10,15 @@ import * as A from "@/app/actions/orders";
 import { issueStock } from "@/app/actions/workshop";
 import { dzd, fdate, ORDER_STATUS, ORDER_TONE, PAY_METHOD, PAY_STATUS, SERVICES, SHIP_STATUS, sizesText, STEP_LABEL, TASK_STATUS } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
+import { PhotoGallery, PhotoUploader } from "@/components/order-photos";
+import { OrderWorkButtons } from "@/components/cards";
 
 export const dynamic = "force-dynamic";
 
 const EVENT_LABEL: Record<string, string> = {
   creation: "Création", confirmation: "Confirmation", statut: "Statut", quantite: "Quantités", delai: "Délai", responsable: "Responsable", annulation: "Annulation",
   paiement: "Paiement", remboursement: "Remboursement", colis: "Colis", tracking: "Tracking", livraison_partielle: "Livraison partielle", incident: "Incident",
-  retour: "Retour", bat: "BAT", accord: "Accord", blocage: "Blocage", deblocage: "Déblocage", livraison: "Mode de remise", fidelite: "Fidélité", lignes: "Lignes",
+  retour: "Retour", photo: "Photo", bat: "BAT", accord: "Accord", blocage: "Blocage", deblocage: "Déblocage", livraison: "Mode de remise", fidelite: "Fidélité", lignes: "Lignes",
 };
 
 export default async function OrderPage({ params, searchParams }: { params: { id: string }; searchParams: { vente?: string } }) {
@@ -37,6 +39,7 @@ export default async function OrderPage({ params, searchParams }: { params: { id
     edit && o.status === "brouillon" && o.client_id ? q(me, "select * from erp.v_loyalty where client_id = $1 and benefit_status = 'disponible' and source_order_id <> $2", [o.client_id, o.id]) : [],
     q(me, "select l.id line_id, l.label, l.color, l.produced, l.qty, s.key size, erp.line_remaining(l.id, s.key) rem from erp.v_lines l, jsonb_each_text(l.sizes) s where l.order_id = $1 order by l.position, s.key", [o.id]),
   ]);
+  const photos = files.filter((f: any) => f.kind === "photo" && f.order_id === o.id).reverse();
   const personalized = lines.some((l: any) => l.services.length);
   const file = (id: string | null) => (id ? files.find((f: any) => f.id === id) : null);
   const shippable = remaining.filter((r: any) => r.rem > 0 && r.produced >= r.qty);
@@ -56,6 +59,44 @@ export default async function OrderPage({ params, searchParams }: { params: { id
         </span>}
         actions={o.status === "prete" && o.client_phone && o.delivery_mode === "retrait" ? <a href={waLink(o.client_phone, tpl)!} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white">Prévenir sur WhatsApp</a> : null}
       />
+      {/* Vue atelier : photos en grand, client, articles et boutons Commencer / Terminer */}
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)]">
+        <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-2">
+          <div>
+            {photos.length ? <PhotoGallery orderId={o.id} photos={photos} canEdit={edit} /> : (
+              <div className="grid h-56 place-items-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center text-sm text-slate-400">
+                <div><div className="text-4xl">👕</div>Aucune photo pour l'instant</div>
+              </div>
+            )}
+            {(edit || me.can("workshop_work")) && <div className="mt-3"><PhotoUploader orderId={o.id} label={photos.length ? "Ajouter d'autres photos" : "Ajouter des photos (maquette, logo…)"} /></div>}
+          </div>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm text-slate-500">Client</div>
+              <div className="text-2xl font-bold text-slate-900 sm:text-3xl">{o.client_name}</div>
+              <div className="mt-1 flex flex-wrap gap-2 text-sm text-slate-500"><span className="font-mono">{o.ref}</span><span>· promis le {fdate(o.promised_date)}</span><span>· {o.qty_total} pièce(s)</span></div>
+            </div>
+            <div>
+              <div className="mb-2 text-sm text-slate-500">Articles</div>
+              <ul className="space-y-2">
+                {lines.map((l: any) => (
+                  <li key={l.id} className="rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="text-lg font-semibold text-slate-900">{l.qty} × {l.label}</div>
+                    <div className="text-base text-slate-700">{l.color || "Couleur à confirmer"}</div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">{Object.entries(l.sizes || {}).map(([k, v]) => <span key={k} className="rounded-lg bg-white px-2.5 py-1 text-base font-semibold text-brand-700 ring-1 ring-brand-100">{k} : {String(v)}</span>)}</div>
+                    {l.services?.length > 0 && <div className="mt-1 text-sm text-slate-500">{l.services.map((x: string) => SERVICES[x] || x).join(" + ")}{l.placement ? ` · ${l.placement}` : ""}</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {o.notes && <p className="whitespace-pre-line rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{o.notes}</p>}
+            <OrderWorkButtons o={o} canWork={me.can("workshop_work")} big />
+            {o.status === "brouillon" && <p className="text-sm text-slate-500">Pour la lancer à l'atelier, confirmez d'abord la commande (plus bas).</p>}
+            {o.status === "prete" && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-700">✓ Commande terminée : elle est prête.</p>}
+          </div>
+        </div>
+      </section>
+
       <Card>
         <div className="mb-3"><NextAction>{o.next_action}</NextAction></div>
         <div className="grid gap-3 sm:grid-cols-4">

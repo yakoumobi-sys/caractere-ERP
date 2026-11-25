@@ -8,6 +8,7 @@ import { TaskActions } from "@/components/cards";
 import { assignTask, reportDefect, setPriority } from "@/app/actions/workshop";
 import { fdate, PLACEMENTS, SERVICES, sizesText, STATION_LABEL, STEP_LABEL, TASK_STATUS } from "@/lib/format";
 import { workerMe } from "@/lib/queries";
+import { PhotoGallery } from "@/components/order-photos";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,13 @@ export default async function TaskPage({ params }: { params: { id: string } }) {
     q(me, "select * from erp.v_machines where active order by kind, name"),
     t.bat_file_id ? one(me, "select * from erp.v_files where id = $1", [t.bat_file_id]) : null,
   ]);
+  const photos = await q(me, "select id, filename from erp.v_files where order_id = $1 and kind = 'photo' order by created_at", [t.order_id]);
   const placement = PLACEMENTS.find(([k]) => k === t.placement)?.[1] || t.placement;
   return (
     <div className="space-y-4">
       <PageHeader title={`${STEP_LABEL[t.step]} — ${t.order_ref}`}
         subtitle={<span className="flex flex-wrap items-center gap-2"><Badge tone={t.status === "bloquee" ? "red" : t.status === "terminee" ? "green" : "blue"}>{TASK_STATUS[t.status]}</Badge><span>{t.client_name}</span><span>· promis le {fdate(t.promised_date)}</span>{t.is_late && <Badge tone="red">En retard</Badge>}<Link href={`/commandes/${t.order_id}`} className="underline">commande</Link></span>} />
+      {photos.length > 0 && <Card title="Photos de la commande"><PhotoGallery orderId={t.order_id} photos={photos} canEdit={false} /></Card>}
       <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <Card title="Fiche atelier">
           <div className="grid gap-3 sm:grid-cols-2">

@@ -219,3 +219,27 @@ export async function applyBenefit(_: ActionResult, fd: FormData): Promise<Actio
     return "T-shirt caractérisé offert ajouté à la commande.";
   });
 }
+
+// Photos de la commande (images réduites dans le navigateur avant l'envoi)
+export async function addOrderPhotos(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  return guard(async (me) => {
+    const id = s(fd, "order_id");
+    const files = fd.getAll("photos").filter((f): f is File => typeof f !== "string" && f.size > 0);
+    if (!files.length) throw new Error("Choisissez au moins une photo.");
+    for (const f of files) {
+      const b64 = Buffer.from(await f.arrayBuffer()).toString("base64");
+      await rpc(me, "add_order_photo", id, f.name, f.type || "image/jpeg", b64);
+    }
+    refresh(id);
+    revalidatePath("/atelier");
+    return files.length > 1 ? `${files.length} photos ajoutées.` : "Photo ajoutée.";
+  });
+}
+
+export async function removeOrderPhoto(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  return guard(async (me) => {
+    await rpc(me, "remove_order_photo", s(fd, "file_id"));
+    refresh(s(fd, "order_id"));
+    return "Photo retirée.";
+  });
+}

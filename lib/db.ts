@@ -6,16 +6,24 @@ types.setTypeParser(20, (v) => (v === null ? null : parseInt(v, 10)));
 types.setTypeParser(1082, (v) => v);
 
 // DATABASE_URL, ou les variables posées par l'intégration Supabase de Vercel
-const url = (process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || "postgresql://postgres@127.0.0.1:54329/caractere")
-  .replace(/([?&])(sslmode|supa)=[^&]*/g, "$1")
+const rawUrl = (process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || "postgresql://postgres@127.0.0.1:54329/caractere")
+  .replace(/([?&])(sslmode|supa|pgbouncer)=[^&]*/g, "$1")
   .replace(/[?&]+$/, "")
   .replace(/\?&/, "?");
+// Sur Vercel, chaque fonction ouvre ses propres connexions : le mode « session » du pooler Supabase (port 5432)
+// plafonne à 15 clients et renvoie EMAXCONNSESSION. On passe en mode « transaction » (port 6543), prévu pour le serverless.
+// Toutes nos requêtes utilisateur tournent dans une transaction (set local), ce qui est compatible avec ce mode.
+export const url = process.env.VERCEL && /pooler\.supabase\.com:5432\b/.test(rawUrl) ? rawUrl.replace(/pooler\.supabase\.com:5432\b/, "pooler.supabase.com:6543") : rawUrl;
+const serverless = !!process.env.VERCEL;
 const g = globalThis as unknown as { __erpPool?: Pool };
 export const pool: Pool =
   g.__erpPool ??
   (g.__erpPool = new Pool({
     connectionString: url,
-    max: Number(process.env.DATABASE_POOL_MAX || 5),
+    max: Number(process.env.DATABASE_POOL_MAX || (serverless ? 3 : 5)),
+    idleTimeoutMillis: serverless ? 5_000 : 10_000,
+    connectionTimeoutMillis: 15_000,
+    allowExitOnIdle: serverless,
     ssl: /supabase\.(co|com)|pooler/.test(url) ? { rejectUnauthorized: false } : undefined,
   }));
 

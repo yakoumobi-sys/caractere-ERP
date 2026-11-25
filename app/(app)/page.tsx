@@ -8,6 +8,7 @@ import { OrderCard, TaskCard } from "@/components/cards";
 import { FollowupItem } from "@/components/followup";
 import { dzd, fdate, todayAlgiers } from "@/lib/format";
 import { myStations, TASK_ORDER, workerMe } from "@/lib/queries";
+import { orderExtras } from "@/lib/order-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
   let currentOrders;
   if (me.can("orders_edit")) {
     const orders = await q(me, `select * from erp.v_orders where ($1 or owner_id = $2) and status not in ('livree','retiree','annulee','retournee') order by is_late desc, promised_date nulls last, created_at limit 8`, [manager, me.staffId]);
+    const x_orders = await orderExtras(me, orders.map((o: any) => o.id));
     const incidents = await q(me, `select id, ref, status, refund_due from erp.v_orders where ($1 or owner_id = $2)
       and (status = 'retournee' or (status = 'annulee' and refund_due > 0)) order by created_at desc limit 5`, [manager, me.staffId]);
     if (incidents.length) blocks.unshift(
@@ -56,7 +58,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
     );
     currentOrders = (
       <Card key="o" title="Commandes en cours" actions={<Link href="/commandes" className="text-xs text-brand-700">Toutes</Link>}>
-        {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div> : <Empty>Aucune commande en cours.</Empty>}
+        {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div> : <Empty>Aucune commande en cours.</Empty>}
       </Card>
     );
   }
@@ -66,10 +68,11 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
     const tasks = await q(me, `select * from erp.v_tasks t where t.status in ('a_faire','en_cours','bloquee') and t.order_status in ('confirmee','en_production')
         and (t.assignee_id = $1 or (t.assignee_id is null and t.station = any($2)) or ($3 and t.first_piece_status = 'a_valider' and t.status = 'en_cours') or t.notify_staff_id = $1)
         ${TASK_ORDER} limit 40`, [me.staffId, stations, me.canValidateFirstPiece || manager]);
+    const x_tasks = await orderExtras(me, tasks.map((t: any) => t.order_id));
     const staff = await q(me, "select id, full_name from erp.v_staff where active order by full_name");
     blocks.push(
       <Card key="t" title={`Ma file atelier (${tasks.length})`} actions={<Link href="/atelier" className="text-xs text-brand-700">Tout l'atelier</Link>}>
-        {tasks.length ? <div className="grid gap-2">{tasks.map((t: any) => <TaskCard key={t.id} t={t} me={workerMe(me)} staff={staff} />)}</div> : <Empty>Aucune tâche pour vous.</Empty>}
+        {tasks.length ? <div className="grid gap-2">{tasks.map((t: any) => <TaskCard key={t.id} t={t} me={workerMe(me)} staff={staff} extra={x_tasks[t.order_id]} />)}</div> : <Empty>Aucune tâche pour vous.</Empty>}
       </Card>,
     );
   }

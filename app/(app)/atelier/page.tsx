@@ -4,6 +4,7 @@ import { Empty, PageHeader, Tabs } from "@/components/ui";
 import { TaskCard } from "@/components/cards";
 import { STATION_LABEL } from "@/lib/format";
 import { myStations, TASK_ORDER, workerMe } from "@/lib/queries";
+import { orderExtras } from "@/lib/order-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function Workshop({ searchParams }: { searchParams: { poste
     q(me, "select id, full_name from erp.v_staff where active order by full_name"),
     q(me, "select station, count(*)::int n from erp.v_tasks where status in ('a_faire','en_cours','bloquee') and order_status in ('confirmee','en_production') group by station"),
   ]);
+  const x_tasks = await orderExtras(me, tasks.map((t: any) => t.order_id));
   const c = Object.fromEntries(counts.map((r: any) => [r.station, r.n]));
   const tabs = [
     ...(mine.length ? [{ key: "moi", label: "Ma file", href: "/atelier?poste=moi" }] : []),
@@ -34,7 +36,7 @@ export default async function Workshop({ searchParams }: { searchParams: { poste
     <div>
       <PageHeader title="Atelier" subtitle="DTF, broderie et flocage — trié par délai promis puis ancienneté (priorité manuelle tracée)" />
       <Tabs items={tabs} current={poste} />
-      <div className="grid gap-2 lg:grid-cols-2">{tasks.map((t: any) => <TaskCard key={t.id} t={t} me={workerMe(me)} staff={staff} />)}</div>
+      <div className="grid gap-2 lg:grid-cols-2">{tasks.map((t: any) => <TaskCard key={t.id} t={t} extra={x_tasks[t.order_id]} me={workerMe(me)} staff={staff} />)}</div>
       {!tasks.length && <Empty>Aucune tâche dans cette file.</Empty>}
     </div>
   );

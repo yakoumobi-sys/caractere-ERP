@@ -11,6 +11,7 @@ import { addSimulation, createFollowup, logInteraction, updateClient } from "@/a
 import { createDeal } from "@/app/actions/sales";
 import { dzd, fdate, FOLLOWUP_REASON, DEAL_STAGES, PLACEMENTS } from "@/lib/format";
 import { waLink, fillTemplate } from "@/lib/whatsapp";
+import { orderExtras } from "@/lib/order-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function ClientPage({ params }: { params: { id: string } })
     one(me, "select value from erp.v_settings where key = 'whatsapp_templates'"),
     q(me, "select * from erp.v_files where client_id = $1 order by created_at desc", [c.id]),
   ]);
+  const x_orders = await orderExtras(me, orders.map((o: any) => o.id));
   const edit = me.can("clients_edit");
   const wa = waLink(c.phone, fillTemplate(tpl?.value?.autre || "Bonjour {prenom}", { prenom: c.name.split(" ")[0], commercial: me.fullName.split(" ")[0] }));
   const card = loyalty[0];
@@ -70,7 +72,7 @@ export default async function ClientPage({ params }: { params: { id: string } })
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title={`Commandes (${orders.length})`}>
-          {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} showMoney={me.can("money_view")} />)}</div> : <Empty>Aucune commande.</Empty>}
+          {orders.length ? <div className="grid gap-2">{orders.map((o: any) => <OrderCard key={o.id} o={o} extra={x_orders[o.id]} showMoney={me.can("money_view")} canWork={me.can("workshop_work")} />)}</div> : <Empty>Aucune commande.</Empty>}
         </Card>
         <Card title="Relances" actions={null}>
           {followups.filter((f: any) => f.status === "a_faire").map((f: any) => <FollowupItem key={f.id} f={f} templates={tpl?.value || {}} me={me.fullName} />)}
