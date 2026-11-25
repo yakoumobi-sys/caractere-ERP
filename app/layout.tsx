@@ -1,27 +1,12 @@
-import type { Metadata } from "next";
 import "./globals.css";
+import type { Metadata, Viewport } from "next";
 
-export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME || "Caractère ERP",
-  description: "ERP interne de Caractère — CRM, ventes, achats, stock, comptabilité.",
-};
-
-// Applique le thème sauvegardé avant le premier rendu, pour éviter un flash clair/sombre.
-const themeInitScript = `
-try {
-  var t = localStorage.getItem('theme');
-  if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    document.documentElement.classList.add('dark');
-  }
-} catch (e) {}
-`;
+export const metadata: Metadata = { title: "Caractère ERP", description: "ERP de l'atelier Caractère — Aïn Benian" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#6d28d9" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body>{children}</body>
     </html>
   );

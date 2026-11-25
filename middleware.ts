@@ -1,17 +1,17 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(request: NextRequest) {
-  return updateSession(request);
+// Rafraîchit la session Supabase Auth (mode production). En mode démo, ne fait rien.
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next({ request: req });
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.AUTH_MODE === "demo") return res;
+  const sb = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      getAll: () => req.cookies.getAll(),
+      setAll: (list: { name: string; value: string; options?: any }[]) => list.forEach(({ name, value, options }) => res.cookies.set(name, value, options)),
+    },
+  });
+  await sb.auth.getUser();
+  return res;
 }
-
-export const config = {
-  // /api/* est exclu : ces routes (webhooks/cron externes) s'authentifient
-  // elles-mêmes par secret partagé et n'ont pas de session utilisateur —
-  // les laisser passer par ce middleware les redirigerait vers /login avant
-  // même d'atteindre le handler (constaté en prod : 307 sur les deux appels
-  // externes après le déploiement du webhook site + du cron Yalidine).
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|carte|api/webhooks|api/cron|.*\\.(?:svg|png|jpg)$).*)"] };

@@ -1,29 +1,13 @@
 import type { Config } from "tailwindcss";
-
-const config: Config = {
-  darkMode: "class",
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+export default {
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1", // Indigo - Couleur principale Corporate Modern
-          600: "#4f46e5",
-          700: "#4338ca",
-          800: "#3730a3",
-          900: "#312e81",
-        },
+        brand: { 50: "#f5f3ff", 100: "#ede9fe", 200: "#ddd6fe", 500: "#7c3aed", 600: "#6d28d9", 700: "#5b21b6", 900: "#2e1065" },
+        night: { 800: "#1c1838", 900: "#15122b", 950: "#0f0c22" },
       },
     },
   },
   plugins: [],
-};
-export default config;
+} satisfies Config;

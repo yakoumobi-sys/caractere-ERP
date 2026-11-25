@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+module.exports = {
   reactStrictMode: true,
+  experimental: { serverComponentsExternalPackages: ["pg"], serverActions: { bodySizeLimit: "8mb" } },
 };
-
-module.exports = nextConfig;

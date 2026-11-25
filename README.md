@@ -1,241 +1,55 @@
 # Caractère ERP
 
-> Évolution octobre 2026 : factures liées aux commandes atelier, avances imputées sans double encaissement, priorités atelier, segments CRM et clôture de caisse. Voir [l’audit et le guide de mise en service](docs/AUDIT_CARACTERE_ERP_2026-10.md) pour les changements, tests et limites.
+ERP interne de l'atelier de personnalisation textile **Caractère** (Aïn Benian) : ce qu'il faut **vendre, produire, expédier, relancer ou encaisser aujourd'hui**, en français, sur téléphone.
 
+Parcours : Prospect → Simulation du logo → Devis → Accord + acompte → Production ou préparation → Contrôle → Livraison → Fidélité et relance. Une commande garde **la même référence du devis au bon de livraison**. Six modules : **Clients, Ventes, Commandes, Atelier, Stock, Caisse**, plus l'accueil **Aujourd'hui** et la recherche (téléphone, nom, référence, tracking).
 
-ERP interne pour **Caractère** — CRM, ventes & facturation, achats, stock et comptabilité de base,
-construit avec Next.js 14 (App Router), TypeScript, Tailwind CSS et Supabase (Postgres + Auth + RLS).
+Stack : Next.js 14 (App Router, server actions) + TypeScript + Tailwind · Supabase Postgres / Auth / Storage · Vercel. Montants en DZD, fuseau Africa/Algiers.
 
-## Design
+## Lancer la démo (5 minutes, sans compte Supabase)
 
-Palette violette (`brand-*` dans `tailwind.config.ts`), navigation latérale à sections repliables
-avec icônes, mode sombre (bouton en bas de la sidebar, mémorisé en local sur l'appareil). Le
-tableau de bord reprend les codes d'un dashboard SaaS moderne (salutation, cartes KPI à pastille
-colorée, accès rapide aux modules, graphique CA, donut de répartition de la production, fil
-d'activité en temps réel) — construit avec les vraies données de l'ERP, pas des chiffres de
-démonstration.
-
-Le mode sombre couvre la coquille de l'app (sidebar, barre du haut), les composants partagés
-(`components/ui.tsx` : cartes, boutons, badges, champs) et les listes génériques/documents/files de
-production. Quelques pages plus spécifiques (rapports comptables, journal, présences, fiche
-détail commande/employé) n'ont pas encore leurs propres classes `dark:` et resteront à fond clair
-même en mode sombre — à étendre si besoin.
-
-## Modules
-
-| Module | État | Contenu |
-|---|---|---|
-| Suivi de production | ✅ Complet | Parcours réel de la commande : Réception WhatsApp → Commercial → Atelier DTF/Broderie → Flocage → retour Commercial → Client. Kanban, assignation par employé/département, historique horodaté ("depuis quand"), statut auto (en cours/livré) |
-| CRM | ✅ Complet | Contacts (clients/prospects/fournisseurs), opportunités (pipeline kanban), historique d'activités |
-| Ventes & Facturation | ✅ Complet | Devis → Commande → Facture → Paiement, numérotation auto, comptabilisation auto |
-| Achats | ✅ Complet | Fournisseurs, commandes fournisseurs, réception avec entrée de stock automatique |
-| Stock | ✅ Complet | Produits, catégories, entrepôts, journal des mouvements, niveaux calculés, alertes de rupture |
-| Comptabilité | ✅ Base fonctionnelle | Plan comptable, journal (écritures auto + saisie manuelle équilibrée), balance & résultat |
-| RH | 🚧 Socle | Fiches employés (CRUD) — congés, paie à ajouter |
-| Projets | 🚧 Socle | Suivi de projets liés aux clients (CRUD) — tâches, temps passé à ajouter |
-| Point de vente | ⏳ À venir | Non démarré |
-
-Le cœur technique (auth, rôles, base de données, sécurité RLS, comptabilisation automatique) est
-posé pour l'ensemble de l'ERP : ajouter un nouveau module consiste à ajouter une table + une
-configuration d'écran plutôt qu'à reconstruire l'infrastructure.
-
-## Stack technique
-
-- **Next.js 14** (App Router, Server Actions, Server Components)
-- **Supabase** : Postgres, Auth (email/mot de passe), Row Level Security
-- **TypeScript**, **Tailwind CSS**
-- Comptabilisation et mouvements de stock automatisés par **triggers Postgres** (voir
-  `supabase/migrations/0002_functions_triggers.sql`) — au plus près du modèle des ERP historiques
-  (la base de données garantit la cohérence, pas seulement l'application).
-
-## Démarrage
-
-### 1. Créer le projet Supabase
-
-1. Créer un projet sur [supabase.com](https://supabase.com).
-2. Appliquer les migrations : `DATABASE_URL=<chaîne Session pooler> npm run db:migrate` (le script
-   `scripts/db-migrate.mjs` tient son registre dans `public.schema_migrations_repo` et n'applique que
-   ce qui manque ; `npm run db:check` liste ce qui n'est pas encore passé). En production, le workflow
-   `db-migrate` le fait à chaque merge sur `main` — il a besoin du secret Actions `DATABASE_URL`, au
-   format Session pooler (`postgresql://postgres.<ref>:<mdp>@aws-0-<région>.pooler.supabase.com:5432/postgres`).
-   Puis exécuter `supabase/seed.sql` dans le SQL Editor.
-
-   La chaîne est vérifiée : elle se rejoue intégralement sur une base vierge, de 0001 à la dernière.
-   Un environnement neuf s'obtient donc avec cette seule commande.
-3. Dans **Project Settings → API**, récupérer l'URL du projet et la clé `anon public`.
-
-### 1 bis. Base déjà construite (reprise)
-
-Une base montée avant que les migrations ne soient suivies par le dépôt possède déjà la plupart des
-objets, mais son registre est vide : `npm run db:migrate` tenterait alors de rejouer `0001` et
-échouerait sur « type user_role already exists ». Les migrations qui restructurent une table (0006
-remplace la colonne `stage` de `pipeline_orders` par `status`) ne peuvent de toute façon pas être
-rejouées sur le schéma d'arrivée.
-
-On amorce donc le registre jusqu'à la dernière migration que la base possède déjà, puis on applique
-le reste :
+Prérequis : Node 20+, PostgreSQL 14+ installé localement (binaires `initdb`/`pg_ctl` dans le PATH ou `PG_BIN=/chemin/bin`).
 
 ```bash
-# Le registre considère 0001..0037 comme appliquées, sans rien exécuter,
-# et annonce ce qui reste.
-DATABASE_URL=<chaîne Session pooler> npm run db:baseline -- --upto 0037
-
-# Applique uniquement les migrations postérieures.
-DATABASE_URL=<chaîne Session pooler> npm run db:migrate
-```
-
-`npm run db:baseline` sans `--upto` marque **tout** comme appliqué, y compris ce que la base n'a pas
-encore : à ne lancer que sur une base réellement à jour.
-
-Pour savoir où placer la borne, comparer les tables présentes avec ce que chaque migration crée —
-`npm run db:check` liste les migrations absentes du registre, pas celles absentes de la base.
-
-### 2. Configurer l'application
-
-```bash
-cp .env.example .env.local
-# renseigner NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm install
-npm run dev
+npm run db:reset      # crée la base locale (port 54329), applique les migrations, charge les données fictives, écrit .env.local
+npm run dev           # http://localhost:3000 → choisir un profil
 ```
 
-Ouvrir [http://localhost:3000](http://localhost:3000) → tu es redirigé vers `/login`.
+Profils de démo : Karim (gérant), Sara et Mehdi (commerciaux), Nadia (caisse), Yanis (infographiste), Amine (floqueur), Lina (contrôle + magasin, habilitée 1re pièce), Samir (brodeur). Pour montrer à l'équipe : `npm run build && npm start`.
 
-### 3. Premier compte
+## Mise en production (Supabase + Vercel)
 
-Clique sur **"Premier lancement ? Créer le compte administrateur"** : le tout premier utilisateur
-créé devient automatiquement `admin` (voir le trigger `handle_new_user` dans la migration 0002).
-Les comptes suivants sont créés en rôle `readonly` par défaut — à changer depuis
-**Paramètres → Utilisateurs**.
+1. **Supabase** : créer le projet, puis appliquer les migrations : `DATABASE_URL=<Session pooler> npm run db:migrate`. Elles créent le schéma `erp` sans toucher aux tables existantes (`public.*` de l'ancien ERP) ; la migration 0007 reprend les anciens contacts `public.contacts` en clients, sans doublon. Ne **pas** exposer le schéma `erp` dans l'API REST Supabase : l'application y accède côté serveur.
+2. **Storage** : créer un bucket **privé** `erp-prive` (logos, BAT, preuves d'accord). Les fichiers ne sont servis que par `/api/files/:id`, après contrôle des droits.
+3. **Équipe** : créer le premier gérant en SQL (SQL Editor Supabase) :
+   `insert into erp.staff(full_name, email, roles, can_validate_first_piece) values ('Nom', 'gerant@…', '{gerant}', true);`
+   puis créer son compte dans Supabase Auth (même e-mail) : il est rattaché à la première connexion. Les autres membres s'ajoutent dans **Réglages**.
+4. **Vercel** : importer le dépôt, renseigner les variables de `.env.example` (`AUTH_MODE=supabase`). Le cron `/api/cron/yalidine` (quotidien sur le plan gratuit) synchronise les colis si les clés Yalidine sont fournies.
 
-### 4. Warehouse & plan comptable
+## Import CSV
 
-Le fichier `supabase/seed.sql` crée un entrepôt par défaut et un plan comptable simplifié
-(comptes 411, 706, 4457, 512...) nécessaires à la comptabilisation automatique des factures et
-paiements. Sans ces comptes, les factures se valident mais aucune écriture n'est générée
-(un message est simplement affiché dans les logs Postgres).
+Clients (`/clients/import`) et stock (`/stock/import`) : fichier `;` ou `,`, aperçu avant import, numéros normalisés (+213), doublons (fichier et base) et lignes invalides signalés puis ignorés. Modèles : `public/modeles/clients.csv`, `public/modeles/stock.csv`.
 
-### 5. Équipe & parcours de commande
+## Tests
 
-`supabase/seed.sql` crée aussi les fiches RH de l'équipe (Lilia, Lydia, Kholoud, Abderahmane,
-Hafid, Imene, Nesro, Manel, Ikram, Hanane, Aymen) rattachées à leur département, utilisées pour
-l'assignation dans **Suivi de production**.
-
-## Suivi de production
-
-Le module central de Caractère. Le commercial configure la commande en **3 étapes rapides**
-(`/production/new`) :
-
-1. **Client** — choisir un client existant ou en créer un nouveau directement (nom + téléphone),
-   sans quitter le formulaire.
-2. **Article** — vêtement, couleur, taille, quantité (lignes ajoutables).
-3. **Impression** — DTF / Broderie / Rien (commande gros). Si DTF ou Broderie : emplacement du
-   logo (Coeur, Coeur + dos, Dos, Poitrine, Spécial), où le récupérer (WhatsApp/Viber/Email — ou
-   upload direct du fichier).
-
-Ce choix route automatiquement la commande dans la bonne file :
-
-```
-                    ┌─────────────┐
-     technique DTF  │ File DTF    │ opérateur "prend" → "imprimée"
-        ┌──────────▶│ attente_dtf │──────────────────────────────┐
-        │           └─────────────┘                              │
-Configurateur       ┌─────────────────┐                          │
-commercial          │ File Broderie   │─── "terminée" ───┐        │
-        ├──────────▶│ attente_broderie│                   │       │
-        │           └─────────────────┘                   ▼       ▼
-        │           ┌─────────────────┐            ┌──────────────────┐
-        └──────────▶│ Commande gros   │─"terminée"─▶│ Commandes prêtes │──▶ Livrée
-technique "Rien"     │ attente_gros    │            │      prete       │   (commercial)
-                     └─────────────────┘            └──────────────────┘
+```bash
+npm test                                   # 16 scénarios métier sur une vraie base PostgreSQL (caractere_test)
+npm run build && npm start &               # puis, base de démo fraîche (npm run db:reset) :
+npm run test:e2e                           # parcours navigateur, mobile (Pixel 7) et bureau
 ```
 
-Certaines commandes DTF n'ont pas besoin de flocage (impression seule) : il n'y a donc plus
-d'étape de flocage forcée après l'impression — une fois imprimée, la commande passe directement
-à "prête".
+`npm test` couvre : 20 polos DTF + flocage (deux tailles, acompte, double clic, première pièce, contrôle croisé, facture, BL, Yalidine COD, événements en double et hors ordre, carte Privilège, reversement rapproché, clôture de caisse, visibilité par rôle), vente comptoir, devis sans réponse, refus marketing, rupture + achat + réception, défaut atelier, annulation après acompte, modification de quantité, livraison partielle, règles du T-shirt caractérisé et de laize, droits en base, documents figés, caisse et corrections, imports CSV, reprise de l'ancien ERP.
+En CI, définir `TEST_DATABASE_URL` (voir `.github/workflows/ci.yml`). Si Playwright ne trouve pas son navigateur : `npx playwright install chromium` ou `PW_CHROMIUM=/chemin/chrome`.
 
-- Chaque changement de statut journalise **qui** (l'employé qui a cliqué) et **quand**
-  (`pipeline_stage_log`) → affiché comme "depuis 2h", "depuis 3j" sur chaque commande.
-- Cliquer sur "Prendre la commande" assigne automatiquement l'employé connecté (si son compte est
-  lié à sa fiche RH) et fait avancer le statut — sinon la fiche détail permet une correction
-  manuelle (statut + assignation).
-- Toute la logique de statut/transition/libellé de bouton vit dans `lib/pipeline.ts`
-  (`STATUS_DEFS`) — un seul endroit à modifier si le parcours évolue.
-- Comptes employés : dans **RH → Employés**, le champ "Compte utilisateur lié" rattache la fiche
-  RH d'un employé au compte qu'il utilise pour se connecter (créé via `/login?mode=signup`, rôle
-  à passer sur `atelier` ensuite dans **Paramètres → Utilisateurs**). Chaque fiche employé affiche
-  ses **KPI** (actions des 14 derniers jours, graphique, commandes traitées) et ses **fautes**
-  signalées (mineure/majeure), avec formulaire d'ajout.
-- Chaque employé a une **couleur** (`RH → Employés → Couleur`, palette de 12 teintes). Tant qu'une
-  commande est assignée à quelqu'un, sa carte (dans les files DTF/Broderie/Gros/Prêtes et sur sa
-  fiche détail) prend un liseré de sa couleur, avec un point coloré à côté de son nom — repérage
-  instantané de qui a quoi, sans avoir à lire le texte.
+## Architecture et sécurité
 
-## Présences (pointage)
+- `supabase/migrations/` : schéma `erp`, logique métier en fonctions PostgreSQL **transactionnelles** (verrous de ligne, clés d'idempotence) : confirmation, réservations, paiements, documents, colis. Double clic et accès simultanés ne créent ni doublon ni réservation en trop.
+- Droits par poste **en base** : les rôles n'ont accès à aucune table ; ils lisent des vues filtrées (lignes et colonnes) et écrivent via des fonctions qui vérifient `erp.can()`. Montants, caisse et coûts masqués à l'atelier. La matrice est dans `erp.role_can` (miroir d'affichage : `lib/perms.ts`).
+- Le serveur Next.js ouvre chaque requête avec `set local role authenticated` et les claims de l'utilisateur, comme PostgREST.
+- Documents émis figés (trigger) ; une correction crée une nouvelle version, l'ancienne est conservée.
+- Yalidine : création de colis via API (facultative), saisie manuelle, webhook `/api/webhooks/yalidine` et synchronisation planifiée ; les événements sont idempotents et tolérants au désordre.
 
-Chaque connexion ouvre une ligne dans `time_logs` (heure de début) ; chaque déconnexion la ferme
-(heure de fin). Consultable dans **RH → Présences** : employé, date, début, fin, durée. Un
-utilisateur ne voit que ses propres pointages ; `admin` et `hr` voient tout le monde.
+## Paramètres à renseigner (Réglages)
 
-⚠️ Limite connue : fermer l'onglet/le navigateur sans cliquer "Déconnexion" laisse la session
-ouverte ("en cours") jusqu'à la prochaine connexion, qui la referme automatiquement avant d'en
-ouvrir une nouvelle — la durée de cette session-là ne sera donc pas fiable.
-
-## Devise
-
-Tous les montants sont affichés en **dinar algérien (DZD)** via `formatMoney()` (`lib/utils.ts`).
-
-## Confidentialité du chiffre d'affaires
-
-Le tableau de bord n'affiche le chiffre d'affaires, les factures impayées, le pipeline commercial
-et les derniers devis qu'aux comptes de rôle `admin`. Les autres rôles voient uniquement les
-indicateurs opérationnels (commandes en production, ruptures de stock, graphique des commandes par
-technique). Cette restriction ne vit que sur le tableau de bord — les pages Ventes/Comptabilité
-elles-mêmes restent accessibles à tout utilisateur actif non `readonly` (RLS, `0003_rls.sql`) ; à
-resserrer séparément si besoin.
-
-## Rôles
-
-`admin`, `manager`, `sales`, `purchasing`, `accounting`, `stock`, `hr`, `atelier`, `readonly`.
-
-- Tout utilisateur actif peut lire l'ensemble des données (application interne mono-société).
-- L'écriture est bloquée pour le rôle `readonly`.
-- Le plan comptable et le journal comptable ne sont modifiables que par `admin` / `accounting`.
-- La fiche société et la gestion des rôles utilisateurs sont réservées à `admin`.
-
-Voir `supabase/migrations/0003_rls.sql` pour le détail des policies.
-
-## Comptes de l'équipe
-
-Chaque employé du seed se connecte avec `prenom@caractere.com` (ex: `lilia@caractere.com`) et
-le mot de passe initial **`123456`** — à faire changer par chacun dès que possible (rôle par
-défaut : `readonly`, à ajuster dans **Paramètres → Utilisateurs**). Voir
-`supabase/migrations/0016_fix_employee_accounts_and_rls.sql` pour le détail : cette migration
-corrige un état incohérent où ces comptes n'avaient en réalité jamais été créés en base (seul le
-compte admin fonctionnait), où une vingtaine de fiches employé en double/test polluaient la table,
-et où 5 tables métier étaient exposées en lecture/écriture publique faute de policy RLS.
-
-## Automatisations métier (triggers Postgres)
-
-- **Numérotation** : `DEV-2026-0001`, `CMD-2026-0001`, `FAC-2026-0001`, `BC-2026-0001`.
-- **Totaux** : recalculés automatiquement à chaque ajout/modification/suppression de ligne.
-- **Facture validée** → écriture comptable (Client / Vente / TVA collectée) + sortie de stock des
-  produits suivis.
-- **Paiement enregistré** → écriture comptable (Banque / Client), mise à jour du solde et passage
-  au statut "payée" si le solde est nul.
-- **Commande fournisseur marquée "reçue"** → entrée de stock automatique sur l'entrepôt par défaut.
-- **Écriture manuelle** : un contrôle bloque toute écriture dont débit ≠ crédit.
-
-## Déploiement
-
-Le projet est prêt pour [Vercel](https://vercel.com) : connecter le repo, renseigner les variables
-d'environnement (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) et déployer.
-
-## Roadmap suggérée
-
-1. RH : congés, notes de frais, plannings.
-2. Projets : tâches, temps passé, facturation au temps passé.
-3. Point de vente (POS) pour la vente en boutique.
-4. Export PDF des devis/factures, envoi par email.
-5. Rapprochement bancaire, export FEC (obligation légale française).
-6. Multi-entrepôts avancé (transferts, inventaires tournants).
+Identité légale (raison sociale, NIF, NIS, RC, AI, RIB, mentions), taux et application de la TVA, préfixes de numérotation, conditions d'acompte, délais, photo du T-shirt caractérisé, laize réelle des machines, équipe et habilitations « première pièce ». Côté intégrations : clés et secret webhook Yalidine, bucket Storage, `CRON_SECRET`.
