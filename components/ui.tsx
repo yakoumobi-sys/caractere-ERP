@@ -1,153 +1,118 @@
 import Link from "next/link";
-import { cx } from "@/lib/utils";
+import clsx from "clsx";
+import type { ReactNode } from "react";
 
-export function Button({
-  children,
-  variant = "primary",
-  className,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold px-4 py-2.5 transition-all active:scale-[0.95] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100";
-  const variants = {
-    primary: "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/40 hover:shadow-xl hover:shadow-indigo-600/50 hover:from-indigo-700 hover:to-blue-700",
-    secondary: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700",
-    danger: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50",
-    ghost: "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
-  };
+export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <button className={cx(base, variants[variant], className)} {...props}>
-      {children}
-    </button>
-  );
-}
-
-export function LinkButton({
-  href,
-  children,
-  variant = "primary",
-  className,
-}: {
-  href: string;
-  children: React.ReactNode;
-  variant?: "primary" | "secondary";
-  className?: string;
-}) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold px-4 py-2.5 transition-all active:scale-[0.95]";
-  const variants = {
-    primary: "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-600/40 hover:shadow-xl hover:shadow-indigo-600/50 hover:from-indigo-700 hover:to-blue-700",
-    secondary: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700",
-  };
-  return (
-    <Link href={href} className={cx(base, variants[variant], className)}>
-      {children}
-    </Link>
-  );
-}
-
-export const inputClass =
-  "w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/30";
-
-export function Field({
-  label,
-  htmlFor,
-  required,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700 dark:text-slate-300">
-        {label}
-        {required && <span className="text-red-500"> *</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-export function Badge({
-  children,
-  tone = "slate",
-}: {
-  children: React.ReactNode;
-  tone?: "slate" | "green" | "amber" | "red" | "blue";
-}) {
-  const tones = {
-    slate: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
-    green: "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
-    amber: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300",
-    red: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300",
-    blue: "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300",
-  };
-  return (
-    <span className={cx("inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold", tones[tone])}>
-      {children}
-    </span>
-  );
-}
-
-export function PageHeader({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
-        {description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">{title}</h1>
+        {subtitle && <div className="mt-0.5 text-sm text-slate-500">{subtitle}</div>}
       </div>
-      {action}
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
   );
 }
 
-export function Card({
-  children,
-  className,
-  style,
-  glass = false,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-  glass?: boolean;
-}) {
-  const baseClass = glass
-    ? "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-shadow"
-    : "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-lg transition-shadow";
-
+export function Card({ title, actions, children, className, id }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <div className={cx(baseClass, className)} style={style}>
+    <section id={id} className={clsx("rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)]", className)}>
+      {(title || actions) && (
+        <header className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4 pb-1">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          {actions}
+        </header>
+      )}
+      <div className="px-5 pb-5 pt-3">{children}</div>
+    </section>
+  );
+}
+
+const TONES: Record<string, string> = {
+  gray: "bg-slate-100 text-slate-700", blue: "bg-blue-50 text-blue-700", violet: "bg-brand-50 text-brand-700", green: "bg-emerald-50 text-emerald-700",
+  amber: "bg-amber-50 text-amber-800", red: "bg-red-50 text-red-700",
+};
+export function Badge({ tone = "gray", children }: { tone?: string; children: ReactNode }) {
+  return <span className={clsx("inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium", TONES[tone] || TONES.gray)}>{children}</span>;
+}
+
+export function Progress({ label, value, tone = "violet" }: { label: string; value: number; tone?: string }) {
+  const c = tone === "green" ? "bg-emerald-500" : tone === "amber" ? "bg-amber-500" : tone === "blue" ? "bg-blue-500" : "bg-brand-500";
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-slate-500"><span>{label}</span><span>{Math.round(value)} %</span></div>
+      <div className="mt-1 h-2 rounded-full bg-slate-100"><div className={clsx("h-2 rounded-full", c)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} /></div>
+    </div>
+  );
+}
+
+export function NextAction({ children }: { children: ReactNode }) {
+  if (!children) return null;
+  return <div className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 text-sm font-medium text-brand-700">→ {children}</div>;
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="py-4 text-center text-sm text-slate-400">{children}</p>;
+}
+
+export function LinkButton({ href, children, variant = "primary", className }: { href: string; children: ReactNode; variant?: "primary" | "secondary" | "ghost"; className?: string }) {
+  return <Link href={href} className={clsx(btn(variant), className)}>{children}</Link>;
+}
+
+export function btn(variant: "primary" | "secondary" | "ghost" | "danger" = "primary") {
+  return clsx(
+    "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+    variant === "primary" && "bg-brand-600 text-white hover:bg-brand-700",
+    variant === "secondary" && "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+    variant === "ghost" && "text-brand-700 hover:bg-brand-50",
+    variant === "danger" && "border border-red-200 bg-white text-red-700 hover:bg-red-50",
+  );
+}
+
+export const inputCls = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+export function Field({ label, children, hint, className }: { label: string; children: ReactNode; hint?: ReactNode; className?: string }) {
+  return (
+    <label className={clsx("block", className)}>
+      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
+    </label>
+  );
+}
+
+export function Stat({ label, value, href, tone }: { label: string; value: ReactNode; href?: string; tone?: string }) {
+  const inner = (
+    <div className={clsx("rounded-2xl border bg-white p-3 shadow-[0_1px_3px_rgba(30,20,80,0.06)]", tone === "red" ? "border-red-200" : tone === "amber" ? "border-amber-200" : "border-slate-200")}>
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className={clsx("mt-1 text-xl font-semibold", tone === "red" ? "text-red-700" : tone === "amber" ? "text-amber-700" : "text-slate-900")}>{value}</div>
+    </div>
+  );
+  return href ? <Link href={href}>{inner}</Link> : inner;
+}
+
+export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
+  return (
+    <div className="-mx-4 overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead><tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">{head.map((h, i) => <th key={i} className="whitespace-nowrap px-4 py-2 font-medium">{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-100">{children}</tbody>
+      </table>
     </div>
   );
 }
-
-export function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="flex items-center justify-center py-16 text-sm text-slate-400 dark:text-slate-500">{message}</div>
-  );
+export function Td({ children, className }: { children?: ReactNode; className?: string }) {
+  return <td className={clsx("px-4 py-2 align-top", className)}>{children}</td>;
 }
 
-/**
- * Squelette de chargement — utilisé comme fallback de <Suspense> pour les
- * sections qui vont chercher leurs propres données (voir dashboard/page.tsx)
- * : la page s'affiche immédiatement, chaque section apparaît dès que sa
- * requête répond, au lieu d'attendre la plus lente de toutes.
- */
-export function CardSkeleton({ className, height = "h-40" }: { className?: string; height?: string }) {
+export function Tabs({ items, current }: { items: { href: string; label: string; count?: number; key: string }[]; current: string }) {
   return (
-    <Card className={cx("p-5 animate-pulse", className)}>
-      <div className={cx("rounded-lg bg-slate-100 dark:bg-slate-800", height)} />
-    </Card>
+    <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto pb-1">
+      {items.map((t) => (
+        <Link key={t.key} href={t.href} className={clsx("whitespace-nowrap rounded-full px-3 py-1.5 text-sm", t.key === current ? "bg-brand-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
+          {t.label}{t.count !== undefined && <span className="ml-1 opacity-70">{t.count}</span>}
+        </Link>
+      ))}
+    </div>
   );
 }

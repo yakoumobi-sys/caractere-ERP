@@ -1,0 +1,41 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caractere_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Vérifier la saisie d'une commande directe sur mobile et ordinateur
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/caractere_ui
+          AUTH_MODE: demo
+          SESSION_SECRET: commande-test-local-uniquement
+          PGPASSWORD: postgres
+        run: |
+          createdb --host=localhost --username=postgres caractere_ui
+          npm run db:migrate
+          npm run db:seed
+          npx playwright install --with-deps chromium
+          npm start > "$RUNNER_TEMP/erp-ui.log" 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/login -o /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test -g "commande directe DTF|vente directe :|transaction de caisse :"

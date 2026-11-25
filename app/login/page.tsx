@@ -1,103 +1,48 @@
-import { signIn, signUp } from "@/lib/actions/auth-actions";
-import { Button, Card, Field, inputClass } from "@/components/ui";
-import { createClient } from "@/lib/supabase/server";
-import { getCompanyInfo } from "@/lib/company";
+import { redirect } from "next/navigation";
+import { AUTH_MODE, getMe } from "@/lib/auth";
+import { withSystem } from "@/lib/db";
+import { ROLES } from "@/lib/perms";
+import { SupabaseLogin } from "./supabase-login";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: { mode?: string; error?: string; message?: string };
-}) {
-  const isSignup = searchParams.mode === "signup";
-  const company = await getCompanyInfo();
+export const dynamic = "force-dynamic";
 
-  // Récupérer la liste des employés
-  let users: Array<{ id: string; full_name: string }> = [];
-  if (!isSignup) {
-    const supabase = createClient();
-    // Minimal public directory: names only, independent of private HR RLS.
-    const { data } = await supabase.rpc("get_login_users");
-    users = data || [];
-  }
-
+export default async function Login({ searchParams }: { searchParams: { e?: string } }) {
+  if (await getMe()) redirect("/");
+  const staff =
+    AUTH_MODE === "demo"
+      ? await withSystem(async (c) => (await c.query("select auth_user_id, full_name, roles from erp.staff where active and auth_user_id is not null order by full_name")).rows)
+      : [];
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 px-4 relative overflow-hidden">
-      {/* Décoration avec glassmorphism */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-brand-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 dark:opacity-10" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 dark:opacity-10" />
-      </div>
-
-      <Card glass className="w-full max-w-sm p-8 relative z-10">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 h-10 w-10 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center font-bold overflow-hidden">
-            {company.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logoUrl} alt={company.name} className="h-full w-full object-cover" />
-            ) : (
-              company.name[0]?.toUpperCase() ?? "C"
-            )}
-          </div>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{company.name} ERP</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {isSignup ? "Créer le compte administrateur" : "Connecte-toi à ton espace"}
-          </p>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
+      <div className="mb-6 flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-600 text-lg font-bold text-white">C</span>
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Caractère ERP</h1>
+          <p className="text-sm text-slate-500">Atelier de personnalisation textile — Aïn Benian</p>
         </div>
-
-        {searchParams.error && (
-          <div className="mb-4 rounded-md bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-900 px-3 py-2 text-sm text-red-700 dark:text-red-400">
-            {searchParams.error}
+      </div>
+      {searchParams.e && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Compte non reconnu : demandez au gérant de vous ajouter à l'équipe.</p>}
+      {AUTH_MODE === "supabase" ? (
+        <SupabaseLogin />
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm text-slate-600">
+            Mode démonstration : choisissez un profil. <span className="text-slate-400">(En production, la connexion passe par Supabase Auth.)</span>
+          </p>
+          <div className="grid gap-2">
+            {staff.map((s: any) => (
+              <form key={s.auth_user_id} action="/api/auth/demo" method="post">
+                <input type="hidden" name="id" value={s.auth_user_id} />
+                <button className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm hover:border-brand-300 hover:bg-brand-50">
+                  <span className="font-medium text-slate-800">{s.full_name}</span>
+                  <span className="text-xs text-slate-500">{(s.roles as string[]).map((r) => ROLES[r] || r).join(", ")}</span>
+                </button>
+              </form>
+            ))}
+            {!staff.length && <p className="text-sm text-amber-700">Aucun profil : lancez <code>npm run db:reset</code> pour charger les données de démonstration.</p>}
           </div>
-        )}
-        {searchParams.message && (
-          <div className="mb-4 rounded-md bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
-            {searchParams.message}
-          </div>
-        )}
-
-        <form action={isSignup ? signUp : signIn} className="flex flex-col gap-4">
-          {isSignup && (
-            <>
-              <Field label="Nom complet" htmlFor="full_name" required>
-                <input id="full_name" name="full_name" type="text" required className={inputClass} />
-              </Field>
-              <Field label="Email" htmlFor="email" required>
-                <input id="email" name="email" type="email" required className={inputClass} />
-              </Field>
-            </>
-          )}
-          {!isSignup && (
-            <Field label="Utilisateur" htmlFor="username" required>
-              <select id="username" name="username" required className={inputClass}>
-                <option value="">-- Sélectionne ton nom --</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.full_name}>
-                    {user.full_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-          <Field label="Mot de passe" htmlFor="password" required>
-            <input id="password" name="password" type="password" required minLength={6} className={inputClass} />
-          </Field>
-          <Button type="submit" className="mt-2">
-            {isSignup ? "Créer le compte" : "Se connecter"}
-          </Button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          {isSignup ? (
-            <a href="/login" className="text-brand-600 dark:text-brand-400 hover:underline">
-              J&apos;ai déjà un compte
-            </a>
-          ) : (
-            <a href="/login?mode=signup" className="text-brand-600 dark:text-brand-400 hover:underline">
-              Premier lancement ? Créer le compte administrateur
-            </a>
-          )}
-        </p>
-      </Card>
-    </div>
+        </div>
+      )}
+    </main>
   );
 }

@@ -1,23 +1,15 @@
-import { AppShell } from "@/components/app-shell";
-import { Topbar } from "@/components/topbar";
-import { getCompanyInfo } from "@/lib/company";
-import { AccountStatusBanner } from "@/components/account-status-banner";
+import { requireMe } from "@/lib/auth";
+import { NAV, ROLES } from "@/lib/perms";
+import { Shell } from "@/components/shell";
 
-// getCompanyInfo() n'utilise plus cookies() (client service role + cache) —
-// sans ce garde-fou explicite, Next.js pourrait essayer de générer cette
-// page en statique au build au lieu de la rendre à chaque requête. Toutes
-// les pages sous ce layout dépendent de la session/RLS de l'utilisateur
-// courant : elles doivent impérativement rester dynamiques, jamais figées
-// dans un HTML généré une fois pour toutes au build.
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const company = await getCompanyInfo();
-
+  const me = await requireMe();
+  const nav = NAV.filter((n) => me.can(n.cap)).map(({ href, label, icon }) => ({ href, label, icon }));
   return (
-    <AppShell topbar={<Topbar />} logoUrl={company.logoUrl} companyName={company.name}>
-      <AccountStatusBanner />
+    <Shell nav={nav} user={me.fullName} roles={me.roles.map((r) => ROLES[r] || r).join(", ")} isManager={me.can("settings")}>
       {children}
-    </AppShell>
+    </Shell>
   );
 }
