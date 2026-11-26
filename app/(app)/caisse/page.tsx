@@ -5,7 +5,7 @@ import { Badge, Card, Empty, Field, LinkButton, PageHeader, Stat, Table, Td, inp
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { CashTabs } from "@/components/cash-nav";
 import { recordCashMove, closeCash, openCash } from "@/app/actions/cash";
-import { dzd, fdate, PAY_METHOD, PAY_STATUS, todayAlgiers } from "@/lib/format";
+import { dzd, fdate, ORDER_STATUS, PAY_METHOD, PAY_STATUS, todayAlgiers } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 const MOVE: Record<string, string> = { entree: "Entrée", fond: "Fond de caisse", encaissement: "Encaissement", depense: "Dépense", remboursement: "Remboursement", correction: "Correction", retrait: "Retrait / dépôt banque" };
@@ -24,7 +24,7 @@ export default async function Cash({ searchParams }: { searchParams: { vue?: str
         <div className="mb-4 grid grid-cols-3 gap-2"><Stat label="Facturé (commandes confirmées)" value={dzd(sum.facture)} /><Stat label="Reçu (paiements confirmés)" value={dzd(sum.recu)} /><Stat label="Reste à encaisser" value={dzd(sum.reste)} tone="amber" /></div>
         <Card title="Paiements par mode et statut de rapprochement" className="mb-4"><Table head={["Mode", "Statut", "Nombre", "Montant"]}>{byMethod.map((r: any) => <tr key={r.method + r.status}><Td>{PAY_METHOD[r.method]}</Td><Td><Badge tone={r.status === "rapproche" || r.status === "confirme" ? "green" : "amber"}>{PAY_STATUS[r.status]}</Badge></Td><Td>{r.n}</Td><Td>{dzd(r.total)}</Td></tr>)}</Table>
           <p className="mt-2 text-xs text-slate-500">« Encaissé par Yalidine » : le transporteur a encaissé pour le compte de Caractère (déduit du solde de la commande, sans mouvement en caisse physique) ; il devient « Rapproché » à réception du reversement.</p></Card>
-        <Card title="Commandes avec un reste à payer"><Table head={["Commande", "Client", "Statut", "Total", "Payé", "COD attendu", "Reste"]}>{toCollect.map((o: any) => <tr key={o.id}><Td><Link className="font-mono underline" href={`/commandes/${o.id}`}>{o.ref}</Link></Td><Td>{o.client_name}</Td><Td>{o.status}</Td><Td>{dzd(o.total_ttc)}</Td><Td>{dzd(o.paid)}</Td><Td>{dzd(o.cod_pending)}</Td><Td className="font-semibold">{dzd(o.balance)}</Td></tr>)}</Table></Card>
+        <Card title="Commandes avec un reste à payer"><Table head={["Commande", "Client", "Statut", "Total", "Payé", "COD attendu", "Reste"]}>{toCollect.map((o: any) => <tr key={o.id}><Td><Link className="font-mono underline" href={`/commandes/${o.id}`}>{o.ref}</Link></Td><Td>{o.client_name}</Td><Td>{ORDER_STATUS[o.status] || o.status}</Td><Td>{dzd(o.total_ttc)}</Td><Td>{dzd(o.paid)}</Td><Td>{dzd(o.cod_pending)}</Td><Td className="font-semibold">{dzd(o.balance)}</Td></tr>)}</Table></Card>
       </div>
     );
   }
@@ -48,14 +48,24 @@ export default async function Cash({ searchParams }: { searchParams: { vue?: str
       </div>
     );
   }
-  const [moves, payToday] = await Promise.all([
+  const today = todayAlgiers();
+  const [moves, payToday, dayTotals] = await Promise.all([
     sess ? q(me, "select * from erp.v_cash_moves where session_id = $1 order by at desc", [sess.id]) : [],
-    q(me, "select * from erp.v_payments where (at at time zone 'Africa/Algiers')::date = $1 order by at desc", [todayAlgiers()]),
+    q(me, "select * from erp.v_payments where (at at time zone 'Africa/Algiers')::date = $1 order by at desc", [today]),
+    one(me, `select coalesce(sum(amount) filter (where kind <> 'remboursement'), 0) received,
+      coalesce(sum(amount) filter (where kind = 'remboursement'), 0) refunded
+      from erp.v_payments
+      where (at at time zone 'Africa/Algiers')::date = $1 and status in ('confirme','rapproche') and method <> 'yalidine_cod'`, [today]),
   ]);
   return (
     <div>
       <PageHeader title="Caisse" actions={<><LinkButton href="/commandes/nouvelle?mode=comptoir" variant="secondary">Vente comptoir</LinkButton><LinkButton href="/caisse?transaction=nouvelle">Nouvelle transaction</LinkButton></>} />
       <CashTabs current="jour" />
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Stat label="Reçu aujourd’hui hors Yalidine" value={dzd(dayTotals?.received)} />
+        <Stat label="Remboursé aujourd’hui hors Yalidine" value={dzd(dayTotals?.refunded)} />
+        <Stat label="Reste à encaisser" value="Voir les règlements" href="/caisse?vue=reglements" />
+      </div>
       {searchParams.transaction === "enregistree" && <p role="status" className="mb-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">Transaction enregistrée.</p>}
       {searchParams.transaction === "nouvelle" && !sess && <p className="mb-3 text-sm">Ouvrez la caisse pour enregistrer votre transaction.</p>}
       {!sess ? (

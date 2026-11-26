@@ -1,6 +1,6 @@
 import { requireMe } from "@/lib/auth";
-import { q } from "@/lib/erp";
-import { Badge, Card, Empty, LinkButton, PageHeader, Table, Td, inputCls } from "@/components/ui";
+import { q, one } from "@/lib/erp";
+import { Badge, Card, Empty, LinkButton, PageHeader, Stat, Table, Td, inputCls } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { StockTabs } from "@/components/stock-nav";
 import { requestPurchase, stockMove } from "@/app/actions/stock";
@@ -11,15 +11,27 @@ export const dynamic = "force-dynamic";
 export default async function Stock({ searchParams }: { searchParams: { vue?: string; q?: string } }) {
   const me = await requireMe("stock_view");
   const vue = searchParams.vue || "vetements";
-  const term = searchParams.q?.trim() || "";
-  const where = vue === "consommables" ? "kind = 'consommable'" : vue === "alertes" ? "is_alert" : "kind = 'vetement'";
-  const rows = await q(me, `select * from erp.v_stock where ${where} ${term ? "and (ref ilike $1 or name ilike $1 or color ilike $1)" : ""} order by ref, color, size`, term ? [`%${term}%`] : []);
+  const term = typeof searchParams.q === "string" ? searchParams.q.trim() : "";
+  const where = vue === "consommables" ? "kind = 'consommable'" : vue === "ruptures" ? "available <= 0" : vue === "alertes" ? "is_alert" : "kind = 'vetement'";
+  const [rows, summary] = await Promise.all([
+    q(me, `select * from erp.v_stock where ${where}
+      ${term ? "and (ref ilike $1 or name ilike $1 or color ilike $1 or size ilike $1)" : ""}
+      order by ${vue === "alertes" || vue === "ruptures" ? "available, " : ""}ref, color, size`, term ? [`%${term}%`] : []),
+    one(me, `select count(*) filter (where is_alert)::int alerts,
+      count(*) filter (where available <= 0)::int shortages,
+      count(*) filter (where on_order > 0)::int incoming from erp.v_stock`),
+  ]);
   const editable = me.can("stock_edit");
   return (
     <div>
       <PageHeader title="Stock" subtitle="Physique, réservé et disponible" actions={editable ? <><LinkButton href="/stock/import" variant="secondary">Importer CSV</LinkButton><LinkButton href="/stock/nouveau">Nouvel article</LinkButton></> : null} />
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Stat label="Sous le seuil ou au seuil" value={summary?.alerts ?? 0} href="/stock?vue=alertes" tone={summary?.alerts ? "amber" : undefined} />
+        <Stat label="Variantes indisponibles" value={summary?.shortages ?? 0} href="/stock?vue=ruptures" tone={summary?.shortages ? "red" : undefined} />
+        <Stat label="Variantes en réapprovisionnement" value={summary?.incoming ?? 0} href="/stock/achats" />
+      </div>
       <StockTabs current={vue} />
-      <form className="mb-3"><input type="hidden" name="vue" value={vue} /><input name="q" defaultValue={term} placeholder="Référence, désignation, couleur" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
+      <form className="mb-3"><input type="hidden" name="vue" value={vue} /><input name="q" defaultValue={term} placeholder="Référence, article, taille ou couleur" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
       <Card>
         <Table head={["Article", "Couleur · taille", "Physique", "Réservé", "Disponible", "Seuil", ...(me.can("cost_view") ? ["Coût"] : []), ...(editable || me.can("purchase_request") ? [""] : [])]}>
           {rows.map((r: any) => (

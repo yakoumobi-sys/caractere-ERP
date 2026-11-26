@@ -84,11 +84,11 @@ test("devis sans réponse → à contacter aujourd'hui, sans doublon", async () 
   assert.equal(f[0].owner_name, "Sara Commerciale");
   await expectError(com.rpc("complete_followup", f[0].id, "", null, "whatsapp"), /résultat/);
   await com.rpc("complete_followup", f[0].id, "Client absent, rappeler jeudi", "2030-01-01", "appel");
-  const after_ = await com.q("select * from erp.v_followups where quote_id = $1 order by created_at", [qid]);
+  const after_ = await com.q("select status, done_by_name, due_date::text as due_date from erp.v_followups where quote_id = $1 order by created_at", [qid]);
   assert.equal(after_.length, 2);
   assert.equal(after_[0].status, "fait");
   assert.equal(after_[0].done_by_name, "Sara Commerciale");
-  assert.equal(after_[1].due_date.toISOString().slice(0, 10), "2030-01-01");
+  assert.equal(after_[1].due_date, "2030-01-01");
 });
 
 test("refus marketing : exclu des réactivations", async () => {
@@ -389,4 +389,40 @@ test("« Commande terminée » sur un brouillon : gérant seulement, sans paieme
   assert.equal(o.status, "prete");
   assert.equal(Number(o.paid), 0, "aucun paiement inventé");
   assert.equal(await g.rpc("complete_order", id), "prete", "deuxième clic sans effet");
+});
+
+test("KPI atelier : attribution par action, dates d’Alger et accès gérant", async () => {
+  const clientId = await newClient();
+  await system(pool, async (c) => {
+    const { rows } = await c.query(`insert into erp.orders(ref, client_id, status, promised_date, ready_at) values
+      ('KPI-A', $1, 'prete', '2025-10-15', '2025-10-15T00:20:00Z'),
+      ('KPI-B', $1, 'prete', '2025-10-14', '2025-10-15T21:50:00Z'),
+      ('KPI-C', $1, 'prete', null, '2025-10-15T22:50:00Z'),
+      ('KPI-D', $1, 'prete', '2025-10-16', '2025-10-15T23:05:00Z')
+      returning id, ref`, [clientId]);
+    const orders = Object.fromEntries(rows.map(({ id, ref }) => [ref, id]));
+    for (const [ref, person, status, at] of [
+      ["KPI-A", IDS.floqueur, "en_production", "2025-10-14T22:20:00Z"],
+      ["KPI-A", IDS.controleur, "prete", "2025-10-15T00:20:00Z"],
+      ["KPI-B", IDS.controleur, "prete", "2025-10-15T21:50:00Z"],
+      ["KPI-C", IDS.controleur, "en_production", "2025-10-15T22:50:00Z"],
+      ["KPI-C", IDS.controleur, "prete", "2025-10-15T22:50:00Z"],
+      ["KPI-D", IDS.controleur, "prete", "2025-10-15T23:05:00Z"],
+    ]) await c.query(`insert into erp.order_events(order_id,staff_id,kind,after,at)
+      values ($1,$2,'statut',jsonb_build_object('status', $3::text),$4)`, [orders[ref], person, status, at]);
+  });
+  const sql = "select * from erp.workshop_kpis($1::date, $2::date)";
+  const date = ["2025-10-15", "2025-10-15"];
+  const rows = await g.q(sql, date);
+  assert.equal(rows.find((r) => r.staff_id === IDS.floqueur).orders_started, 0);
+  const result = rows.find((r) => r.staff_id === IDS.controleur);
+  assert.equal(result.orders_started, 1);
+  assert.equal(result.orders_finished, 3);
+  assert.equal(result.promised_orders, 2);
+  assert.equal(result.on_time_orders, 1);
+  assert.equal(result.avg_hours, 2);
+  const previous = await g.q(sql, ["2025-10-14", "2025-10-14"]);
+  assert.equal(previous.find((r) => r.staff_id === IDS.floqueur).orders_started, 1);
+  await assert.rejects(flo.q(sql, date), /refusé/i);
+  await assert.rejects(g.q(sql, ["2025-10-16", "2025-10-15"]), /période/i);
 });
