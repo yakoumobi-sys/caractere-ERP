@@ -1,8 +1,9 @@
 import type { Me } from "./auth";
 import { s, selectedClientId } from "./action";
 import { withUser } from "./db";
+import type { PoolClient } from "pg";
 
-export async function saveWithClient(me: Me, fn: "create_order" | "save_quote", fd: FormData, data: Record<string, unknown>) {
+export async function saveWithClient(me: Me, fn: "create_order" | "save_quote", fd: FormData, data: Record<string, unknown>, onSaved?: (db: PoolClient, id: string) => Promise<void>) {
   return withUser(me, async db => {
     let clientId: string;
     if (s(fd, "client_id")) {
@@ -25,6 +26,8 @@ export async function saveWithClient(me: Me, fn: "create_order" | "save_quote", 
       }
     }
     const result = await db.query(`select erp.${fn}($1) id`, [JSON.stringify({ ...data, client_id: clientId })]);
-    return result.rows[0].id as string;
+    const id = result.rows[0].id as string;
+    if (onSaved) await onSaved(db, id);
+    return id;
   });
 }

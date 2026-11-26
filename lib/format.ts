@@ -25,8 +25,8 @@ export const ORDER_TONE: Record<string, string> = {
   brouillon: "gray", enregistree: "blue", confirmee: "blue", en_production: "violet", prete: "green", expediee: "amber", a_retirer: "amber",
   livree: "green", retiree: "green", annulee: "red", retournee: "red",
 };
-export function orderDisplayStatus(o: { status: string; quote_id?: string | null; kind?: string }): string {
-  if (o.status === "brouillon" && o.quote_id === null && (o.kind === "personnalise" || o.kind === "vierge")) return "enregistree";
+export function orderDisplayStatus(o: { status: string; kind?: string }): string {
+  if (o.status === "brouillon" && (o.kind === "personnalise" || o.kind === "vierge")) return "enregistree";
   return o.status;
 }
 

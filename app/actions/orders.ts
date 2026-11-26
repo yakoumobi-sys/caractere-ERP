@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { withUser } from "@/lib/db";
+import { attachOrderPhotos, readOrderPhotos } from "@/lib/order-photo-storage";
 import { saveWithClient } from "@/lib/document-client";
 import { redirect } from "next/navigation";
 import { guard, s, n, json } from "@/lib/action";
@@ -17,10 +19,11 @@ const refresh = (id: string) => {
 
 export async function createOrder(_: ActionResult, fd: FormData): Promise<ActionResult> {
   const r = await guard(async (me) => {
+    const photos = await readOrderPhotos(fd);
     await saveWithClient(me, "create_order", fd, {
       lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
       delivery_mode: s(fd, "delivery_mode") || "retrait", notes: s(fd, "notes"),
-    });
+    }, (db, id) => attachOrderPhotos(db, id, photos));
   });
   if (r?.error) return r;
   revalidatePath("/");
@@ -225,12 +228,9 @@ export async function applyBenefit(_: ActionResult, fd: FormData): Promise<Actio
 export async function addOrderPhotos(_: ActionResult, fd: FormData): Promise<ActionResult> {
   return guard(async (me) => {
     const id = s(fd, "order_id");
-    const files = fd.getAll("photos").filter((f): f is File => typeof f !== "string" && f.size > 0);
+    const files = await readOrderPhotos(fd);
     if (!files.length) throw new Error("Choisissez au moins une photo.");
-    for (const f of files) {
-      const b64 = Buffer.from(await f.arrayBuffer()).toString("base64");
-      await rpc(me, "add_order_photo", id, f.name, f.type || "image/jpeg", b64);
-    }
+    await withUser(me, (db) => attachOrderPhotos(db, id, files));
     refresh(id);
     revalidatePath("/atelier");
     return files.length > 1 ? `${files.length} photos ajoutées.` : "Photo ajoutée.";

@@ -43,12 +43,8 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
     return `/commandes?${params}`;
   }
 
-  const createdDay = "(created_at at time zone 'Africa/Algiers')::date";
-  const scope = `select o.*,
-      case when quote_id is null and kind in ('personnalise','vierge') then ${createdDay}
-        else coalesce(promised_date, ${createdDay}) end work_day,
-      $2::date current_day
-    from erp.v_orders o`;
+  const scope = `select o.*, (created_at at time zone 'Africa/Algiers')::date work_day,
+    $2::date current_day from erp.v_orders o`;
   const search = "($3 = '' or ref ilike $4 or client_name ilike $4 or trackings ilike $4 or client_phone = erp.normalize_phone($3))";
   const carry = `(work_day = $1 or ($1 = current_day and work_day < $1 and ${ACTIVE}))`;
   const dayFilter = (view: View) => {
@@ -124,7 +120,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
           </section>
         ))}
       </div>
-      <p className="mt-3 text-sm text-slate-500">Les commandes directes sont classées par date de création. Les commandes issues d’un devis sont classées par date promise, lorsqu’elle est renseignée.</p>
+      <p className="mt-3 text-sm text-slate-500">Les commandes sont regroupées par date de création. La date promise figure sur chaque fiche.</p>
       {!rows.length && <Empty>Aucune commande dans cette vue pour le {fdate(day)}.</Empty>}
       {(pages > 1 || page > 1) && <nav aria-label="Pages de commandes" className="mt-4 flex flex-wrap items-center gap-2">
         {page > 1 && <LinkButton href={href(vue, day, page - 1)} variant="secondary">Page précédente</LinkButton>}

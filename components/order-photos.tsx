@@ -2,21 +2,15 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addOrderPhotos, removeOrderPhoto } from "@/app/actions/orders";
-import { btn } from "./ui";
+import { ORDER_PHOTO_FIELD, ORDER_PHOTO_TYPES, prepareOrderPhotos } from "@/lib/order-photo-input";
+import { btn, Field, inputCls } from "./ui";
 
-// Réduit l'image (côté navigateur) avant l'envoi : rapide sur téléphone, léger en base.
-async function shrink(file: File, max = 1600, quality = 0.82): Promise<File> {
-  if (!file.type.startsWith("image/")) return file;
-  const img = await createImageBitmap(file).catch(() => null);
-  if (!img) return file;
-  const scale = Math.min(1, max / Math.max(img.width, img.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(img.width * scale);
-  canvas.height = Math.round(img.height * scale);
-  canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, "image/jpeg", quality));
-  if (!blob) return file;
-  return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+export function OrderPhotoInput() {
+  return (
+    <Field label="Ajouter des photos" hint="Maquette, logo ou photo du vêtement. Jusqu’à 6 images.">
+      <input type="file" name={ORDER_PHOTO_FIELD} accept={ORDER_PHOTO_TYPES.join(",")} multiple className={inputCls} />
+    </Field>
+  );
 }
 
 export function PhotoUploader({ orderId, label = "Ajouter des photos" }: { orderId: string; label?: string }) {
@@ -40,12 +34,13 @@ export function PhotoUploader({ orderId, label = "Ajouter des photos" }: { order
           try {
             const fd = new FormData();
             fd.set("order_id", orderId);
-            for (const f of list.slice(0, 6)) fd.append("photos", await shrink(f));
+            for (const file of list) fd.append(ORDER_PHOTO_FIELD, file);
+            await prepareOrderPhotos(fd);
             const r = await addOrderPhotos(null, fd);
             setMsg(r);
             router.refresh();
-          } catch {
-            setMsg({ error: "Envoi impossible. Réessayez avec moins de photos." });
+          } catch (e) {
+            setMsg({ error: e instanceof Error ? e.message : "Envoi impossible. Réessayez avec moins de photos." });
           } finally {
             setBusy(false);
             if (input.current) input.current.value = "";

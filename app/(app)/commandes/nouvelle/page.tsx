@@ -3,6 +3,7 @@ import { q, one } from "@/lib/erp";
 import { catalog, setting, tvaRate } from "@/lib/catalog";
 import { Card, Field, PageHeader, Tabs, inputCls } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/forms";
+import { OrderPhotoInput } from "@/components/order-photos";
 import { ClientPicker } from "@/components/client-picker";
 import { LineEditor } from "@/components/line-editor";
 import { CounterSale } from "@/components/counter-sale";
@@ -32,7 +33,7 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
     <div className="max-w-5xl">
       <PageHeader title="Nouvelle commande" subtitle="Commande directe au comptoir, sans devis préalable." />
       <Tabs items={tabs} current={mode} />
-      <ActionForm action={createOrder} className="space-y-4">
+      <ActionForm action={createOrder} orderPhotos className="space-y-4">
         <Card>
           <div className="grid gap-3">
             <Field label="Client *"><ClientPicker initial={client} /></Field>
@@ -48,6 +49,7 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
           </div>
         </Card>
         <Card title="Articles et prestations"><LineEditor products={products} tva={tva} /></Card>
+        <Card><OrderPhotoInput /></Card>
         <SubmitButton>Créer la commande</SubmitButton>
       </ActionForm>
     </div>

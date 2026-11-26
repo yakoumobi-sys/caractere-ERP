@@ -2,6 +2,7 @@
 import { useFormState, useFormStatus } from "react-dom";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { btn } from "./ui";
+import { prepareOrderPhotos } from "@/lib/order-photo-input";
 
 function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()) + Math.random();
@@ -27,8 +28,15 @@ export function SubmitButton({ children, variant = "primary", className, confirm
 }
 
 /** Formulaire relié à une server action : bouton désactivé pendant l'envoi (anti double clic) et message de retour. */
-export function ActionForm({ action, children, className, resetOnSuccess, idempotent }: { action: Action; children: ReactNode; className?: string; resetOnSuccess?: boolean; idempotent?: boolean }) {
-  const [state, formAction] = useFormState(action, null);
+export function ActionForm({ action, children, className, resetOnSuccess, idempotent, orderPhotos }: { action: Action; children: ReactNode; className?: string; resetOnSuccess?: boolean; idempotent?: boolean; orderPhotos?: boolean }) {
+  const [state, formAction] = useFormState(orderPhotos ? async (prev: ActionResult, fd: FormData) => {
+    try {
+      await prepareOrderPhotos(fd);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "Les photos n’ont pas pu être préparées." };
+    }
+    return action(prev, fd);
+  } : action, null);
   const ref = useRef<HTMLFormElement>(null);
   const [key, setKey] = useState(newKey);
   useEffect(() => {

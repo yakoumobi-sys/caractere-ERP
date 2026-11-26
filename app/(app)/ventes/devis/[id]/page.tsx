@@ -6,6 +6,7 @@ import { catalog, toEditorLines, tvaRate } from "@/lib/catalog";
 import { Badge, Card, Field, LinkButton, PageHeader, Table, Td, inputCls } from "@/components/ui";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { LineEditor } from "@/components/line-editor";
+import { OrderPhotoInput } from "@/components/order-photos";
 import { convertQuote, refuseQuote, saveQuote, sendQuote } from "@/app/actions/sales";
 import { dzd, fdate, sizesText, SERVICES } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
@@ -44,7 +45,7 @@ export default async function QuotePage({ params }: { params: { id: string } }) 
         <div className="grid gap-3 sm:grid-cols-3">
           <Card title="Accord du client">
             <p className="mb-2 text-sm text-slate-600">Convertit le devis en commande (même référence). Un nouveau clic renvoie la même commande.</p>
-            <ActionForm action={convertQuote}><input type="hidden" name="id" value={x.id} /><SubmitButton>Devis accepté → créer la commande</SubmitButton></ActionForm>
+            <ActionForm action={convertQuote} orderPhotos className="grid gap-2"><input type="hidden" name="id" value={x.id} /><OrderPhotoInput /><SubmitButton>Devis accepté → créer la commande</SubmitButton></ActionForm>
           </Card>
           <Card title="Envoi">
             <ActionForm action={sendQuote}><input type="hidden" name="id" value={x.id} /><SubmitButton variant="secondary">{x.status === "envoye" ? "Réémettre (nouvelle version)" : "Émettre et marquer envoyé"}</SubmitButton></ActionForm>
