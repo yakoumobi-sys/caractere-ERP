@@ -6,6 +6,8 @@ import type { ActionResult } from "@/components/forms";
 
 const refresh = (fd: FormData) => {
   revalidatePath("/atelier");
+  revalidatePath("/commandes");
+  revalidatePath("/equipe");
   revalidatePath("/");
   if (s(fd, "task_id")) revalidatePath(`/atelier/${s(fd, "task_id")}`);
   if (s(fd, "order_id")) revalidatePath(`/commandes/${s(fd, "order_id")}`);
@@ -65,12 +67,13 @@ export async function orderWorkAction(_: ActionResult, fd: FormData): Promise<Ac
   return guard(async (me) => {
     const id = s(fd, "order_id");
     const a = s(fd, "do");
-    if (a === "start") await rpc(me, "start_order", id);
-    else if (a === "finish") await rpc(me, "finish_order", id);
-    else if (a === "complete") await rpc(me, "complete_order", id);
-    else throw new Error("Action inconnue");
+    const fn = a === "start" ? "start_order" : a === "finish" ? "finish_order" : a === "complete" ? "complete_order" : null;
+    if (!fn) throw new Error("Action inconnue");
+    const status = await rpc<string>(me, fn, id);
     refresh(fd);
-    revalidatePath("/commandes");
-    return a === "start" ? "Commande en cours." : "Commande terminée : elle est prête.";
+    if (a === "start") return "Commande en cours.";
+    return status === "en_production" || status === "confirmee"
+      ? "Des tâches restent à terminer. Vérifiez la commande."
+      : "Commande terminée.";
   });
 }

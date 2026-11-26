@@ -33,4 +33,5 @@ export const NAV: { href: string; label: string; cap: Cap; icon: string }[] = [
   { href: "/atelier", label: "Atelier", cap: "workshop_view", icon: "tool" },
   { href: "/stock", label: "Stock", cap: "stock_view", icon: "layers" },
   { href: "/caisse", label: "Caisse", cap: "cash", icon: "cash" },
+  { href: "/equipe", label: "KPI employés", cap: "settings", icon: "trend" },
 ];

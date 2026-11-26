@@ -29,30 +29,28 @@ export function ArticlesList({ lines, className = "" }: { lines?: OrderExtra["li
   );
 }
 
-/** Gros boutons « Commencer la commande » / « Terminer la commande ». */
 export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWork: boolean; big?: boolean; isManager?: boolean }) {
   if (!canWork) return null;
-  if (o.status === "brouillon" && isManager) {
-    return (
-      <ActionForm action={orderWorkAction}>
-        <input type="hidden" name="order_id" value={o.id} /><input type="hidden" name="do" value="complete" />
-        <SubmitButton className={(big ? "w-full py-4 text-base sm:w-auto sm:px-8 " : "") + "!bg-emerald-600 hover:!bg-emerald-700"} confirm="Commande encore en brouillon. La marquer terminée quand même (confirmée sans BAT ni acompte) ?">✓ Commande terminée</SubmitButton>
-      </ActionForm>
-    );
-  }
-  if (!["confirmee", "en_production"].includes(o.status)) return null;
-  const cls = big ? "w-full py-4 text-base sm:w-auto sm:px-8" : "";
+  const draft = o.status === "brouillon";
+  if (draft ? !isManager : !["confirmee", "en_production"].includes(o.status)) return null;
+  const start = o.status === "confirmee" && !isManager;
+  const confirm = draft
+    ? `${o.client_name} (${o.ref}) : terminer ce brouillon sans validation préalable du BAT ni vérification de l’acompte ?`
+    : `La fabrication de la commande ${o.ref} est terminée ?`;
+  const size = big ? "w-full py-4 text-base sm:w-auto sm:px-8" : "w-full sm:w-auto";
   return (
     <div className="flex flex-wrap gap-2">
-      {o.status === "confirmee" && (
-        <ActionForm action={orderWorkAction}>
-          <input type="hidden" name="order_id" value={o.id} /><input type="hidden" name="do" value="start" />
-          <SubmitButton className={cls}>▶ Commencer la commande</SubmitButton>
-        </ActionForm>
-      )}
-      <ActionForm action={orderWorkAction}>
-        <input type="hidden" name="order_id" value={o.id} /><input type="hidden" name="do" value="complete" />
-        <SubmitButton className={cls + " !bg-emerald-600 hover:!bg-emerald-700"} confirm="Toute la commande est terminée ?">✓ Commande terminée</SubmitButton>
+      {big && isManager && o.status === "confirmee" && <ActionForm action={orderWorkAction}>
+        <input type="hidden" name="order_id" value={o.id} />
+        <input type="hidden" name="do" value="start" />
+        <SubmitButton className={size}>Prendre la commande</SubmitButton>
+      </ActionForm>}
+      <ActionForm action={orderWorkAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="order_id" value={o.id} />
+        <input type="hidden" name="do" value={start ? "start" : "complete"} />
+        <SubmitButton className={start ? size : `${size} !bg-emerald-700 hover:!bg-emerald-800`} confirm={start ? undefined : confirm}>
+          {start ? "Prendre la commande" : "Commande terminée"}
+        </SubmitButton>
       </ActionForm>
     </div>
   );
@@ -61,7 +59,7 @@ export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWo
 export function OrderCard({ o, showMoney, extra, canWork, isManager }: { o: any; showMoney?: boolean; extra?: OrderExtra; canWork?: boolean; isManager?: boolean }) {
   const canFinish = canWork && (["confirmee", "en_production"].includes(o.status) || (o.status === "brouillon" && isManager));
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)] transition hover:border-brand-200 hover:shadow-md">
+    <article className="min-w-0 rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)] transition hover:border-brand-200 hover:shadow-md">
       <Link href={`/commandes/${o.id}`} className="flex gap-3 p-3">
         <Thumbs ids={extra?.photos} size="h-24 w-24" />
         <div className="min-w-0 flex-1">
@@ -83,13 +81,10 @@ export function OrderCard({ o, showMoney, extra, canWork, isManager }: { o: any;
       </Link>
       {canFinish && (
         <div className="border-t border-slate-100 px-3 py-2">
-          <ActionForm action={orderWorkAction} className="flex justify-end">
-            <input type="hidden" name="order_id" value={o.id} /><input type="hidden" name="do" value="complete" />
-            <SubmitButton className="!bg-emerald-600 hover:!bg-emerald-700" confirm={o.status === "brouillon" ? `${o.client_name} (${o.ref}) : commande encore en brouillon. La marquer terminée quand même (confirmée sans BAT ni acompte) ?` : `Commande ${o.ref} (${o.client_name}) terminée ?`}>✓ Commande terminée</SubmitButton>
-          </ActionForm>
+          <OrderWorkButtons o={o} canWork={!!canWork} isManager={isManager} />
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
