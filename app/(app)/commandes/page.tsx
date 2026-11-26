@@ -25,7 +25,7 @@ type View = keyof typeof VIEWS;
 type Order = { id: string; day_key: string };
 const PAGE_SIZE = 50;
 
-export default async function Orders({ searchParams }: { searchParams: { vue?: string; q?: string; date?: string; page?: string } }) {
+export default async function Orders({ searchParams }: { searchParams: { vue?: string; q?: string; date?: string; page?: string; creation?: string } }) {
   const me = await requireMe("orders_view");
   const requested = searchParams.vue;
   const vue: View = requested && Object.hasOwn(VIEWS, requested) ? requested as View : "toutes";
@@ -43,7 +43,12 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
     return `/commandes?${params}`;
   }
 
-  const scope = "select o.*, coalesce(promised_date, (created_at at time zone 'Africa/Algiers')::date) work_day, $2::date current_day from erp.v_orders o";
+  const createdDay = "(created_at at time zone 'Africa/Algiers')::date";
+  const scope = `select o.*,
+      case when quote_id is null and kind in ('personnalise','vierge') then ${createdDay}
+        else coalesce(promised_date, ${createdDay}) end work_day,
+      $2::date current_day
+    from erp.v_orders o`;
   const search = "($3 = '' or ref ilike $4 or client_name ilike $4 or trackings ilike $4 or client_phone = erp.normalize_phone($3))";
   const carry = `(work_day = $1 or ($1 = current_day and work_day < $1 and ${ACTIVE}))`;
   const dayFilter = (view: View) => {
@@ -62,7 +67,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
     q<Order>(me, `with orders as (${scope})
       select *, to_char(work_day, 'YYYY-MM-DD') day_key from orders
       where (${VIEWS[vue].where}) and (${dayFilter(vue)}) and ${search}
-      order by (work_day = $1) desc, work_day desc, is_late desc, created_at, id
+      order by (work_day = $1) desc, work_day desc, created_at desc, id
       limit $5 offset $6`, [...args, PAGE_SIZE, (page - 1) * PAGE_SIZE]),
   ]);
   const extras = await orderExtras(me, rows.map((o) => o.id));
@@ -80,6 +85,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
         <LinkButton href="/commandes/livraisons" variant="secondary">Livraisons</LinkButton>
         {(me.can("orders_edit") || me.can("payment_record")) && <LinkButton href="/commandes/nouvelle">Nouvelle commande</LinkButton>}
       </>} />
+      {searchParams.creation === "ok" && <p role="status" className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Commande ajoutée à la liste d’aujourd’hui.</p>}
       <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
         <form key={`${vue}:${day}:${term}`} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="vue" value={vue} />
@@ -107,7 +113,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
       <Tabs current={vue} items={Object.entries(VIEWS).map(([key, v]) => ({ key, label: v.label, href: href(key as View), count: counts?.[key] ?? 0 }))} />
       <div className="space-y-5">
         {Array.from(groups, ([date, orders]) => (
-          <section key={date} aria-label={`Date prévue ${fdate(date)}`}>
+          <section key={date} aria-label={`Commandes du ${fdate(date)}`}>
             <h2 className="mb-2 flex items-baseline gap-2 text-base font-semibold text-slate-900">
               {relativeDay(date, today) ?? fdate(date)}
               {relativeDay(date, today) && <time dateTime={date} className="text-sm font-normal text-slate-500">{fdate(date)}</time>}
@@ -118,7 +124,7 @@ export default async function Orders({ searchParams }: { searchParams: { vue?: s
           </section>
         ))}
       </div>
-      <p className="mt-3 text-sm text-slate-500">Les commandes sont regroupées par date promise, ou par date de création si aucune date n’est fixée.</p>
+      <p className="mt-3 text-sm text-slate-500">Les commandes directes sont classées par date de création. Les commandes issues d’un devis sont classées par date promise, lorsqu’elle est renseignée.</p>
       {!rows.length && <Empty>Aucune commande dans cette vue pour le {fdate(day)}.</Empty>}
       {(pages > 1 || page > 1) && <nav aria-label="Pages de commandes" className="mt-4 flex flex-wrap items-center gap-2">
         {page > 1 && <LinkButton href={href(vue, day, page - 1)} variant="secondary">Page précédente</LinkButton>}

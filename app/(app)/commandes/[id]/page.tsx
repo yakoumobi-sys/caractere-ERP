@@ -8,7 +8,7 @@ import { ActionForm, SubmitButton } from "@/components/forms";
 import { LineEditor } from "@/components/line-editor";
 import * as A from "@/app/actions/orders";
 import { issueStock } from "@/app/actions/workshop";
-import { dzd, fdate, ORDER_STATUS, ORDER_TONE, PAY_METHOD, PAY_STATUS, SERVICES, SHIP_STATUS, sizesText, STEP_LABEL, TASK_STATUS } from "@/lib/format";
+import { dzd, fdate, ORDER_STATUS, ORDER_TONE, orderDisplayStatus, PAY_METHOD, PAY_STATUS, SERVICES, SHIP_STATUS, sizesText, STEP_LABEL, TASK_STATUS } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
 import { PhotoGallery, PhotoUploader } from "@/components/order-photos";
 import { OrderWorkButtons } from "@/components/cards";
@@ -39,6 +39,7 @@ export default async function OrderPage({ params, searchParams }: { params: { id
     edit && o.status === "brouillon" && o.client_id ? q(me, "select * from erp.v_loyalty where client_id = $1 and benefit_status = 'disponible' and source_order_id <> $2", [o.client_id, o.id]) : [],
     q(me, "select l.id line_id, l.label, l.color, l.produced, l.qty, s.key size, erp.line_remaining(l.id, s.key) rem from erp.v_lines l, jsonb_each_text(l.sizes) s where l.order_id = $1 order by l.position, s.key", [o.id]),
   ]);
+  const displayStatus = orderDisplayStatus(o);
   const photos = files.filter((f: any) => f.kind === "photo" && f.order_id === o.id).reverse();
   const personalized = lines.some((l: any) => l.services.length);
   const file = (id: string | null) => (id ? files.find((f: any) => f.id === id) : null);
@@ -53,7 +54,7 @@ export default async function OrderPage({ params, searchParams }: { params: { id
       <PageHeader
         title={`Commande ${o.ref}`}
         subtitle={<span className="flex flex-wrap items-center gap-2">
-          <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS[o.status]}</Badge>{o.is_late && <Badge tone="red">En retard</Badge>}{o.is_blocked && <Badge tone="red">Bloquée</Badge>}
+          <Badge tone={ORDER_TONE[displayStatus]}>{ORDER_STATUS[displayStatus]}</Badge>{o.is_late && <Badge tone="red">En retard</Badge>}{o.is_blocked && <Badge tone="red">Bloquée</Badge>}
           {me.can("clients_view") && o.client_id ? <Link href={`/clients/${o.client_id}`} className="underline">{o.client_name}</Link> : <span>{o.client_name}</span>}
           <span>· {o.owner_name || "sans responsable"}</span><span>· promis le {fdate(o.promised_date)}</span><span>· {o.delivery_mode === "yalidine" ? "Yalidine" : "retrait atelier"}</span>
         </span>}
@@ -170,7 +171,7 @@ export default async function OrderPage({ params, searchParams }: { params: { id
           ))}
         </Table>
         {edit && o.status === "brouillon" && (
-          <details className="mt-3"><summary className="cursor-pointer text-sm text-brand-700">Modifier les lignes du brouillon</summary>
+          <details className="mt-3"><summary className="cursor-pointer text-sm text-brand-700">Modifier les articles</summary>
             <ActionForm action={A.replaceDraftLines} className="mt-3 space-y-3"><input type="hidden" name="order_id" value={o.id} />
               <LineEditor products={await catalog(me)} tva={await tvaRate(me)} initial={toEditorLines(lines)} /><SubmitButton>Enregistrer les lignes</SubmitButton></ActionForm>
           </details>

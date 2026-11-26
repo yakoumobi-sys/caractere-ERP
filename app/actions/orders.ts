@@ -16,17 +16,18 @@ const refresh = (id: string) => {
 };
 
 export async function createOrder(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  let id = "";
   const r = await guard(async (me) => {
-    id = await saveWithClient(me, "create_order", fd, {
+    await saveWithClient(me, "create_order", fd, {
       lines: json(fd, "lines") || [], promised_date: s(fd, "promised_date"), deposit_pct: s(fd, "deposit_pct"),
       delivery_mode: s(fd, "delivery_mode") || "retrait", notes: s(fd, "notes"),
     });
   });
   if (r?.error) return r;
+  revalidatePath("/");
+  revalidatePath("/commandes");
   revalidatePath("/clients");
   revalidatePath("/ventes");
-  redirect(`/commandes/${id}`);
+  redirect("/commandes?creation=ok");
 }
 
 export async function replaceDraftLines(_: ActionResult, fd: FormData): Promise<ActionResult> {

@@ -48,7 +48,7 @@ export default async function NewOrder({ searchParams }: { searchParams: { clien
           </div>
         </Card>
         <Card title="Articles et prestations"><LineEditor products={products} tva={tva} /></Card>
-        <SubmitButton>Créer la commande (brouillon)</SubmitButton>
+        <SubmitButton>Créer la commande</SubmitButton>
       </ActionForm>
     </div>
   );
