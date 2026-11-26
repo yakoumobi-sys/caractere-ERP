@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+const maquette = {
+  name: "maquette.png",
+  mimeType: "image/png",
+  buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"),
+};
+
 async function login(page: Page, name: string) {
   await page.context().clearCookies();
   await page.goto("/login");
@@ -130,6 +136,8 @@ test("parcours de vente par l'interface : devis → commande → BAT → acompte
   const ref = (await page.getByRole("heading", { name: /Devis CAR-/ }).textContent())!.replace("Devis ", "");
   await expect(page.getByText(/TTC 16 184 DA/)).toBeVisible(); // 8 × 1700 HT + 19 %
   await page.getByRole("button", { name: /Devis accepté/ }).click();
+  await expect(page).toHaveURL(/\/commandes\?creation=ok$/);
+  await page.getByRole("article").filter({ hasText: ref }).getByRole("link").click();
   await expect(page.getByRole("heading", { name: `Commande ${ref}` })).toBeVisible();
   await expect(page.getByText("→ Envoyer le BAT au client")).toBeVisible();
   await page.getByRole("combobox").filter({ hasText: "BAT envoyé au client" }).selectOption("valide");
@@ -191,6 +199,7 @@ test("commande directe DTF et flocage : sélectionner le client en conservant la
   const promisedDay = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
   await page.getByText("Délai, acompte et livraison").click();
   await page.getByLabel("Date promise").fill(promisedDay);
+  await page.getByLabel("Ajouter des photos").setInputFiles(maquette);
   await submit.click();
   await expect(page).toHaveURL(/\/commandes\?creation=ok$/);
   await expect(page.getByRole("status")).toHaveText("Commande ajoutée à la liste d’aujourd’hui.");
@@ -202,8 +211,34 @@ test("commande directe DTF et flocage : sélectionner le client en conservant la
   await order.getByRole("link").click();
   await expect(page.getByRole("heading", { name: /Commande CAR-/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirmer la commande" })).toBeVisible();
+  await expect(page.getByRole("img", { name: maquette.name })).toBeVisible();
   await expect(page.getByText("Polo fourni").first()).toBeVisible();
   await expect(page.getByText(/6\s?545 DA/).first()).toBeVisible();
+});
+
+test("commande directe DTF : le devis converti suit la même liste du jour et garde sa photo", async ({ page }) => {
+  await login(page, "Sara Benali");
+  await page.goto("/clients?q=Corniche");
+  await page.getByText("Restaurant La Corniche").first().click();
+  await page.getByRole("link", { name: "Nouveau devis" }).click();
+  await page.getByLabel("Libellé").fill("Polo avec maquette");
+  await page.getByLabel("M", { exact: true }).fill("1");
+  await page.getByLabel("Prix vêtement HT").fill("1500");
+  await page.getByRole("checkbox", { name: "DTF", exact: true }).check();
+  await page.getByRole("button", { name: "Enregistrer le devis" }).click();
+  const heading = page.getByRole("heading", { name: /Devis CAR-/ });
+  await expect(heading).toBeVisible();
+  const ref = (await heading.textContent())!.replace("Devis ", "");
+  await page.getByLabel("Ajouter des photos").setInputFiles(maquette);
+  await page.getByRole("button", { name: /Devis accepté/ }).click();
+  await expect(page).toHaveURL(/\/commandes\?creation=ok$/);
+  const today = page.getByRole("region").filter({ has: page.getByRole("heading", { name: /^Aujourd’hui/ }) });
+  const order = today.getByRole("article").filter({ hasText: ref });
+  await expect(order.getByText("Enregistrée", { exact: true })).toBeVisible();
+  await order.getByRole("link").click();
+  await expect(page.getByRole("heading", { name: `Commande ${ref}` })).toBeVisible();
+  await expect(page.getByRole("img", { name: maquette.name })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirmer la commande" })).toBeVisible();
 });
 
 test("vente directe : nouveau client et commande depuis le tableau de bord", async ({ page }, info) => {

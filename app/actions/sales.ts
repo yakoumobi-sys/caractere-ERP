@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { withUser } from "@/lib/db";
+import { attachOrderPhotos, readOrderPhotos } from "@/lib/order-photo-storage";
 import { saveWithClient } from "@/lib/document-client";
 import { redirect } from "next/navigation";
 import { guard, s, n, json } from "@/lib/action";
@@ -57,10 +59,22 @@ export async function refuseQuote(_: ActionResult, fd: FormData): Promise<Action
 }
 
 export async function convertQuote(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  let id = "";
+  const quoteId = s(fd, "id");
+  let priorOrderId: string | undefined;
   const r = await guard(async (me) => {
-    id = await rpc(me, "convert_quote", s(fd, "id"));
+    const photos = await readOrderPhotos(fd);
+    await withUser(me, async (db) => {
+      await db.query("select pg_advisory_xact_lock(hashtextextended($1::uuid::text, 1))", [quoteId]);
+      const existing = await db.query<{ id: string }>("select id from erp.v_orders where quote_id = $1", [quoteId]);
+      priorOrderId = existing.rows[0]?.id;
+      const order = await db.query<{ id: string }>("select erp.convert_quote($1) id", [quoteId]);
+      if (!priorOrderId) await attachOrderPhotos(db, order.rows[0].id, photos);
+    });
   });
   if (r?.error) return r;
-  redirect(`/commandes/${id}`);
+  revalidatePath("/");
+  revalidatePath("/commandes");
+  revalidatePath("/ventes");
+  revalidatePath(`/ventes/devis/${quoteId}`);
+  redirect(priorOrderId ? `/commandes/${priorOrderId}` : "/commandes?creation=ok");
 }
