@@ -18,13 +18,18 @@ export function sizesText(s: Record<string, number> | null | undefined): string 
 }
 
 export const ORDER_STATUS: Record<string, string> = {
-  brouillon: "Brouillon", confirmee: "Confirmée", en_production: "En production", prete: "Prête", expediee: "Expédiée",
+  brouillon: "Brouillon", enregistree: "Enregistrée", confirmee: "Confirmée", en_production: "En production", prete: "Prête", expediee: "Expédiée",
   a_retirer: "À retirer", livree: "Livrée", retiree: "Retirée", annulee: "Annulée", retournee: "Retournée",
 };
 export const ORDER_TONE: Record<string, string> = {
-  brouillon: "gray", confirmee: "blue", en_production: "violet", prete: "green", expediee: "amber", a_retirer: "amber",
+  brouillon: "gray", enregistree: "blue", confirmee: "blue", en_production: "violet", prete: "green", expediee: "amber", a_retirer: "amber",
   livree: "green", retiree: "green", annulee: "red", retournee: "red",
 };
+export function orderDisplayStatus(o: { status: string; quote_id?: string | null; kind?: string }): string {
+  if (o.status === "brouillon" && o.quote_id === null && (o.kind === "personnalise" || o.kind === "vierge")) return "enregistree";
+  return o.status;
+}
+
 export const STEP_LABEL: Record<string, string> = {
   preparation_fichier: "Préparation du fichier", impression_dtf: "Impression DTF", flocage: "Flocage à la presse", broderie: "Broderie",
   preparation: "Préparation articles", controle: "Contrôle", emballage: "Emballage",

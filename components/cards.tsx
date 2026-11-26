@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge, NextAction, inputCls } from "./ui";
 import { ActionForm, SubmitButton } from "./forms";
-import { dzd, fdate, ORDER_STATUS, ORDER_TONE, STEP_LABEL, STATION_LABEL, sizesText, TASK_STATUS } from "@/lib/format";
+import { dzd, fdate, ORDER_STATUS, ORDER_TONE, orderDisplayStatus, STEP_LABEL, STATION_LABEL, sizesText, TASK_STATUS } from "@/lib/format";
 import { taskAction, orderWorkAction } from "@/app/actions/workshop";
 import type { OrderExtra } from "@/lib/order-extras";
 
@@ -35,7 +35,7 @@ export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWo
   if (draft ? !isManager : !["confirmee", "en_production"].includes(o.status)) return null;
   const start = o.status === "confirmee" && !isManager;
   const confirm = draft
-    ? `${o.client_name} (${o.ref}) : terminer ce brouillon sans validation préalable du BAT ni vérification de l’acompte ?`
+    ? `${o.client_name} (${o.ref}) : terminer cette commande sans validation préalable du BAT ni vérification de l’acompte ?`
     : `La fabrication de la commande ${o.ref} est terminée ?`;
   const size = big ? "w-full py-4 text-base sm:w-auto sm:px-8" : "w-full sm:w-auto";
   return (
@@ -57,6 +57,7 @@ export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWo
 }
 
 export function OrderCard({ o, showMoney, extra, canWork, isManager }: { o: any; showMoney?: boolean; extra?: OrderExtra; canWork?: boolean; isManager?: boolean }) {
+  const displayStatus = orderDisplayStatus(o);
   const canFinish = canWork && (["confirmee", "en_production"].includes(o.status) || (o.status === "brouillon" && isManager));
   return (
     <article className="min-w-0 rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)] transition hover:border-brand-200 hover:shadow-md">
@@ -65,7 +66,7 @@ export function OrderCard({ o, showMoney, extra, canWork, isManager }: { o: any;
         <div className="min-w-0 flex-1">
           <div className="truncate text-lg font-bold leading-tight text-slate-900 sm:text-xl">{o.client_name}</div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <Badge tone={ORDER_TONE[o.status]}>{ORDER_STATUS[o.status]}</Badge>
+            <Badge tone={ORDER_TONE[displayStatus]}>{ORDER_STATUS[displayStatus]}</Badge>
             {o.is_late && <Badge tone="red">En retard</Badge>}
             {o.is_blocked && <Badge tone="red">Bloquée</Badge>}
             {o.kind === "comptoir" && <Badge>Comptoir</Badge>}
