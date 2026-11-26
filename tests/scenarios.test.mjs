@@ -426,3 +426,27 @@ test("KPI atelier : attribution par action, dates d’Alger et accès gérant", 
   await assert.rejects(flo.q(sql, date), /refusé/i);
   await assert.rejects(g.q(sql, ["2025-10-16", "2025-10-15"]), /période/i);
 });
+
+test("références : ignore les numéros déjà pris par une commande ou un devis et dépasse 9999", async () => {
+  const { key, prefix } = await g.one(`select 'ref-' || to_char(erp.today(),'YY') as key,
+    erp.setting_text('ref_prefix','CAR') || '-' || to_char(erp.today(),'YY') || '-' as prefix`);
+  const setCounter = () => system(pool, (c) => c.query(`
+    insert into erp.counters(key, value) values ($1, 9998)
+    on conflict (key) do update set value = excluded.value`, [key]));
+  const clientId = await newClient();
+  const lines = [{ label: "Casquette fournie", sizes: { U: 1 }, unit_price: 1500 }];
+  const data = { client_id: clientId, lines, deposit_pct: 0 };
+  const orderRef = async (id) => (await com.one("select ref from erp.v_orders where id = $1", [id])).ref;
+  const quoteRef = async (id) => (await com.one("select ref from erp.v_quotes where id = $1", [id])).ref;
+
+  await setCounter();
+  assert.equal(await orderRef(await com.rpc("create_order", data)), prefix + "9999");
+  assert.equal(await quoteRef(await com.rpc("save_quote", data)), prefix + "10000");
+
+  await setCounter();
+  const refs = await Promise.all([
+    com.rpc("create_order", data).then(orderRef),
+    com.rpc("save_quote", data).then(quoteRef),
+  ]);
+  assert.deepEqual(refs.sort(), [prefix + "10001", prefix + "10002"]);
+});
