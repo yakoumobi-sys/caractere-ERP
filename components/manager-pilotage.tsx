@@ -70,7 +70,7 @@ export async function ManagerPilotage({ me, today, dates }: { me: Me; today: str
           <Kpi label="Défauts de production" value={d.defects} icon="tool" tone="amber" hint={`${d.defect_units} pièces signalées`} />
           <Kpi label="Meta Ads aujourd’hui" value={dzd(d.meta_today)} icon="trend" hint={d.meta_today === null ? "À renseigner dans les charges du jour" : "Dépense saisie"} href="#charges-jour" />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card title="Charges de la période">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               {Object.entries({
@@ -86,7 +86,7 @@ export async function ManagerPilotage({ me, today, dates }: { me: Me; today: str
               <p className="mt-1">DTF 500 DA/m, presse 100 DA par passage, commission 250 DA par commande remise hors vente comptoir, 2 000 DA par employé et par jour travaillé.</p>
             </details>
           </Card>
-          <Card title="Productivité par employé" actions={<LinkButton href={detailHref} variant="ghost">Voir les KPI</LinkButton>}>
+          <Card title="Productivité par employé" className="min-w-0" actions={<LinkButton href={detailHref} variant="ghost">Voir les KPI</LinkButton>}>
             {staff.length ? <Table head={["Employé", "Tâches finies", "Commandes prises", "Terminées", "À temps"]}>
               {staff.map(row => <tr key={row.staff_id}><Td>{row.full_name}</Td><Td>{row.tasks_finished}</Td><Td>{row.orders_started}</Td><Td>{row.orders_finished}</Td><Td>{ratio(row.on_time_orders, row.promised_orders)}</Td></tr>)}
             </Table> : <Empty>Aucune activité enregistrée.</Empty>}
