@@ -450,3 +450,57 @@ test("références : ignore les numéros déjà pris par une commande ou un devi
   ]);
   assert.deepEqual(refs.sort(), [prefix + "10001", prefix + "10002"]);
 });
+
+test("terminer avec un approvisionnement hors stock exige un gérant et trace les pièces", async () => {
+  const { id } = await draftOrder([{ product_id: fx.polo, color: "Couleur hors stock", sizes: { M: 2 }, unit_price: 1500 }]);
+  await expectError(g.rpc("complete_order", id), /Rupture de stock/);
+  await expectError(flo.rpc("complete_order_external", id, "Fourni par le client"), /refusé/i);
+  await expectError(g.rpc("complete_order_external", id, ""), /provenance/);
+  assert.equal(await g.rpc("complete_order_external", id, "Fourni par le client"), "prete");
+  assert.equal(await g.rpc("complete_order_external", id, "Fourni par le client"), "prete");
+  const o = await g.one("select status, shortage, paid from erp.v_orders where id=$1", [id]);
+  assert.equal(o.status, "prete");
+  assert.equal(o.shortage, 0);
+  assert.equal(Number(o.paid), 0);
+  assert.equal(await item(pool, "POLO-PIQ", "Couleur hors stock", "M"), undefined);
+  const events = await g.q("select note, after from erp.v_order_events where order_id=$1 and kind='approvisionnement_externe'", [id]);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].note, "Fourni par le client");
+  assert.deepEqual(events[0].after.quantites, { M: 2 });
+});
+
+test("pilotage gérant : chiffre d’affaires, charges constatées et réachat à la date de clôture", async () => {
+  const day = "2025-09-03";
+  const client = await newClient();
+  const order = await system(pool, async (c) => {
+    const o = (await c.query(`insert into erp.orders(ref,client_id,status,confirmed_at,delivered_at,total_ht,total_ttc) values
+      ('PILOT-OLD',$1,'retiree','2025-09-01T08:00Z','2025-09-01T12:00Z',2000,2380),
+      ('PILOT-DAY',$1,'livree','2025-09-03T08:00Z','2025-09-03T12:00Z',10000,11900) returning id,ref`, [client])).rows[1].id;
+    await c.query("insert into erp.lines(order_id,label,sizes,services) values ($1,'Polo manches longues','{\"M\":2}',array['dtf'])", [o]);
+    await c.query("update erp.followups set due_date='2025-09-03', created_at='2025-09-03T07:00Z' where client_id=$1 and reason='nouveau_prospect'", [client]);
+    await c.query("insert into erp.payments(order_id,client_id,kind,method,amount,at) values ($1,$2,'remboursement','virement',1190,'2025-09-03T13:00Z')", [o,client]);
+    return o;
+  });
+  const report = () => g.rpc("manager_pilotage", day, day);
+  assert.equal((await report()).missing_orders, 1);
+  await g.rpc("save_order_operating_costs", order, 1.5, 3, null, 100);
+  await g.rpc("save_daily_operating_costs", day, 500, 1, 75, 1000);
+  const result = await report();
+  assert.equal(result.revenue, 9000);
+  assert.equal(result.garment, 2600);
+  assert.equal(result.dtf, 750);
+  assert.equal(result.press, 300);
+  assert.equal(result.commission, 250);
+  assert.equal(result.labour, 2000);
+  assert.equal(result.meta, 500);
+  assert.equal(result.other, 175);
+  assert.equal(result.profit, 2425);
+  assert.equal(result.missing_orders, 0);
+  assert.equal(result.missing_days, 0);
+  assert.equal(result.prospects, 1);
+  assert.equal(result.converted, 1);
+  assert.equal(result.customers, 1);
+  assert.equal(result.repeat_buyers, 1);
+  await expectError(com.rpc("manager_pilotage", day, day), /refusé/i);
+  await expectError(com.rpc("save_daily_operating_costs", day, 1, 1, 1, null), /refusé/i);
+});

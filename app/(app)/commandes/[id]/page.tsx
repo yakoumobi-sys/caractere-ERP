@@ -11,12 +11,13 @@ import { issueStock } from "@/app/actions/workshop";
 import { dzd, fdate, ORDER_STATUS, ORDER_TONE, orderDisplayStatus, PAY_METHOD, PAY_STATUS, SERVICES, SHIP_STATUS, sizesText, STEP_LABEL, TASK_STATUS } from "@/lib/format";
 import { waLink } from "@/lib/whatsapp";
 import { PhotoGallery, PhotoUploader } from "@/components/order-photos";
+import { OrderOperatingCosts } from "@/components/manager-pilotage";
 import { OrderWorkButtons } from "@/components/cards";
 
 export const dynamic = "force-dynamic";
 
 const EVENT_LABEL: Record<string, string> = {
-  creation: "Création", confirmation: "Confirmation", statut: "Statut", quantite: "Quantités", delai: "Délai", responsable: "Responsable", annulation: "Annulation",
+  approvisionnement_externe: "Approvisionnement hors stock", creation: "Création", confirmation: "Confirmation", statut: "Statut", quantite: "Quantités", delai: "Délai", responsable: "Responsable", annulation: "Annulation",
   paiement: "Paiement", remboursement: "Remboursement", colis: "Colis", tracking: "Tracking", livraison_partielle: "Livraison partielle", incident: "Incident",
   retour: "Retour", photo: "Photo", bat: "BAT", accord: "Accord", blocage: "Blocage", deblocage: "Déblocage", livraison: "Mode de remise", fidelite: "Fidélité", lignes: "Lignes",
 };
@@ -60,6 +61,7 @@ export default async function OrderPage({ params, searchParams }: { params: { id
         </span>}
         actions={o.status === "prete" && o.client_phone && o.delivery_mode === "retrait" ? <a href={waLink(o.client_phone, tpl)!} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white">Prévenir sur WhatsApp</a> : null}
       />
+      {me.can("settings") && <OrderOperatingCosts me={me} orderId={o.id} />}
       {/* Vue atelier : photos en grand, client, articles et boutons Commencer / Terminer */}
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(30,20,80,0.06)]">
         <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-2">
