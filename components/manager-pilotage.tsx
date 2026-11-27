@@ -2,7 +2,7 @@ import type { Me } from "@/lib/auth";
 import { one, q } from "@/lib/erp";
 import { calendarDate, daysBetween } from "@/lib/calendar";
 import { dzd, fdate } from "@/lib/format";
-import { saveDailyCosts, saveOrderCosts } from "@/app/actions/pilotage";
+import { saveDailyCosts } from "@/app/actions/pilotage";
 import { ActionForm, SubmitButton } from "./forms";
 import { Card, Empty, Field, LinkButton, Table, Td, btn, inputCls } from "./ui";
 import { Kpi } from "./dashboard";
@@ -19,7 +19,6 @@ type Dashboard = {
 };
 type Person = { staff_id: string; full_name: string; orders_started: number; orders_finished: number; tasks_finished: number; on_time_orders: number; promised_orders: number };
 type Daily = { meta_ads?: string; employees?: number; other_costs?: string; bank_available?: string | null };
-type Costs = { dtf_metres?: string | null; press_passes?: number | null; garments_override?: string | null; other_costs?: string | null };
 
 const ratio = (n: number, d: number) => d ? new Intl.NumberFormat("fr-DZ", { style: "percent", maximumFractionDigits: 1 }).format(n / d) : "—";
 
@@ -120,21 +119,5 @@ export async function ManagerPilotage({ me, today, dates }: { me: Me; today: str
         </details>}
       </Card>
     </section>
-  );
-}
-
-export async function OrderOperatingCosts({ me, orderId }: { me: Me; orderId: string }) {
-  const costs = await one<Costs>(me, "select * from erp.get_order_operating_costs($1::uuid)", [orderId]);
-  return (
-    <Card title="Coûts de revient">
-      <ActionForm action={saveOrderCosts} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <input type="hidden" name="order_id" value={orderId} />
-        <Field label="DTF utilisé (m)" hint="500 DA par mètre"><input type="number" min="0" step=".001" name="dtf_metres" className={inputCls} defaultValue={costs?.dtf_metres ?? ""} /></Field>
-        <Field label="Passages presse" hint="100 DA par passage"><input type="number" min="0" step="1" name="press_passes" className={inputCls} defaultValue={costs?.press_passes ?? ""} /></Field>
-        <Field label="Vêtements (DA)" hint="Vide pour appliquer le barème. 0 si fournis par le client."><input type="number" min="0" step=".01" name="garments_override" className={inputCls} defaultValue={costs?.garments_override ?? ""} /></Field>
-        <Field label="Autres coûts (DA)" hint="Broderie, consommables ou frais hors livraison"><input type="number" min="0" step=".01" name="other_costs" className={inputCls} defaultValue={costs?.other_costs ?? ""} /></Field>
-        <div className="sm:col-span-2 lg:col-span-4"><SubmitButton>Enregistrer les coûts</SubmitButton></div>
-      </ActionForm>
-    </Card>
   );
 }
