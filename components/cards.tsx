@@ -34,9 +34,6 @@ export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWo
   const draft = o.status === "brouillon";
   if (draft ? !isManager : !["confirmee", "en_production"].includes(o.status)) return null;
   const start = o.status === "confirmee" && !isManager;
-  const confirm = draft
-    ? `${o.client_name} (${o.ref}) : terminer cette commande sans validation préalable du BAT ni vérification de l’acompte ?`
-    : `La fabrication de la commande ${o.ref} est terminée ?`;
   const size = big ? "w-full py-4 text-base sm:w-auto sm:px-8" : "w-full sm:w-auto";
   return (
     <div className="flex flex-wrap gap-2">
@@ -48,10 +45,20 @@ export function OrderWorkButtons({ o, canWork, big, isManager }: { o: any; canWo
       <ActionForm action={orderWorkAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="order_id" value={o.id} />
         <input type="hidden" name="do" value={start ? "start" : "complete"} />
-        <SubmitButton className={start ? size : `${size} !bg-emerald-700 hover:!bg-emerald-800`} confirm={start ? undefined : confirm}>
+        <SubmitButton className={start ? size : `${size} !bg-emerald-700 hover:!bg-emerald-800`}>
           {start ? "Prendre la commande" : "Commande terminée"}
         </SubmitButton>
       </ActionForm>
+      {isManager && <details className="w-full text-sm">
+        <summary className="cursor-pointer text-brand-700">Terminer avec des articles fournis hors stock</summary>
+        <ActionForm action={orderWorkAction} className="mt-2 grid gap-2 sm:max-w-lg">
+          <input type="hidden" name="order_id" value={o.id} />
+          <input type="hidden" name="do" value="complete_external" />
+          <p className="text-slate-600">Confirmez que toutes les pièces non réservées ont déjà été fournies hors stock.</p>
+          <input name="reason" required maxLength={300} aria-label="Provenance hors stock" placeholder="Ex. fourni par le client" className={inputCls} />
+          <SubmitButton variant="secondary">Confirmer la fin avec les articles hors stock</SubmitButton>
+        </ActionForm>
+      </details>}
     </div>
   );
 }

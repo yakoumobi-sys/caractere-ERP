@@ -67,9 +67,11 @@ export async function orderWorkAction(_: ActionResult, fd: FormData): Promise<Ac
   return guard(async (me) => {
     const id = s(fd, "order_id");
     const a = s(fd, "do");
-    const fn = a === "start" ? "start_order" : a === "finish" ? "finish_order" : a === "complete" ? "complete_order" : null;
+    const fn = a === "start" ? "start_order" : a === "finish" ? "finish_order" : a === "complete" ? "complete_order" : a === "complete_external" ? "complete_order_external" : null;
     if (!fn) throw new Error("Action inconnue");
-    const status = await rpc<string>(me, fn, id);
+    const status = a === "complete_external"
+      ? await rpc<string>(me, fn, id, s(fd, "reason"))
+      : await rpc<string>(me, fn, id);
     refresh(fd);
     if (a === "start") return "Commande en cours.";
     return status === "en_production" || status === "confirmee"

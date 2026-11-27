@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireMe } from "@/lib/auth";
 import { q, rpc, one } from "@/lib/erp";
 import { Card, Empty, Stat, NextAction, LinkButton } from "@/components/ui";
+import { ManagerPilotage, type PilotageDates } from "@/components/manager-pilotage";
 import { Kpi, AreaChart, Donut, Modules, trendPct } from "@/components/dashboard";
 import { NAV } from "@/lib/perms";
 import { OrderCard, TaskCard } from "@/components/cards";
@@ -12,7 +13,7 @@ import { orderExtras } from "@/lib/order-extras";
 
 export const dynamic = "force-dynamic";
 
-export default async function Today({ searchParams }: { searchParams: { refus?: string } }) {
+export default async function Today({ searchParams }: { searchParams: PilotageDates & { refus?: string } }) {
   const me = await requireMe();
   const manager = me.can("settings");
   const today = todayAlgiers();
@@ -124,7 +125,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
   const MONTH = "date_trunc('month', (now() at time zone 'Africa/Algiers'))";
   const VALID = "status not in ('brouillon','annulee','retournee')";
   const [ca, cmd, cli, stk, serie, wil] = await Promise.all([
-    money ? one(me, `select coalesce(sum(total_ttc) filter (where (created_at at time zone 'Africa/Algiers') >= ${MONTH}),0)::float cur,
+    !manager && money ? one(me, `select coalesce(sum(total_ttc) filter (where (created_at at time zone 'Africa/Algiers') >= ${MONTH}),0)::float cur,
         coalesce(sum(total_ttc) filter (where (created_at at time zone 'Africa/Algiers') >= ${MONTH} - interval '1 month' and (created_at at time zone 'Africa/Algiers') < ${MONTH}),0)::float prev from erp.v_orders where ${VALID}`) : null,
     me.can("orders_view") ? one(me, `select count(*) filter (where (created_at at time zone 'Africa/Algiers') >= ${MONTH})::int cur,
         count(*) filter (where (created_at at time zone 'Africa/Algiers') >= ${MONTH} - interval '1 month' and (created_at at time zone 'Africa/Algiers') < ${MONTH})::int prev,
@@ -154,6 +155,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
         </div>
         {(me.can("orders_edit") || me.can("payment_record")) && <LinkButton href="/commandes/nouvelle" className="min-h-11 w-full sm:w-auto">Nouvelle commande</LinkButton>}
       </div>
+      {manager && <ManagerPilotage me={me} today={today} dates={searchParams} />}
       {stockAlerts}
       {currentOrders}
       {searchParams.refus && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Cette page n'est pas accessible avec votre profil.</p>}
@@ -168,7 +170,7 @@ export default async function Today({ searchParams }: { searchParams: { refus?: 
       {(money || topW.length > 0) && (
         <div className="grid gap-4 lg:grid-cols-5">
           {money && (
-            <Card title="Évolution du chiffre d'affaires" actions={<span className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500">6 derniers mois</span>} className="lg:col-span-3">
+            <Card title="Évolution des commandes confirmées (TTC)" actions={<span className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500">6 derniers mois</span>} className="lg:col-span-3">
               <AreaChart points={serie.map((r: any) => ({ label: MOIS[Number(r.mm) - 1], value: r.v }))} empty={<>La courbe se remplira avec vos commandes.<br />Créez une commande pour commencer.</>} />
             </Card>
           )}
